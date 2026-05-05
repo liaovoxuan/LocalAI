@@ -1,0 +1,8 @@
+{
+  "mode": "local",
+  "last_model": "qwen2.5:7b",
+  "cloud_api_url": "",
+  "cloud_api_key": "",
+  "update_url": "https://你的阿里云OSS或CDN地址/version.json",
+  "auto_check_update": true
+}

@@ -1,0 +1,14 @@
+{
+  "title": "你好",
+  "created_at": "2026-05-05T08:45:44.176761",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好"
+    },
+    {
+      "role": "ai",
+      "content": "您好！有什么可以帮助您的吗？"
+    }
+  ]
+}
