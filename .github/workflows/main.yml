@@ -1,12 +1,15 @@
-name: Build EXE
+name: Build App
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v4
@@ -20,12 +23,20 @@ jobs:
       run: |
         pip install pyinstaller requests
 
-    - name: Build EXE
+    - name: Build
       run: |
         pyinstaller --onefile local_ai.py
 
-    - name: Upload artifact
+    - name: Upload Windows
+      if: matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
       with:
         name: LocalAI-Windows
         path: dist/local_ai.exe
+
+    - name: Upload macOS
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: LocalAI-macOS
+        path: dist/local_ai
