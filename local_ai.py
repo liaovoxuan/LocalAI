@@ -1,11 +1,22 @@
-import requests
-import json
 import os
+import json
 import time
+import platform
+import subprocess
 import traceback
+import webbrowser
 from datetime import datetime
 
-APP_VERSION = "0.4.2"
+import requests
+import psutil
+
+try:
+    from cpuinfo import get_cpu_info
+except Exception:
+    get_cpu_info = None
+
+
+APP_VERSION = "0.4.3"
 
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
@@ -24,18 +35,15 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 
 DEFAULT_CONFIG = {
-    "mode": "local",
     "last_model": "",
-    "cloud_api_url": "",
-    "cloud_api_key": "",
-    "update_url": "https://你的阿里云OSS或CDN地址/version.json",
-    "auto_check_update": True
+    "update_url": "https://raw.githubusercontent.com/liaovoxuan/LocalAI/main/version.json",
+    "auto_check_update": True,
+    "allow_low_spec_force": True
 }
 
 
 def log_error(e):
-    path = os.path.join(LOG_DIR, "error.log")
-    with open(path, "a", encoding="utf-8") as f:
+    with open(os.path.join(LOG_DIR, "error.log"), "a", encoding="utf-8") as f:
         f.write(f"\n[{datetime.now().isoformat()}]\n")
         f.write(traceback.format_exc())
         f.write("\n")
@@ -64,9 +72,9 @@ def save_config(config):
 def check_update(config, silent=False):
     url = config.get("update_url", "")
 
-    if not url or "你的阿里云" in url:
+    if not url:
         if not silent:
-            print("⚠️ 未配置有效更新地址。")
+            print("⚠️ 未配置更新地址。")
         return
 
     try:
@@ -75,23 +83,170 @@ def check_update(config, silent=False):
         data = res.json()
 
         latest = data.get("version", "")
-        download = data.get("download_url", "")
         notes = data.get("notes", "")
+        windows_url = data.get("windows_url", "")
+        macos_url = data.get("macos_url", "")
+        linux_url = data.get("linux_url", "")
 
         if latest and latest != APP_VERSION:
             print(f"\n🔔 发现新版本：{latest}")
             print(f"当前版本：{APP_VERSION}")
+
             if notes:
                 print(f"更新内容：{notes}")
-            if download:
-                print(f"下载地址：{download}")
-            print()
+
+            system = platform.system()
+
+            if system == "Windows" and windows_url:
+                print(f"下载地址：{windows_url}")
+            elif system == "Darwin" and macos_url:
+                print(f"下载地址：{macos_url}")
+            elif system == "Linux" and linux_url:
+                print(f"下载地址：{linux_url}")
+
+            choice = input("是否打开下载页面？(Y/N)：").strip().lower()
+            if choice == "y":
+                target = windows_url if system == "Windows" else macos_url if system == "Darwin" else linux_url
+                if target:
+                    webbrowser.open(target)
+
         elif not silent:
             print(f"✅ 当前已是最新版本：{APP_VERSION}")
 
     except Exception as e:
         if not silent:
             print(f"⚠️ 检查更新失败：{type(e).__name__}: {e}")
+
+
+def get_cpu_name():
+    if get_cpu_info:
+        try:
+            return get_cpu_info().get("brand_raw", "Unknown CPU")
+        except Exception:
+            pass
+
+    name = platform.processor()
+    return name if name else "Unknown CPU"
+
+
+def detect_cpu_vendor(cpu_name):
+    name = cpu_name.lower()
+
+    if "apple" in name or platform.machine().lower() in ["arm64", "aarch64"] and platform.system() == "Darwin":
+        return "Apple Silicon"
+
+    if "intel" in name:
+        return "Intel"
+
+    if "amd" in name or "ryzen" in name or "athlon" in name:
+        return "AMD"
+
+    if "hygon" in name or "海光" in name:
+        return "Hygon"
+
+    if "zhaoxin" in name or "兆芯" in name:
+        return "Zhaoxin"
+
+    if "loongson" in name or "龙芯" in name:
+        return "Loongson"
+
+    if "phytium" in name or "飞腾" in name:
+        return "Phytium"
+
+    if "kunpeng" in name or "鲲鹏" in name:
+        return "Kunpeng"
+
+    return "Unknown"
+
+
+def detect_device():
+    system = platform.system()
+    machine = platform.machine()
+    cpu_name = get_cpu_name()
+    vendor = detect_cpu_vendor(cpu_name)
+
+    physical_cores = psutil.cpu_count(logical=False) or 0
+    logical_cores = psutil.cpu_count(logical=True) or 0
+    ram_gb = round(psutil.virtual_memory().total / (1024 ** 3))
+
+    return {
+        "system": system,
+        "machine": machine,
+        "cpu_name": cpu_name,
+        "vendor": vendor,
+        "physical_cores": physical_cores,
+        "logical_cores": logical_cores,
+        "ram_gb": ram_gb
+    }
+
+
+def evaluate_device(device):
+    vendor = device["vendor"]
+    ram = device["ram_gb"]
+    cores = device["physical_cores"]
+    system = device["system"]
+
+    if cores <= 3 or ram <= 6:
+        return {
+            "level": "blocked",
+            "model": None,
+            "reason": "CPU 核心数过少或内存过低，本地模型可能严重卡顿或无法运行。"
+        }
+
+    if vendor == "Apple Silicon":
+        if ram <= 8:
+            return {"level": "ok", "model": "qwen2.5:7b", "reason": "Apple Silicon 8GB 可尝试 7B 模型。"}
+        elif ram <= 16:
+            return {"level": "good", "model": "qwen2.5:14b", "reason": "Apple Silicon 16GB 适合 7B/14B。"}
+        else:
+            return {"level": "high", "model": "qwen2.5:14b", "reason": "高内存 Apple Silicon，推荐 14B，后续可尝试更大模型。"}
+
+    if vendor in ["Intel", "AMD", "Hygon"]:
+        if ram <= 8:
+            return {"level": "low", "model": "qwen2.5:3b", "reason": "8GB 内存建议轻量模型。"}
+        elif ram <= 16:
+            return {"level": "ok", "model": "qwen2.5:7b", "reason": "16GB 内存推荐 7B。"}
+        else:
+            return {"level": "good", "model": "qwen2.5:14b", "reason": "32GB+ 可尝试 14B。"}
+
+    if vendor in ["Zhaoxin", "Phytium", "Kunpeng"]:
+        if ram <= 8:
+            return {"level": "low", "model": "qwen2.5:3b", "reason": "国产平台建议保守使用轻量模型。"}
+        else:
+            return {"level": "ok", "model": "qwen2.5:7b", "reason": "国产平台兼容性可能不同，推荐先使用 7B。"}
+
+    if vendor == "Loongson":
+        return {
+            "level": "warning",
+            "model": "qwen2.5:3b",
+            "reason": "龙芯平台兼容性不确定，建议轻量模型或等待专门适配。"
+        }
+
+    if ram <= 8:
+        return {"level": "low", "model": "qwen2.5:3b", "reason": "未知平台，低内存，推荐轻量模型。"}
+    elif ram <= 16:
+        return {"level": "ok", "model": "qwen2.5:7b", "reason": "未知平台，推荐 7B。"}
+    else:
+        return {"level": "good", "model": "qwen2.5:7b", "reason": "未知平台，建议先从 7B 开始。"}
+
+
+def print_device_report(device, recommendation):
+    print("\n🧠 设备检测结果：")
+    print(f"系统：{device['system']}")
+    print(f"架构：{device['machine']}")
+    print(f"CPU：{device['cpu_name']}")
+    print(f"CPU厂商：{device['vendor']}")
+    print(f"物理核心：{device['physical_cores']}")
+    print(f"逻辑线程：{device['logical_cores']}")
+    print(f"内存：{device['ram_gb']}GB")
+
+    print("\n模型推荐：")
+    if recommendation["model"]:
+        print(f"推荐模型：{recommendation['model']}")
+    else:
+        print("推荐模型：不建议本地运行")
+
+    print(f"原因：{recommendation['reason']}\n")
 
 
 def get_models():
@@ -103,61 +258,50 @@ def get_models():
         return []
 
 
-def first_run_check():
-    print("🔍 正在检测本地环境...")
+def model_exists(model_name):
+    models = get_models()
+    names = [m.get("name", "") for m in models]
+    return model_name in names
+
+
+def pull_model(model_name):
+    print(f"\n⬇️ 正在安装模型：{model_name}")
+    print("这可能需要较长时间，请保持网络连接。")
+
+    try:
+        subprocess.run(["ollama", "pull", model_name], check=True)
+        print("✅ 模型安装完成。")
+        return True
+    except FileNotFoundError:
+        print("❌ 未找到 Ollama，请先安装 Ollama。")
+        return False
+    except subprocess.CalledProcessError:
+        print("❌ 模型安装失败。")
+        return False
+
+
+def choose_model(config, recommendation):
+    models = get_models()
+
+    recommended_model = recommendation.get("model")
+
+    if recommended_model and not model_exists(recommended_model):
+        print(f"未检测到推荐模型：{recommended_model}")
+        choice = input("是否自动安装推荐模型？(Y/N)：").strip().lower()
+        if choice == "y":
+            pull_model(recommended_model)
 
     models = get_models()
 
     if not models:
-        print("⚠️ 未检测到 Ollama 或本地模型。")
-        print("请先确认 Ollama 已安装并运行。")
-        print("推荐命令：")
-        print("ollama run qwen2.5:7b")
-        print()
+        model = input("未检测到模型，请手动输入模型名：").strip()
+        return model or recommended_model or "qwen2.5:7b"
 
-    else:
-        print("✅ 已检测到 Ollama 模型。")
-
-
-def choose_mode(config):
-    print("""
-选择运行模式：
-1. 本地模式（调用 Ollama）
-2. 云端模式（调用服务器 API）
-""")
-
-    choice = input(f"选择模式（当前：{config.get('mode', 'local')}，默认回车保持）：").strip()
-
-    if choice == "2":
-        config["mode"] = "cloud"
-
-        api_url = input("云端 API 地址（回车保留原值）：").strip()
-        api_key = input("API Key（回车保留原值）：").strip()
-
-        if api_url:
-            config["cloud_api_url"] = api_url
-        if api_key:
-            config["cloud_api_key"] = api_key
-
-    elif choice == "1":
-        config["mode"] = "local"
-
-    save_config(config)
-    return config["mode"]
-
-
-def choose_model(config):
-    models = get_models()
-
-    if not models:
-        model = input("手动输入模型名（例如 qwen2.5:7b）：").strip()
-        return model or "qwen2.5:7b"
-
-    print("可用模型：")
+    print("\n可用模型：")
     for i, m in enumerate(models):
         print(f"{i + 1}. {m['name']}")
 
-    default = config.get("last_model") or models[0]["name"]
+    default = config.get("last_model") or recommended_model or models[0]["name"]
     choice = input(f"选择模型编号（默认：{default}）：").strip()
 
     if choice.isdigit():
@@ -176,10 +320,15 @@ def choose_model(config):
 def get_model_size(model_name):
     name = model_name.lower()
 
+    if any(x in name for x in ["0.5b", "0.6b", "1.5b", "1.7b", "3b"]):
+        return "tiny"
+
     if any(x in name for x in ["7b", "8b", "9b"]):
         return "small"
+
     if any(x in name for x in ["10b", "11b", "12b", "13b", "14b"]):
         return "medium"
+
     if any(x in name for x in ["30b", "32b", "70b"]):
         return "large"
 
@@ -187,6 +336,8 @@ def get_model_size(model_name):
 
 
 def get_options(size):
+    if size == "tiny":
+        return {"temperature": 0.25, "num_predict": 384}
     if size == "small":
         return {"temperature": 0.25, "num_predict": 512}
     if size == "medium":
@@ -198,7 +349,7 @@ def get_options(size):
 
 
 def safe_title(text):
-    title = text[:24].replace("\n", " ").replace("/", "-").strip()
+    title = text[:24].replace("\n", " ").replace("/", "-").replace("\\", "-").strip()
     return title or "新会话"
 
 
@@ -324,9 +475,15 @@ def build_prompt(question, messages):
         history_text += f"{role}：{item['content']}\n"
 
     return f"""
-你是一个运行在本地/云端的 AI 助手。
+你是一个运行在用户本地电脑上的 AI 助手。
 
-规则：
+隐私原则：
+1. AI 推理在本地运行
+2. 聊天内容不上传云端
+3. 无账号系统
+4. 标准版不进行联网搜索
+
+回答规则：
 1. 用简洁中文回答
 2. 不确定就说不确定
 3. 不要编造事实
@@ -361,44 +518,6 @@ def ask_local(prompt, model, size):
     return response.json().get("response", "").strip()
 
 
-def ask_cloud(prompt, config):
-    api_url = config.get("cloud_api_url", "")
-    api_key = config.get("cloud_api_key", "")
-
-    if not api_url:
-        return "❌ 未配置云端 API 地址。"
-
-    headers = {"Content-Type": "application/json"}
-
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
-
-    payload = {"prompt": prompt}
-
-    response = requests.post(
-        api_url,
-        headers=headers,
-        json=payload,
-        timeout=180
-    )
-
-    response.raise_for_status()
-    data = response.json()
-
-    return (
-        data.get("answer")
-        or data.get("response")
-        or data.get("content")
-        or "⚠️ 云端返回为空。"
-    )
-
-
-def ask_ai(prompt, mode, model, size, config):
-    if mode == "cloud":
-        return ask_cloud(prompt, config)
-    return ask_local(prompt, model, size)
-
-
 def show_help():
     print("""
 可用指令：
@@ -409,8 +528,8 @@ def show_help():
 /load         加载会话
 /export       导出当前会话为 Markdown
 /clear        清空当前会话
-/model        重新选择本地模型
-/mode         切换本地/云端模式
+/model        重新选择模型
+/device       查看设备检测结果
 /checkupdate  检查软件更新
 /info         查看当前状态
 /privacy      查看隐私说明
@@ -423,64 +542,58 @@ def show_privacy():
     print("""
 隐私说明：
 
-1. 本地模式下：
-   - 问题只发送到本机 Ollama 服务
-   - 聊天记录保存在本机 chats 文件夹
-   - 不会上传到云端
-
-2. 云端模式下：
-   - 问题会发送到你配置的 API 地址
-   - 请确认该 API 的隐私政策
-
-3. 标准版不会自动联网搜索。
+1. LocalAI 标准版只调用本机 Ollama。
+2. 聊天内容只保存在本机 chats 文件夹。
+3. 程序不会上传聊天内容。
+4. 程序只在检查更新时访问 GitHub 的 version.json。
+5. 无账号系统，无云端推理。
 """)
 
 
-def show_info(mode, model, size, current_path, data, config):
+def show_info(model, size, current_path, data, device, recommendation):
     print("\n当前状态：")
     print(f"版本：{APP_VERSION}")
-    print(f"模式：{mode}")
-
-    if mode == "local":
-        print(f"本地模型：{model}")
-        print(f"模型级别：{size}")
-    else:
-        print(f"云端 API：{config.get('cloud_api_url') or '未配置'}")
-
+    print(f"模型：{model}")
+    print(f"模型级别：{size}")
     print(f"当前会话：{data.get('title', '未命名')}")
     print(f"文件：{current_path}")
     print(f"消息数：{len(data.get('messages', []))}")
+    print(f"设备推荐：{recommendation.get('model')}")
     print()
 
 
 def main():
     print(f"""
 ==============================
-🟢 Local AI 标准版 v{APP_VERSION}
-本地 / 云端双模式
+🟢 LocalAI 标准版 v{APP_VERSION}
+本地隐私 AI 助手
 ==============================
 输入 /help 查看指令
 """)
 
     config = load_config()
 
-    first_run_check()
+    device = detect_device()
+    recommendation = evaluate_device(device)
+
+    print_device_report(device, recommendation)
+
+    if recommendation["level"] == "blocked":
+        print("⚠️ 当前设备不推荐本地运行 AI 模型。")
+        print("如果仍要继续，请输入 force。")
+        choice = input("输入 force 继续，其他任意内容退出：").strip().lower()
+
+        if choice != "force":
+            print("已退出。")
+            return
 
     if config.get("auto_check_update", True):
         check_update(config, silent=True)
 
-    mode = choose_mode(config)
+    model = choose_model(config, recommendation)
+    size = get_model_size(model)
 
-    model = ""
-    size = "small"
-
-    if mode == "local":
-        model = choose_model(config)
-        size = get_model_size(model)
-        print(f"\n当前模式：本地")
-        print(f"当前模型：{model}（{size}）")
-    else:
-        print("\n当前模式：云端")
+    print(f"\n当前模型：{model}（{size}）")
 
     current_path, chat_data = new_chat()
 
@@ -505,6 +618,10 @@ def main():
 
         if q == "/checkupdate":
             check_update(config)
+            continue
+
+        if q == "/device":
+            print_device_report(device, recommendation)
             continue
 
         if q == "/new":
@@ -542,26 +659,13 @@ def main():
             continue
 
         if q == "/model":
-            if mode != "local":
-                print("当前是云端模式，无法选择本地模型。")
-            else:
-                model = choose_model(config)
-                size = get_model_size(model)
-                print(f"✅ 已切换模型：{model}（{size}）")
-            continue
-
-        if q == "/mode":
-            mode = choose_mode(config)
-            if mode == "local":
-                model = choose_model(config)
-                size = get_model_size(model)
-                print(f"✅ 已切换到本地模式：{model}（{size}）")
-            else:
-                print("✅ 已切换到云端模式")
+            model = choose_model(config, recommendation)
+            size = get_model_size(model)
+            print(f"✅ 已切换模型：{model}（{size}）")
             continue
 
         if q == "/info":
-            show_info(mode, model, size, current_path, chat_data, config)
+            show_info(model, size, current_path, chat_data, device, recommendation)
             continue
 
         try:
@@ -572,7 +676,6 @@ def main():
                 chat_data["title"] = title
                 current_path = rename_chat_file(current_path, title)
 
-            # 崩溃保护：先保存用户输入
             messages.append({"role": "user", "content": q})
             chat_data["messages"] = messages[-MAX_HISTORY_ITEMS:]
             save_chat(current_path, chat_data)
@@ -582,7 +685,7 @@ def main():
             print("\n⏳ AI 正在思考中...")
             start_time = time.time()
 
-            answer = ask_ai(prompt, mode, model, size, config)
+            answer = ask_local(prompt, model, size)
 
             elapsed = time.time() - start_time
 
@@ -598,8 +701,9 @@ def main():
             save_chat(current_path, chat_data)
 
         except requests.exceptions.ConnectionError:
-            msg = "❌ 无法连接 Ollama。" if mode == "local" else "❌ 无法连接云端 API。"
-            print(f"\n{msg}\n")
+            print("\n❌ 无法连接 Ollama。")
+            print("请先运行：ollama serve")
+            print(f"或运行：ollama run {model}\n")
 
         except Exception as e:
             log_error(e)
