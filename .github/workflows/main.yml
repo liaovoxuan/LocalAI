@@ -40,3 +40,4 @@ jobs:
       with:
         name: LocalAI-macOS
         path: dist/local_ai
+        
