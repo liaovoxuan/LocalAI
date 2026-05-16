@@ -1,4 +1,16 @@
 import os
+import sys
+
+if os.name == "nt":
+    os.system("chcp 65001 > nul")
+              
+    try:
+        sys.stdin.reconfigure(encoding="utf-8")
+        sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
+    except Exception:
+        pass
+
 import json
 import time
 import platform
@@ -16,10 +28,11 @@ except Exception:
     get_cpu_info = None
 
 
-APP_VERSION = "0.4.3"
+APP_VERSION = "0.4.4.1"
 
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
 OLLAMA_TAGS_URL = "http://localhost:11434/api/tags"
+OLLAMA_DOWNLOAD_URL = "https://ollama.com/download"
 
 CHAT_DIR = "chats"
 EXPORT_DIR = "exports"
@@ -39,6 +52,15 @@ DEFAULT_CONFIG = {
     "update_url": "https://raw.githubusercontent.com/liaovoxuan/LocalAI/main/version.json",
     "auto_check_update": True,
     "allow_low_spec_force": True
+}
+
+MODEL_SIZES = {
+    "qwen2.5:0.5b": "0.4GB",
+    "qwen2.5:1.5b": "1.1GB",
+    "qwen2.5:3b": "2.0GB",
+    "qwen2.5:7b": "4.7GB",
+    "qwen3.5:9b": "5.5GB",
+    "qwen2.5:14b": "9GB"
 }
 
 
@@ -195,19 +217,23 @@ def evaluate_device(device):
 
     if vendor == "Apple Silicon":
         if ram <= 8:
-            return {"level": "ok", "model": "qwen2.5:7b", "reason": "Apple Silicon 8GB 可尝试 7B 模型。"}
+            return {"level": "ok", "model": "qwen2.5:3b", "reason": "Apple Silicon 8GB 可尝试 3B 模型。"}
         elif ram <= 16:
-            return {"level": "good", "model": "qwen2.5:14b", "reason": "Apple Silicon 16GB 适合 7B/14B。"}
+            return {"level": "good", "model": "qwen2.5:7b", "reason": "Apple Silicon 16GB 适合 7B。"}
         else:
-            return {"level": "high", "model": "qwen2.5:14b", "reason": "高内存 Apple Silicon，推荐 14B，后续可尝试更大模型。"}
+            return {"level": "high", "model": "qwen2.5:14b", "reason": "高内存 Apple Silicon，推荐 14B，后续可尝试更大模型。如需更大模型需自行购买云端API Token。"}
 
     if vendor in ["Intel", "AMD", "Hygon"]:
-        if ram <= 8:
-            return {"level": "low", "model": "qwen2.5:3b", "reason": "8GB 内存建议轻量模型。"}
+        if ram<= 6:
+            return {"level": "low", "model": "qwen2.5:0.5B", "reason": "超低内存设备，推荐0.5B。"}
+        elif ram <= 8:
+            return {"level": "low", "model": "qwen2.5:3b", "reason": "低内存设备，推荐3B。"}
         elif ram <= 16:
-            return {"level": "ok", "model": "qwen2.5:7b", "reason": "16GB 内存推荐 7B。"}
+            return {"level": "ok", "model": "qwen2.5:7b", "reason": "16GB Intel/AMD 推荐 7B。"}
+        elif ram <= 32:
+            return {"level": "good", "model": "qwen2.5:14b", "reason": "32GB 可尝试 14B。如需更大模型（如22B）需自行购买云端API Token。"}
         else:
-            return {"level": "good", "model": "qwen2.5:14b", "reason": "32GB+ 可尝试 14B。"}
+            return {"level": "high", "model": "qwen2.5:14b", "reason": "高性能设备，可运行大型模型。如需更大模型需自行购买云端 API Token。"}
 
     if vendor in ["Zhaoxin", "Phytium", "Kunpeng"]:
         if ram <= 8:
@@ -247,6 +273,14 @@ def print_device_report(device, recommendation):
         print("推荐模型：不建议本地运行")
 
     print(f"原因：{recommendation['reason']}\n")
+
+    
+def check_ollama_installed():
+    try:
+        res = requests.get(OLLAMA_TAGS_URL, timeout=3)
+        return res.status_code == 200
+    except Exception:
+        return False
 
 
 def get_models():
@@ -569,6 +603,8 @@ def main():
 本地隐私 AI 助手
 ==============================
 输入 /help 查看指令
+
+⚠️ 特别说明：请自行确认消息真实性（AI不是人，人都会犯错，更何况AI呢）
 """)
 
     config = load_config()
@@ -712,4 +748,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n已退出")
+    except Exception as e:
+        log_error(e)
+        print("程序发生错误，请查看 logs/error.log")
