@@ -1,0 +1,134 @@
+name: Build App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller requests psutil py-cpuinfo pillow
+
+      - name: Install Linux GUI dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk
+
+      - name: Build Standard Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI.spec
+
+
+      - name: Build SE Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI_SE.spec
+
+
+      - name: Build CloudAI Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --clean --noconfirm CloudAI.spec
+
+      - name: Build QEMU Bridge Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+
+      - name: Build Standard macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI_macOS.spec
+
+
+      - name: Build SE macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI_SE_macOS.spec
+
+
+      - name: Build CloudAI macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller --clean --noconfirm CloudAI_macOS.spec
+
+      - name: Build QEMU Bridge macOS
+        if: matrix.os == 'macos-latest'
+        run: |
+          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+
+      - name: Build Standard Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI_Linux.spec
+
+
+      - name: Build SE Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
+
+
+      - name: Build CloudAI Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pyinstaller --clean --noconfirm CloudAI_Linux.spec
+
+      - name: Build QEMU Bridge Linux
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+
+      - name: Upload Windows
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-Windows-0.8 Beta
+          path: |
+            dist/LocalAI.exe
+            dist/LocalAI_SE.exe
+            dist/CloudAI.exe
+            dist/QEMU Bridge.exe
+
+      - name: Upload macOS
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-macOS-0.8 Beta
+          path: |
+            dist/LocalAI.app
+            dist/LocalAI_SE.app
+            dist/CloudAI.app
+            dist/QEMU Bridge
+
+      - name: Upload Linux
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-Linux-0.8 Beta
+          path: |
+            dist/LocalAI
+            dist/LocalAI_SE
+            dist/CloudAI
+            dist/QEMU Bridge

@@ -1,0 +1,44 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          architecture: "x64"
+
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip && pip install pyinstaller requests psutil py-cpuinfo pillow
+
+      - name: Build Standard exe
+        run: pyinstaller --clean --noconfirm LocalAI.spec
+
+
+      - name: Build SE exe
+        run: pyinstaller --clean --noconfirm LocalAI_SE.spec
+
+
+      - name: Build CloudAI exe
+        run: pyinstaller --clean --noconfirm CloudAI.spec
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-Windows-x64-0.8 Beta
+          path: |
+            dist/LocalAI.exe
+            dist/LocalAI_SE.exe
+            dist/CloudAI.exe

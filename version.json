@@ -1,0 +1,9 @@
+{
+  "name": "LocalAI",
+  "version": "0.8",
+  "components": {
+    "LocalAI": "0.8",
+    "CloudAI": "0.8",
+    "QEMU Bridge": "0.8"
+  }
+}
