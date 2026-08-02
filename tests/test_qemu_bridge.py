@@ -1,11 +1,12 @@
 import json
 import plistlib
+from types import SimpleNamespace
 
 from plugins.qemu_bridge.models import TargetPlatform
-from plugins.qemu_bridge.plugin import QEMUBridgePlugin, load_imported_source, program_convert_result
+from plugins.qemu_bridge.plugin import QEMUBridgePlugin, load_imported_source, program_convert_result, save_utm_payload
 from plugins.qemu_bridge.parser import parse_input, parse_qemu_command, parse_utm_package
 from plugins.qemu_bridge.ai_modify import build_ai_prompt, modify_with_ai_or_rules
-from plugins.qemu_bridge.standalone import ExitRequested, check_exit, clean_path, command_from_file, is_probable_image_path, load_source, write_qemu_output, write_utm_output
+from plugins.qemu_bridge.standalone import ExitRequested, build_utm_plist, check_exit, clean_path, command_from_file, host_architecture, is_probable_image_path, load_source, write_qemu_output, write_utm_output
 from plugins.qemu_bridge.translator import convert_config
 
 
@@ -322,6 +323,29 @@ def test_standalone_writes_utm_package_and_disables_linux_opengl(tmp_path):
     assert warnings
 
 
+def test_qemu_to_utm_enables_hypervisor_when_guest_matches_host_arch():
+    host = host_architecture()
+    config = parse_qemu_command(f"qemu-system-{host} -machine {'virt' if host == 'aarch64' else 'q35'} -m 2G")
+    warnings = []
+    plist = build_utm_plist(config, "other", warnings)
+
+    assert plist["System"]["Architecture"] == host
+    assert plist["System"]["Hypervisor"] is True
+    assert plist["QEMU"]["Hypervisor"] is True
+    assert any("虚拟化加速" in item for item in warnings)
+
+
+def test_qemu_to_utm_disables_hypervisor_when_guest_is_powerpc():
+    config = parse_qemu_command("qemu-system-ppc -machine mac99 -m 512")
+    warnings = []
+    plist = build_utm_plist(config, "other", warnings)
+
+    assert plist["System"]["Architecture"] == "ppc"
+    assert plist["System"]["Hypervisor"] is False
+    assert plist["QEMU"]["Hypervisor"] is False
+    assert any("已关闭 UTM 虚拟化" in item for item in warnings)
+
+
 def test_standalone_command_file_reader_strips_comments_and_line_continuation(tmp_path):
     command_file = tmp_path / "run.sh"
     command_file.write_text(
@@ -371,10 +395,10 @@ def test_ai_modify_uses_valid_model_qemu_output():
         "qemu-system-x86_64 -m 1G",
         "qemu",
         "转换为 Linux 平台",
-        "qemu-system-x86_64 -machine q35 -cpu max -m 2048",
+        "qemu-system-x86_64 -machine q35 -cpu max -smp 2 -m 1024",
     )
     assert "qemu-system-x86_64" in result.command
-    assert "2048" in result.command
+    assert "1024" in result.command
     assert not result.has_errors
 
 
@@ -413,6 +437,7 @@ def test_plugin_program_convert_utm_generates_saveable_json():
     data = json.loads(result.command)
     plistlib.dumps(data, sort_keys=False)
     assert data["System"]["Architecture"] == "aarch64"
+    assert any(issue.code == "utm_conversion_note" for issue in result.issues)
 
 
 def test_plugin_program_convert_uses_fixed_utm_parser_for_plist_xml():
@@ -446,3 +471,108 @@ def test_plugin_load_imported_source_reads_plist_content(tmp_path):
     plist_path = tmp_path / "config.plist"
     plist_path.write_text("<?xml version=\"1.0\" encoding=\"UTF-8\"?><plist version=\"1.0\"><dict/></plist>", encoding="utf-8")
     assert load_imported_source(str(plist_path)).startswith("<?xml")
+
+
+def test_save_utm_payload_writes_config_plist_from_raw_json(tmp_path):
+    payload = SimpleNamespace(
+        command=json.dumps({"System": {"Architecture": "x86_64", "Target": "q35"}, "Drives": []}),
+        config=None,
+    )
+    package = tmp_path / "Converted.utm"
+    save_utm_payload(payload, package)
+
+    assert (package / "config.plist").exists()
+    data = plistlib.load((package / "config.plist").open("rb"))
+    assert data["System"]["Architecture"] == "x86_64"
+
+
+def test_save_utm_payload_rejects_unchecked_invalid_utm_text(tmp_path):
+    payload = SimpleNamespace(command="not a plist json", config=None)
+    try:
+        save_utm_payload(payload, tmp_path / "Broken.utm")
+    except ValueError:
+        return
+    raise AssertionError("invalid unchecked UTM text should be rejected")
+
+
+def test_powerpc_utm_plist_preserves_architecture_machine_memory_and_cpu():
+    xml = plistlib.dumps(
+        {
+            "System": {
+                "Architecture": "powerpc",
+                "Target": "mac99",
+                "CPU": "G4",
+                "CPUCount": 1,
+                "MemorySize": 512,
+            },
+            "Drive": [{"ImageName": "macos9.qcow2", "ImageType": "Disk", "Interface": "IDE"}],
+            "QEMU": {"Hypervisor": False},
+        }
+    ).decode("utf-8")
+    parsed = parse_input(xml)
+    result = convert_config(parsed, TargetPlatform.MACOS)
+
+    assert parsed.architecture == "ppc"
+    assert parsed.machine == "mac99"
+    assert parsed.cpu_model == "G4"
+    assert parsed.cpu_cores == 1
+    assert parsed.memory_mb == 512
+    assert result.command.startswith("qemu-system-ppc")
+    assert "mac99,accel=tcg" in result.command
+    assert "qemu-system-x86_64" not in result.command
+    assert "\\\n  512" in result.command
+
+
+def test_powerpc_utm_memory_bytes_are_normalized_to_mb():
+    xml = plistlib.dumps(
+        {
+            "System": {
+                "Architecture": "ppc",
+                "Target": "mac99",
+                "CPUCount": 1,
+                "MemorySize": 536870912,
+            }
+        }
+    ).decode("utf-8")
+    assert parse_input(xml).memory_mb == 512
+
+
+def test_ai_modify_rejects_powerpc_architecture_and_memory_mismatch():
+    source = plistlib.dumps(
+        {
+            "System": {
+                "Architecture": "powerpc",
+                "Target": "mac99",
+                "CPU": "G4",
+                "CPUCount": 1,
+                "MemorySize": 512,
+            },
+            "Drive": [{"ImageName": "macos9.qcow2", "ImageType": "Disk", "Interface": "IDE"}],
+            "QEMU": {"Hypervisor": False},
+        }
+    ).decode("utf-8")
+    result = modify_with_ai_or_rules(
+        source,
+        "qemu",
+        "按原配置转换为 QEMU",
+        "qemu-system-x86_64 -machine q35 -cpu max -smp 2 -m 4096",
+    )
+
+    assert result.command.startswith("qemu-system-ppc")
+    assert "mac99,accel=tcg" in result.command
+    assert "\\\n  512" in result.command
+    assert any(issue.code == "ai_candidate_rejected" for issue in result.issues)
+
+
+def test_ai_modify_allows_explicit_powerpc_memory_request():
+    source = plistlib.dumps(
+        {
+            "System": {"Architecture": "ppc", "Target": "mac99", "CPUCount": 1, "MemorySize": 512},
+            "Drive": [{"ImageName": "macos9.qcow2", "ImageType": "Disk", "Interface": "IDE"}],
+        }
+    ).decode("utf-8")
+    result = modify_with_ai_or_rules(source, "qemu", "保持 PPC/mac99，内存改成 1024MB", "")
+
+    assert result.command.startswith("qemu-system-ppc")
+    assert "mac99" in result.command
+    assert "\\\n  1024" in result.command

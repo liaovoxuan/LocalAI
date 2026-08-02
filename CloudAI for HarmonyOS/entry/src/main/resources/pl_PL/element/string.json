@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI asystent modeli chmurowych"
+    },
+    {
+      "name": "module_desc",
+      "value": "Główny moduł CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI wymaga dostępu do Internetu, aby połączyć się z dostawcą modeli chmurowych skonfigurowanym przez użytkownika."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Ekran główny CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

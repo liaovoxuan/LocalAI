@@ -207,6 +207,44 @@ def get_base_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def resource_path(*parts):
+    candidates = []
+    bundle_root = getattr(sys, "_MEIPASS", None)
+    if bundle_root:
+        candidates.append(bundle_root)
+    candidates.append(get_base_dir())
+    candidates.append(os.path.dirname(os.path.abspath(__file__)))
+    for root in candidates:
+        path = os.path.join(root, *parts)
+        if os.path.exists(path):
+            return path
+    return os.path.join(candidates[0], *parts) if candidates else os.path.join(*parts)
+
+
+LOCALAI_POLICY_DOC = "Readme.docx"
+
+
+def read_docx_preview(path, max_chars=1600):
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml_data = archive.read("word/document.xml")
+        root = ET.fromstring(xml_data)
+        namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        paragraphs = []
+        for paragraph in root.findall(".//w:p", namespace):
+            parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
+            text = "".join(parts).strip()
+            if text:
+                paragraphs.append(text)
+            if len("\n".join(paragraphs)) >= max_chars:
+                break
+        return "\n\n".join(paragraphs)[:max_chars]
+    except Exception:
+        return ""
+
+
 def get_app_data_dir():
     if os.environ.get("LOCALAI_PORTABLE") == "1":
         return get_base_dir()
@@ -1574,6 +1612,15 @@ def first_welcome(config):
         return config
 
     print(tr(config, "first_welcome_banner"))
+    doc_path = resource_path(LOCALAI_POLICY_DOC)
+    print("\n隐私政策与使用手册 / Privacy Policy and User Guide")
+    print(f"文档位置 / Document location: {doc_path}")
+    preview = read_docx_preview(doc_path)
+    if preview:
+        print("\n" + preview[:1200])
+    else:
+        print("未找到 Readme.docx，请确认文档位于应用目录或打包资源中。")
+    print("-" * 50)
 
     codes = list(LANGUAGE_OPTIONS.keys())
     for i, code in enumerate(codes, 1):
@@ -3669,6 +3716,18 @@ SOURCE_PRIORITY_RULES = [
     (["新闻", "热点", "热搜"], ["baidu", "toutiao", "weibo", "bili"]),
 ]
 
+OFFICIAL_SOURCE_DOMAINS = {
+    "apple_cn": ["apple.com.cn", "support.apple.com", "developer.apple.com", "apple.com"],
+    "apple": ["apple.com", "support.apple.com", "developer.apple.com", "apple.com.cn"],
+    "apple_support": ["support.apple.com", "apple.com", "developer.apple.com", "apple.com.cn"],
+    "microsoft": ["microsoft.com", "support.microsoft.com", "learn.microsoft.com", "windows.com"],
+    "learn_ms": ["learn.microsoft.com", "support.microsoft.com", "microsoft.com"],
+    "openai": ["openai.com", "platform.openai.com", "help.openai.com", "community.openai.com"],
+    "python": ["docs.python.org", "python.org", "peps.python.org", "pypi.org"],
+    "pypi": ["pypi.org", "docs.pypi.org", "packaging.python.org"],
+    "github": ["github.com", "docs.github.com", "github.blog"],
+}
+
 SEARCH_STOPWORDS = {
     "search", "please", "about", "what", "when", "where", "which", "how", "the", "and", "for", "with",
     "搜索", "查询", "查找", "联网", "一下", "请问", "请", "关于", "資料", "资料", "搜尋",
@@ -3738,6 +3797,76 @@ def safe_get(url, *, params=None, timeout=8):
         return response
     except requests.exceptions.RequestException:
         return None
+
+
+def text_keywords_for_scoring(text):
+    keywords = []
+    for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.+-]{1,}|[\u4e00-\u9fff]{2,}|[\u3040-\u30ff]{2,}|[\uac00-\ud7af]{2,}", text or ""):
+        token = token.strip("._-").lower()
+        if token and token not in SEARCH_STOPWORDS and token not in keywords:
+            keywords.append(token)
+    return keywords[:18]
+
+
+def split_readable_chunks(html):
+    html = re.sub(r"(?is)<(script|style|noscript|svg|header|footer|nav|form|aside).*?</\1>", " ", html or "")
+    html = re.sub(r"(?is)<!--.*?-->", " ", html)
+    title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", html)
+    meta_match = re.search(r'(?is)<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']', html)
+    candidates = []
+    if title_match:
+        candidates.append(clean_html(title_match.group(1)))
+    if meta_match:
+        candidates.append(clean_html(meta_match.group(1)))
+    for chunk in re.findall(r"(?is)<(?:h1|h2|h3|p|li|td|th|article|section)[^>]*>(.*?)</(?:h1|h2|h3|p|li|td|th|article|section)>", html):
+        text = clean_html(chunk)
+        if 25 <= len(text) <= 1800:
+            candidates.append(text)
+    if not candidates:
+        candidates.append(clean_html(html))
+    cleaned = []
+    seen = set()
+    noise = re.compile(
+        r"(cookie|cookies|privacy policy|terms of use|sign in|log in|subscribe|advertisement|验证码|登录|注册|隐私|广告|跳转|加载中)",
+        re.IGNORECASE,
+    )
+    for item in candidates:
+        item = strip_urls(re.sub(r"\s+", " ", item).strip())
+        if len(item) < 25 or noise.search(item):
+            continue
+        key = item[:120].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(item)
+    return cleaned
+
+
+def extract_relevant_page_text(html, query="", max_chars=1400):
+    chunks = split_readable_chunks(html)
+    keywords = text_keywords_for_scoring(query)
+    if not keywords:
+        return " ".join(chunks)[:max_chars].strip()
+
+    scored = []
+    for index, chunk in enumerate(chunks):
+        lower = chunk.lower()
+        score = 0
+        for keyword in keywords:
+            if keyword in lower:
+                score += 4 if len(keyword) >= 4 else 2
+        if re.search(r"\b(20\d{2}|19\d{2})[-/.年]\d{1,2}", chunk):
+            score += 1
+        if index < 3:
+            score += 1
+        scored.append((score, index, chunk))
+
+    selected = [chunk for score, _index, chunk in sorted(scored, key=lambda item: (-item[0], item[1])) if score > 0]
+    if len(selected) < 3:
+        selected.extend(chunk for _score, _index, chunk in scored[:6] if chunk not in selected)
+
+    text = " ".join(selected)
+    return re.sub(r"\s+", " ", text).strip()[:max_chars]
 
 
 def extract_ddg_url(url):
@@ -3857,7 +3986,7 @@ def is_useful_url(url):
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 
-def fetch_page_summary(url, max_chars=900):
+def fetch_page_summary(url, max_chars=1400, query=""):
     if not is_useful_url(url):
         return ""
 
@@ -3869,23 +3998,7 @@ def fetch_page_summary(url, max_chars=900):
         if "text/html" not in content_type and "text/plain" not in content_type:
             return ""
 
-        html = res.text
-        html = re.sub(r"(?is)<(script|style|noscript|svg|header|footer|nav|form).*?</\1>", " ", html)
-        html = re.sub(r"(?is)<!--.*?-->", " ", html)
-
-        chunks = re.findall(r"(?is)<(?:p|li|article|section|h1|h2|h3)[^>]*>(.*?)</(?:p|li|article|section|h1|h2|h3)>", html)
-        text = " ".join(clean_html(chunk) for chunk in chunks)
-
-        if len(text) < 160:
-            text = clean_html(html)
-
-        text = re.sub(
-            r"(cookie|cookies|privacy policy|terms of use|sign in|log in|subscribe|advertisement|验证码|登录|注册|隐私|广告)",
-            " ",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = strip_urls(re.sub(r"\s+", " ", text).strip())
+        text = extract_relevant_page_text(res.text, query=query, max_chars=max_chars)
 
         return text[:max_chars] if len(text) >= 60 else ""
     except Exception:
@@ -4377,18 +4490,40 @@ def search_page_text_result(source, query, max_chars=900):
         return None
 
 
-def result_matches_source(item, source):
-    domain = (source.get("domain") or "").lower()
-    if not domain:
+def result_matches_source(item, source, source_key=None):
+    domains = OFFICIAL_SOURCE_DOMAINS.get(source_key, []) if source_key else []
+    if not domains:
+        domain = (source.get("domain") or "").lower()
+        domains = [domain] if domain else []
+    domains = [domain.lower() for domain in domains if domain]
+    if not domains:
         return True
     try:
         host = urlparse(item.get("url", "")).netloc.lower().split(":", 1)[0]
     except Exception:
         return False
-    return host == domain or host.endswith("." + domain)
+    return any(host == domain or host.endswith("." + domain) for domain in domains)
 
 
-def general_search(query, limit=5):
+def merge_search_results(groups, limit=8):
+    merged = []
+    seen = set()
+    for results in groups:
+        for item in results or []:
+            url = item.get("url", "")
+            title = clean_result_text(item.get("title", ""))
+            key = (url or title).lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= limit:
+                return merged
+    return merged
+
+
+def general_search(query, limit=5, collect_all=False):
+    collected = []
     for engine in SEARCH_ENGINES:
         kind = engine["kind"]
         engine_url = engine["url"]
@@ -4408,9 +4543,21 @@ def general_search(query, limit=5):
             results = generic_anchor_search_results(query, limit=limit, engine_url=engine_url)
 
         if results:
-            return results
+            if not collect_all:
+                return results
+            collected.append(results)
 
-    return []
+    return merge_search_results(collected, limit=limit) if collect_all else []
+
+
+def official_domain_search(source_key, query, limit=5):
+    domains = OFFICIAL_SOURCE_DOMAINS.get(source_key) or [SEARCH_SOURCES[source_key].get("domain", "")]
+    result_groups = []
+    for domain in domains:
+        if not domain:
+            continue
+        result_groups.append(general_search(f"site:{domain} {query}", limit=limit, collect_all=True))
+    return merge_search_results(result_groups, limit=max(limit, 8))
 
 
 def wikipedia_search(query, limit=3):
@@ -4449,7 +4596,7 @@ def wikipedia_search(query, limit=3):
         return []
 
 
-def enrich_search_results(results, max_pages=3):
+def enrich_search_results(results, max_pages=3, query=""):
     enriched = []
     seen_urls = set()
 
@@ -4461,7 +4608,7 @@ def enrich_search_results(results, max_pages=3):
         seen_urls.add(url)
         item = item.copy()
         if len(enriched) < max_pages:
-            page_text = fetch_page_summary(url)
+            page_text = fetch_page_summary(url, max_chars=1800, query=query)
             if page_text:
                 item["content"] = page_text
 
@@ -4478,17 +4625,19 @@ def search_one_source(source_key, query, limit=5):
         results = wikipedia_search(query, limit=limit)
     elif source_key == "news":
         results = bing_news_search(query, limit=limit, engine_url=source["search_url"])
+    elif SOURCE_TYPES.get(source_key) == "官方":
+        results = official_domain_search(source_key, query, limit=limit)
     else:
         # 用搜索引擎的 site: 检索，避免直接抓取百度/淘宝/京东/闲鱼等页面时被反爬拦截。
         # 大陆网络下优先尝试百度和 Bing，再尝试 Google/DuckDuckGo，最后用 360 兜底。
-        results = general_search(f"site:{source['domain']} {query}", limit=limit)
+        results = general_search(f"site:{source['domain']} {query}", limit=limit, collect_all=True)
 
     fallback_url = source["search_url"].format(q=quote(query))
     if not results:
         results = generic_anchor_search_results(query, limit=limit, engine_url=source["search_url"])
-    results = [item for item in results if result_matches_source(item, source)]
+    results = [item for item in results if result_matches_source(item, source, source_key)]
 
-    enriched = enrich_search_results(results, max_pages=2)
+    enriched = enrich_search_results(results, max_pages=3, query=query)
     if not has_effective_search_results([{"results": enriched}]):
         page_item = search_page_text_result(source, query)
         if page_item:
@@ -4519,7 +4668,7 @@ def direct_url_results(query, max_pages=3):
         if clean_url in seen or not is_useful_url(clean_url):
             continue
         seen.add(clean_url)
-        content = fetch_page_summary(clean_url, max_chars=1200)
+        content = fetch_page_summary(clean_url, max_chars=1600, query=query)
         if content:
             host = urlparse(clean_url).netloc.lower()
             items.append({

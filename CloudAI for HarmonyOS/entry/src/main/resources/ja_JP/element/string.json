@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI クラウドモデルアシスタント"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI メインモジュール"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI は、ユーザーが設定したクラウドモデルプロバイダーに接続するためにインターネットアクセスを必要とします。"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI メイン画面"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 from .models import TargetPlatform, ValidationIssue
+from .parser import normalize_architecture_name
 
 
 SUPPORTED_ACCELERATORS = {
@@ -24,8 +25,12 @@ def validate_config(config, target):
         issues.append(ValidationIssue("warning", "low_memory", "内存低于 256 MB，虚拟机可能无法启动。"))
     if config.accelerator not in SUPPORTED_ACCELERATORS[target]:
         issues.append(ValidationIssue("warning", "unsupported_accelerator", f"{target.value} 不支持 {config.accelerator}，将自动替换为平台默认加速器。"))
-    if config.architecture == "aarch64" and config.machine in {"q35", "pc"}:
+    arch = normalize_architecture_name(config.architecture)
+    machine = str(config.machine or "").split(",", 1)[0]
+    if arch == "aarch64" and machine in {"q35", "pc"}:
         issues.append(ValidationIssue("warning", "machine_arch_mismatch", "aarch64 与 q35/pc 不等价，通常需要 virt。"))
+    if arch in {"ppc", "ppc64"} and machine in {"q35", "pc", "virt"}:
+        issues.append(ValidationIssue("warning", "machine_arch_mismatch", f"{arch} 与 {machine} 不等价，通常需要 mac99/pseries 等 PowerPC 机型。"))
 
     for disk in config.disks:
         if disk.interface in {"nvme", "scsi"}:

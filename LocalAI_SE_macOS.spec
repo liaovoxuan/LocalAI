@@ -1,11 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+
+TARGET_ARCH = os.environ.get("PYINSTALLER_TARGET_ARCH") or None
+
 
 a = Analysis(
     ['local_ai_se.py'],
     pathex=[],
     binaries=[],
-    datas=[('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons')],
+    datas=[('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons'), ('Readme.docx', '.')],
     hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'cpuinfo'],
     hookspath=[],
     hooksconfig={},
@@ -29,7 +33,7 @@ exe = EXE(
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch=TARGET_ARCH,
     codesign_identity=None,
     entitlements_file=None,
 )

@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "Pembantu model awan CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "Modul utama CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI memerlukan akses Internet untuk menghubungi penyedia model awan yang dikonfigurasi oleh pengguna."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Skrin utama CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

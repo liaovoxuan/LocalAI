@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI 雲端模型助理"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI 主模組"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI 需要連線存取使用者設定的雲端模型提供商。"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI 主介面"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

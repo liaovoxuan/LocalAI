@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "ผู้ช่วยโมเดลคลาวด์ CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "โมดูลหลักของ CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI ต้องใช้อินเทอร์เน็ตเพื่อติดต่อผู้ให้บริการโมเดลคลาวด์ที่ผู้ใช้ตั้งค่าไว้"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "หน้าหลักของ CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

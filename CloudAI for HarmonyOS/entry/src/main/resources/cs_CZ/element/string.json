@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI asistent cloudových modelů"
+    },
+    {
+      "name": "module_desc",
+      "value": "Hlavní modul CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI potřebuje přístup k internetu pro spojení s poskytovatelem cloudových modelů nastaveným uživatelem."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Hlavní obrazovka CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

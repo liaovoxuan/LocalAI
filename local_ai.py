@@ -265,8 +265,21 @@ DEFAULT_CONFIG = {
 APP_EDITION = "standard"
 # Standard / Pro / Ultra editions are managed by activation.py
 
-SUPPORTED_PROVIDERS = ('ollama', 'lm_studio')
-WEB_FEATURES = {
+SUPPORTED_PROVIDERS = ('ollama', 'lm_studio', 'openai_compatible', 'openai_official')
+EDITION_STANDARD = "standard"
+EDITION_PRO = "pro"
+EDITION_ULTRA = "ultra"
+EDITION_ORDER = {
+    EDITION_STANDARD: 0,
+    EDITION_PRO: 1,
+    EDITION_ULTRA: 2,
+}
+EDITION_PROVIDERS = {
+    EDITION_STANDARD: ('ollama', 'lm_studio'),
+    EDITION_PRO: ('ollama', 'lm_studio', 'openai_compatible'),
+    EDITION_ULTRA: ('ollama', 'lm_studio', 'openai_compatible', 'openai_official'),
+}
+BASE_WEB_FEATURES = {
     "basic_web_search": True,
     "auto_source_limit": 5,
     "full_page_read": True,
@@ -277,6 +290,25 @@ WEB_FEATURES = {
     "citation_management": "basic",
     "enterprise_gateway": False,
 }
+EDITION_WEB_FEATURES = {
+    EDITION_STANDARD: {},
+    EDITION_PRO: {
+        "auto_source_limit": 8,
+        "deep_research": True,
+        "scheduled_web_tasks": True,
+        "citation_management": "complete",
+        "enterprise_gateway": True,
+    },
+    EDITION_ULTRA: {
+        "auto_source_limit": 12,
+        "deep_research": True,
+        "parallel_agents": True,
+        "scheduled_web_tasks": True,
+        "citation_management": "complete",
+        "enterprise_gateway": True,
+    },
+}
+WEB_FEATURES = BASE_WEB_FEATURES.copy()
 
 ACTIVE_CONFIG = None
 DEVICE_CACHE = None
@@ -1478,6 +1510,84 @@ def get_runtime_config():
     except Exception:
         return DEFAULT_CONFIG.copy()
 
+
+def normalize_edition(value):
+    edition = str(value or EDITION_STANDARD).strip().lower()
+    aliases = {
+        "std": EDITION_STANDARD,
+        "standard": EDITION_STANDARD,
+        "localai": EDITION_STANDARD,
+        "pro": EDITION_PRO,
+        "professional": EDITION_PRO,
+        "ultra": EDITION_ULTRA,
+    }
+    return aliases.get(edition, EDITION_STANDARD)
+
+
+def activation_digit_sum(code):
+    return sum(int(char) for char in str(code or "") if char.isdigit())
+
+
+def validate_activation_code(edition, code):
+    edition = normalize_edition(edition)
+    code = str(code or "").strip()
+    if edition == EDITION_PRO:
+        return bool(re.fullmatch(r"\d{7}", code)) and activation_digit_sum(code) == 54
+    if edition == EDITION_ULTRA:
+        return bool(re.fullmatch(r"\d{8}", code)) and activation_digit_sum(code) == 66
+    return edition == EDITION_STANDARD
+
+
+def edition_from_activation_code(code):
+    code = str(code or "").strip()
+    if validate_activation_code(EDITION_ULTRA, code):
+        return EDITION_ULTRA
+    if validate_activation_code(EDITION_PRO, code):
+        return EDITION_PRO
+    return EDITION_STANDARD
+
+
+def edition_allows(active_edition, target_edition):
+    return EDITION_ORDER.get(normalize_edition(active_edition), 0) >= EDITION_ORDER.get(normalize_edition(target_edition), 0)
+
+
+def supported_providers_for_edition(edition):
+    return EDITION_PROVIDERS.get(normalize_edition(edition), EDITION_PROVIDERS[EDITION_STANDARD])
+
+
+def get_supported_providers(config=None):
+    config = config or get_runtime_config()
+    return supported_providers_for_edition(config.get("edition", EDITION_STANDARD))
+
+
+def apply_activation_config(config):
+    config = config or {}
+    requested = normalize_edition(config.get("edition", EDITION_STANDARD))
+    detected = edition_from_activation_code(config.get("activation_code", ""))
+    if detected != EDITION_STANDARD:
+        config["edition"] = detected
+    elif requested != EDITION_STANDARD:
+        config["edition"] = EDITION_STANDARD
+    else:
+        config["edition"] = requested
+    return config
+
+
+def get_web_features(config=None):
+    edition = normalize_edition((config or get_runtime_config()).get("edition", EDITION_STANDARD))
+    features = BASE_WEB_FEATURES.copy()
+    features.update(EDITION_WEB_FEATURES.get(edition, {}))
+    return features
+
+
+def edition_display_name(edition):
+    edition = normalize_edition(edition)
+    if edition == EDITION_PRO:
+        return "LocalAI Pro"
+    if edition == EDITION_ULTRA:
+        return "LocalAI Ultra"
+    return "LocalAI Standard"
+
 MODEL_SIZES = {
     "qwen2.5:0.8b": "0.4GB",
     "qwen2.5:1.5b": "1.1GB",
@@ -1520,6 +1630,15 @@ def first_welcome(config):
         return config
 
     print(tr(config, "first_welcome_banner"))
+    doc_path = bundled_document_path(LOCALAI_POLICY_DOC)
+    print("\n隐私政策与使用手册 / Privacy Policy and User Guide")
+    print(f"文档位置 / Document location: {doc_path}")
+    preview = read_docx_preview(doc_path, max_chars=1600)
+    if preview:
+        print("\n" + preview[:1200])
+    else:
+        print("未找到 Readme.docx，请确认文档位于应用目录或打包资源中。")
+    print("-" * 50)
 
     codes = list(LANGUAGE_OPTIONS.keys())
     for i, code in enumerate(codes, 1):
@@ -1561,6 +1680,8 @@ def choose_language(config):
 
 def save_config(config):
     ensure_app_dirs()
+    if isinstance(config, dict):
+        config = normalize_provider_config(config)
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
         json.dump(config, f, ensure_ascii=False, indent=2)
 
@@ -2761,6 +2882,49 @@ def apply_window_icon(window, theme):
         pass
 
 
+LOCALAI_POLICY_DOC = "Readme.docx"
+
+
+def bundled_document_path(filename):
+    return resource_path(filename)
+
+
+def read_docx_preview(path, max_chars=2200):
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml_data = archive.read("word/document.xml")
+        root = ET.fromstring(xml_data)
+        namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        paragraphs = []
+        for paragraph in root.findall(".//w:p", namespace):
+            parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
+            text = "".join(parts).strip()
+            if text:
+                paragraphs.append(text)
+            if len("\n".join(paragraphs)) >= max_chars:
+                break
+        return "\n\n".join(paragraphs)[:max_chars]
+    except Exception:
+        return ""
+
+
+def open_document_file(path):
+    if not path or not os.path.exists(path):
+        return False
+    try:
+        if platform.system() == "Darwin":
+            subprocess.Popen(["open", path])
+        elif platform.system() == "Windows":
+            os.startfile(path)
+        else:
+            subprocess.Popen(["xdg-open", path])
+        return True
+    except Exception:
+        return False
+
+
 def provider_model_family(base_model):
     name = (base_model or "").lower()
     if "14b" in name:
@@ -2785,7 +2949,7 @@ def recommended_model_for_provider(provider, base_model):
     return base_model or "qwen2.5:7b"
 
 
-def build_provider_recommendations(recommendation):
+def build_provider_recommendations(recommendation, config=None):
     base_model = (recommendation or {}).get("model") or "qwen2.5:7b"
     return [
         {
@@ -2793,7 +2957,7 @@ def build_provider_recommendations(recommendation):
             "model": recommended_model_for_provider(provider, base_model),
             "requires_ollama_install": provider == "ollama",
         }
-        for provider in SUPPORTED_PROVIDERS
+        for provider in get_supported_providers(config)
     ]
 
 
@@ -2876,6 +3040,60 @@ GUI_HARDWARE_TEXT["en_gb"] = GUI_HARDWARE_TEXT["en_us"]
 for _code, _values in GUI_HARDWARE_TEXT.items():
     GUI_TEXT.setdefault(_code, GUI_TEXT["zh_cn"]).update(_values)
 
+GUI_POLICY_TEXT = {
+    "zh_cn": {
+        "policy_title": "隐私政策与使用手册",
+        "policy_subtitle": "请先了解 LocalAI 的隐私政策和使用指南。文档会随应用一起提供，也可以稍后在应用目录中查看。",
+        "policy_location": "文档位置：{path}",
+        "policy_open": "打开文档",
+        "policy_missing": "未找到文档，请确认 Readme.docx 已放在应用目录或打包资源中。",
+    },
+    "zh_tw": {
+        "policy_title": "隱私政策與使用手冊",
+        "policy_subtitle": "請先了解 LocalAI 的隱私政策和使用指南。文件會隨應用一起提供，也可以稍後在應用目錄中查看。",
+        "policy_location": "文件位置：{path}",
+        "policy_open": "開啟文件",
+        "policy_missing": "找不到文件，請確認 Readme.docx 已放在應用目錄或打包資源中。",
+    },
+    "en_us": {
+        "policy_title": "Privacy Policy and User Guide",
+        "policy_subtitle": "Review LocalAI's privacy policy and user guide before continuing. The document is bundled with the app and can be opened later from the app folder.",
+        "policy_location": "Document location: {path}",
+        "policy_open": "Open Document",
+        "policy_missing": "Document not found. Make sure Readme.docx is in the app folder or bundled resources.",
+    },
+    "en_gb": {
+        "policy_title": "Privacy Policy and User Guide",
+        "policy_subtitle": "Review LocalAI's privacy policy and user guide before continuing. The document is bundled with the app and can be opened later from the app folder.",
+        "policy_location": "Document location: {path}",
+        "policy_open": "Open Document",
+        "policy_missing": "Document not found. Make sure Readme.docx is in the app folder or bundled resources.",
+    },
+    "ja": {
+        "policy_title": "プライバシーポリシーと利用ガイド",
+        "policy_subtitle": "続行する前に LocalAI のプライバシーポリシーと利用ガイドを確認してください。文書はアプリに同梱され、後でアプリフォルダから開けます。",
+        "policy_location": "文書の場所：{path}",
+        "policy_open": "文書を開く",
+        "policy_missing": "文書が見つかりません。Readme.docx がアプリフォルダまたは同梱リソースにあるか確認してください。",
+    },
+    "fr": {
+        "policy_title": "Politique de confidentialité et guide",
+        "policy_subtitle": "Veuillez consulter la politique de confidentialité et le guide LocalAI avant de continuer. Le document est fourni avec l'application.",
+        "policy_location": "Emplacement du document : {path}",
+        "policy_open": "Ouvrir le document",
+        "policy_missing": "Document introuvable. Vérifiez que Readme.docx est dans le dossier de l'application ou les ressources.",
+    },
+    "de": {
+        "policy_title": "Datenschutzrichtlinie und Anleitung",
+        "policy_subtitle": "Bitte lesen Sie die Datenschutzrichtlinie und Anleitung von LocalAI, bevor Sie fortfahren. Das Dokument wird mit der App bereitgestellt.",
+        "policy_location": "Dokumentpfad: {path}",
+        "policy_open": "Dokument öffnen",
+        "policy_missing": "Dokument nicht gefunden. Stellen Sie sicher, dass Readme.docx im App-Ordner oder in den Ressourcen liegt.",
+    },
+}
+for _code, _values in GUI_POLICY_TEXT.items():
+    GUI_TEXT.setdefault(_code, GUI_TEXT["zh_cn"]).update(_values)
+
 ADDITIONAL_GUI_TEXT_OVERRIDES = {
     "en_au": {"title": "LocalAI 0.8 Beta", "language_title": "Choose Language", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Next", "start_now": "Start Now", "save": "Save"},
     "ko": {"title": "LocalAI 0.8 Beta", "language_title": "언어 선택", "language_subtitle": "Choose the interface language for LocalAI.", "next": "다음", "start_now": "다음", "save": "저장"},
@@ -2905,6 +3123,33 @@ for _code, _values in ADDITIONAL_GUI_TEXT_OVERRIDES.items():
     _base = GUI_TEXT.get("en_us", GUI_TEXT["zh_cn"]).copy()
     _base.update(_values)
     GUI_TEXT[_code] = _base
+
+LOCALAI_EXTRA_WIZARD_TEXT = {
+    "ko": {"language_subtitle": "LocalAI의 인터페이스 언어를 선택하세요."},
+    "es": {"language_subtitle": "Elige el idioma de la interfaz de LocalAI."},
+    "it": {"language_subtitle": "Scegli la lingua dell'interfaccia di LocalAI."},
+    "pt": {"language_subtitle": "Escolha o idioma da interface do LocalAI."},
+    "ru": {"language_subtitle": "Выберите язык интерфейса LocalAI."},
+    "nl": {"language_subtitle": "Kies de interfacetaal voor LocalAI."},
+    "sv": {"language_subtitle": "Välj gränssnittsspråk för LocalAI."},
+    "da": {"language_subtitle": "Vælg grænsefladesprog for LocalAI."},
+    "fi": {"language_subtitle": "Valitse LocalAI:n käyttöliittymän kieli."},
+    "no": {"language_subtitle": "Velg grensesnittspråk for LocalAI."},
+    "tr": {"language_subtitle": "LocalAI arayüz dilini seçin."},
+    "pl": {"language_subtitle": "Wybierz język interfejsu LocalAI."},
+    "cs": {"language_subtitle": "Vyberte jazyk rozhraní LocalAI."},
+    "uk": {"language_subtitle": "Виберіть мову інтерфейсу LocalAI."},
+    "el": {"language_subtitle": "Επιλέξτε τη γλώσσα διεπαφής του LocalAI."},
+    "ar": {"language_subtitle": "اختر لغة واجهة LocalAI."},
+    "mn": {"language_subtitle": "LocalAI-ийн интерфэйсийн хэлийг сонгоно уу."},
+    "th": {"language_subtitle": "เลือกภาษาสำหรับอินเทอร์เฟซของ LocalAI"},
+    "vi": {"language_subtitle": "Chọn ngôn ngữ giao diện cho LocalAI."},
+    "id": {"language_subtitle": "Pilih bahasa antarmuka untuk LocalAI."},
+    "ms": {"language_subtitle": "Pilih bahasa antara muka untuk LocalAI."},
+    "hi": {"language_subtitle": "LocalAI की इंटरफ़ेस भाषा चुनें."},
+}
+for _code, _values in LOCALAI_EXTRA_WIZARD_TEXT.items():
+    GUI_TEXT.setdefault(_code, GUI_TEXT["en_us"].copy()).update(_values)
 
 def gui_text(lang, key, **kwargs):
     code = normalize_language(lang)
@@ -3098,7 +3343,39 @@ def run_first_start_gui_wizard(config):
         def finish_language_step(self):
             self.config_data["language"] = self.language
             save_config(self.config_data)
-            self.show_hardware_check_step()
+            self.show_policy_step()
+
+        def show_policy_step(self):
+            self.clear()
+            doc_path = bundled_document_path(LOCALAI_POLICY_DOC)
+            self.header(self.t("policy_title"), self.t("policy_subtitle"))
+            card = tk.Frame(self.container, bg=CARD, padx=24, pady=18)
+            card.pack(fill="both", expand=True, pady=(8, 16))
+            location = self.t("policy_location", path=doc_path if os.path.exists(doc_path) else self.t("policy_missing"))
+            tk.Label(card, text=location, bg=CARD, fg=MUTED, font=(get_platform_font(), 10), wraplength=700, justify="left").pack(anchor="w", pady=(0, 10))
+            text_frame = tk.Frame(card, bg=CARD)
+            text_frame.pack(fill="both", expand=True)
+            scrollbar = tk.Scrollbar(text_frame)
+            scrollbar.pack(side="right", fill="y")
+            preview = tk.Text(
+                text_frame,
+                height=14,
+                wrap="word",
+                bg=CARD,
+                fg=TEXT,
+                relief="flat",
+                bd=0,
+                font=(get_platform_font(), 11),
+                yscrollcommand=scrollbar.set,
+            )
+            preview.pack(side="left", fill="both", expand=True)
+            scrollbar.config(command=preview.yview)
+            preview.insert("1.0", read_docx_preview(doc_path) or self.t("policy_missing"))
+            preview.configure(state="disabled")
+            actions = tk.Frame(self.container, bg=BG)
+            actions.pack(anchor="e")
+            self.secondary_button(actions, self.t("policy_open"), lambda: open_document_file(doc_path)).pack(side="left", padx=(0, 12))
+            self.primary_button(actions, self.t("next"), self.show_hardware_check_step).pack(side="left")
 
         def show_hardware_check_step(self):
             self.device = detect_device()
@@ -3170,7 +3447,7 @@ def run_first_start_gui_wizard(config):
             self.device = detect_device()
             self.recommendation = recommend_model(self.device)
             recommended = self.recommendation.get("model")
-            self.provider_recommendations = build_provider_recommendations(self.recommendation)
+            self.provider_recommendations = build_provider_recommendations(self.recommendation, self.config_data)
             self.available_models = self.build_available_models(recommended)
             self.installed_models = self.get_installed_model_names() if ollama_ready else []
 
@@ -3867,6 +4144,7 @@ def provider_display_name(provider):
 
 def normalize_provider_config(config):
     config = config or {}
+    config = apply_activation_config(config)
     if "provider" not in config:
         legacy = config.get("model_provider")
         config["provider"] = legacy or "ollama"
@@ -3877,6 +4155,8 @@ def normalize_provider_config(config):
     if not config.get("openai_model") and config.get("openai_compatible_model"):
         config["openai_model"] = config.get("openai_compatible_model", "")
     config["provider"] = normalize_provider(config.get("provider", "ollama"))
+    if config["provider"] not in supported_providers_for_edition(config.get("edition", EDITION_STANDARD)):
+        config["provider"] = "ollama"
     config.setdefault("api_base_url", "")
     config.setdefault("api_key", "")
     config.setdefault("openai_model", "")
@@ -4687,6 +4967,18 @@ SOURCE_PRIORITY_RULES = [
     (["新闻", "热点", "热搜"], ["baidu", "toutiao", "weibo", "bili"]),
 ]
 
+OFFICIAL_SOURCE_DOMAINS = {
+    "apple_cn": ["apple.com.cn", "support.apple.com", "developer.apple.com", "apple.com"],
+    "apple": ["apple.com", "support.apple.com", "developer.apple.com", "apple.com.cn"],
+    "apple_support": ["support.apple.com", "apple.com", "developer.apple.com", "apple.com.cn"],
+    "microsoft": ["microsoft.com", "support.microsoft.com", "learn.microsoft.com", "windows.com"],
+    "learn_ms": ["learn.microsoft.com", "support.microsoft.com", "microsoft.com"],
+    "openai": ["openai.com", "platform.openai.com", "help.openai.com", "community.openai.com"],
+    "python": ["docs.python.org", "python.org", "peps.python.org", "pypi.org"],
+    "pypi": ["pypi.org", "docs.pypi.org", "packaging.python.org"],
+    "github": ["github.com", "docs.github.com", "github.blog"],
+}
+
 SEARCH_STOPWORDS = {
     "search", "please", "about", "what", "when", "where", "which", "how", "the", "and", "for", "with",
     "搜索", "查询", "查找", "联网", "一下", "请问", "请", "关于", "資料", "资料", "搜尋",
@@ -4756,6 +5048,76 @@ def safe_get(url, *, params=None, timeout=8):
         return response
     except requests.exceptions.RequestException:
         return None
+
+
+def text_keywords_for_scoring(text):
+    keywords = []
+    for token in re.findall(r"[A-Za-z0-9][A-Za-z0-9_.+-]{1,}|[\u4e00-\u9fff]{2,}|[\u3040-\u30ff]{2,}|[\uac00-\ud7af]{2,}", text or ""):
+        token = token.strip("._-").lower()
+        if token and token not in SEARCH_STOPWORDS and token not in keywords:
+            keywords.append(token)
+    return keywords[:18]
+
+
+def split_readable_chunks(html):
+    html = re.sub(r"(?is)<(script|style|noscript|svg|header|footer|nav|form|aside).*?</\1>", " ", html or "")
+    html = re.sub(r"(?is)<!--.*?-->", " ", html)
+    title_match = re.search(r"(?is)<title[^>]*>(.*?)</title>", html)
+    meta_match = re.search(r'(?is)<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']', html)
+    candidates = []
+    if title_match:
+        candidates.append(clean_html(title_match.group(1)))
+    if meta_match:
+        candidates.append(clean_html(meta_match.group(1)))
+    for chunk in re.findall(r"(?is)<(?:h1|h2|h3|p|li|td|th|article|section)[^>]*>(.*?)</(?:h1|h2|h3|p|li|td|th|article|section)>", html):
+        text = clean_html(chunk)
+        if 25 <= len(text) <= 1800:
+            candidates.append(text)
+    if not candidates:
+        candidates.append(clean_html(html))
+    cleaned = []
+    seen = set()
+    noise = re.compile(
+        r"(cookie|cookies|privacy policy|terms of use|sign in|log in|subscribe|advertisement|验证码|登录|注册|隐私|广告|跳转|加载中)",
+        re.IGNORECASE,
+    )
+    for item in candidates:
+        item = strip_urls(re.sub(r"\s+", " ", item).strip())
+        if len(item) < 25 or noise.search(item):
+            continue
+        key = item[:120].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(item)
+    return cleaned
+
+
+def extract_relevant_page_text(html, query="", max_chars=1400):
+    chunks = split_readable_chunks(html)
+    keywords = text_keywords_for_scoring(query)
+    if not keywords:
+        return " ".join(chunks)[:max_chars].strip()
+
+    scored = []
+    for index, chunk in enumerate(chunks):
+        lower = chunk.lower()
+        score = 0
+        for keyword in keywords:
+            if keyword in lower:
+                score += 4 if len(keyword) >= 4 else 2
+        if re.search(r"\b(20\d{2}|19\d{2})[-/.年]\d{1,2}", chunk):
+            score += 1
+        if index < 3:
+            score += 1
+        scored.append((score, index, chunk))
+
+    selected = [chunk for score, _index, chunk in sorted(scored, key=lambda item: (-item[0], item[1])) if score > 0]
+    if len(selected) < 3:
+        selected.extend(chunk for _score, _index, chunk in scored[:6] if chunk not in selected)
+
+    text = " ".join(selected)
+    return re.sub(r"\s+", " ", text).strip()[:max_chars]
 
 
 def extract_ddg_url(url):
@@ -4875,7 +5237,7 @@ def is_useful_url(url):
     return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 
-def fetch_page_summary(url, max_chars=900):
+def fetch_page_summary(url, max_chars=1400, query=""):
     if not is_useful_url(url):
         return ""
 
@@ -4887,23 +5249,7 @@ def fetch_page_summary(url, max_chars=900):
         if "text/html" not in content_type and "text/plain" not in content_type:
             return ""
 
-        html = res.text
-        html = re.sub(r"(?is)<(script|style|noscript|svg|header|footer|nav|form).*?</\1>", " ", html)
-        html = re.sub(r"(?is)<!--.*?-->", " ", html)
-
-        chunks = re.findall(r"(?is)<(?:p|li|article|section|h1|h2|h3)[^>]*>(.*?)</(?:p|li|article|section|h1|h2|h3)>", html)
-        text = " ".join(clean_html(chunk) for chunk in chunks)
-
-        if len(text) < 160:
-            text = clean_html(html)
-
-        text = re.sub(
-            r"(cookie|cookies|privacy policy|terms of use|sign in|log in|subscribe|advertisement|验证码|登录|注册|隐私|广告)",
-            " ",
-            text,
-            flags=re.IGNORECASE,
-        )
-        text = strip_urls(re.sub(r"\s+", " ", text).strip())
+        text = extract_relevant_page_text(res.text, query=query, max_chars=max_chars)
 
         return text[:max_chars] if len(text) >= 60 else ""
     except Exception:
@@ -5395,18 +5741,40 @@ def search_page_text_result(source, query, max_chars=900):
         return None
 
 
-def result_matches_source(item, source):
-    domain = (source.get("domain") or "").lower()
-    if not domain:
+def result_matches_source(item, source, source_key=None):
+    domains = OFFICIAL_SOURCE_DOMAINS.get(source_key, []) if source_key else []
+    if not domains:
+        domain = (source.get("domain") or "").lower()
+        domains = [domain] if domain else []
+    domains = [domain.lower() for domain in domains if domain]
+    if not domains:
         return True
     try:
         host = urlparse(item.get("url", "")).netloc.lower().split(":", 1)[0]
     except Exception:
         return False
-    return host == domain or host.endswith("." + domain)
+    return any(host == domain or host.endswith("." + domain) for domain in domains)
 
 
-def general_search(query, limit=5):
+def merge_search_results(groups, limit=8):
+    merged = []
+    seen = set()
+    for results in groups:
+        for item in results or []:
+            url = item.get("url", "")
+            title = clean_result_text(item.get("title", ""))
+            key = (url or title).lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+            if len(merged) >= limit:
+                return merged
+    return merged
+
+
+def general_search(query, limit=5, collect_all=False):
+    collected = []
     for engine in SEARCH_ENGINES:
         kind = engine["kind"]
         engine_url = engine["url"]
@@ -5426,9 +5794,21 @@ def general_search(query, limit=5):
             results = generic_anchor_search_results(query, limit=limit, engine_url=engine_url)
 
         if results:
-            return results
+            if not collect_all:
+                return results
+            collected.append(results)
 
-    return []
+    return merge_search_results(collected, limit=limit) if collect_all else []
+
+
+def official_domain_search(source_key, query, limit=5):
+    domains = OFFICIAL_SOURCE_DOMAINS.get(source_key) or [SEARCH_SOURCES[source_key].get("domain", "")]
+    result_groups = []
+    for domain in domains:
+        if not domain:
+            continue
+        result_groups.append(general_search(f"site:{domain} {query}", limit=limit, collect_all=True))
+    return merge_search_results(result_groups, limit=max(limit, 8))
 
 
 def wikipedia_search(query, limit=3):
@@ -5467,7 +5847,7 @@ def wikipedia_search(query, limit=3):
         return []
 
 
-def enrich_search_results(results, max_pages=3):
+def enrich_search_results(results, max_pages=3, query=""):
     enriched = []
     seen_urls = set()
 
@@ -5479,7 +5859,7 @@ def enrich_search_results(results, max_pages=3):
         seen_urls.add(url)
         item = item.copy()
         if len(enriched) < max_pages:
-            page_text = fetch_page_summary(url)
+            page_text = fetch_page_summary(url, max_chars=1800, query=query)
             if page_text:
                 item["content"] = page_text
 
@@ -5496,17 +5876,19 @@ def search_one_source(source_key, query, limit=5):
         results = wikipedia_search(query, limit=limit)
     elif source_key == "news":
         results = bing_news_search(query, limit=limit, engine_url=source["search_url"])
+    elif SOURCE_TYPES.get(source_key) == "官方":
+        results = official_domain_search(source_key, query, limit=limit)
     else:
         # 用搜索引擎的 site: 检索，避免直接抓取百度/淘宝/京东/闲鱼等页面时被反爬拦截。
         # 大陆网络下优先尝试百度和 Bing，再尝试 Google/DuckDuckGo，最后用 360 兜底。
-        results = general_search(f"site:{source['domain']} {query}", limit=limit)
+        results = general_search(f"site:{source['domain']} {query}", limit=limit, collect_all=True)
 
     fallback_url = source["search_url"].format(q=quote(query))
     if not results:
         results = generic_anchor_search_results(query, limit=limit, engine_url=source["search_url"])
-    results = [item for item in results if result_matches_source(item, source)]
+    results = [item for item in results if result_matches_source(item, source, source_key)]
 
-    enriched = enrich_search_results(results, max_pages=2)
+    enriched = enrich_search_results(results, max_pages=3, query=query)
     if not has_effective_search_results([{"results": enriched}]):
         page_item = search_page_text_result(source, query)
         if page_item:
@@ -5537,7 +5919,7 @@ def direct_url_results(query, max_pages=3):
         if clean_url in seen or not is_useful_url(clean_url):
             continue
         seen.add(clean_url)
-        content = fetch_page_summary(clean_url, max_chars=1200)
+        content = fetch_page_summary(clean_url, max_chars=1600, query=query)
         if content:
             host = urlparse(clean_url).netloc.lower()
             items.append({
@@ -5592,7 +5974,7 @@ def select_search_sources(query, source_key="auto"):
         key=lambda key: SOURCE_TYPE_ORDER.get(SOURCE_TYPES.get(key, "不确定"), 2)
     )
 
-    return selected[: int(WEB_FEATURES.get("auto_source_limit", 8))]
+    return selected[: int(get_web_features().get("auto_source_limit", 8))]
 
 
 def web_search(query, source_key="all", limit_per_source=3):
@@ -6039,6 +6421,81 @@ CHAT_SETTINGS_TEXT = {
 for _code, _values in CHAT_SETTINGS_TEXT.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
 
+CHAT_ACTIVATION_TEXT = {
+    "zh_cn": {
+        "activation_title": "版本核验",
+        "activation_code": "激活码",
+        "activation_hint": "Pro：7 位数字且数字总和为 54。Ultra：8 位数字且数字总和为 66。",
+        "activation_current": "当前版本：{edition}",
+        "activate_pro": "核验 Pro",
+        "activate_ultra": "核验 Ultra",
+        "activation_success": "核验通过，已解锁：{edition}",
+        "activation_failed": "激活码无效，请检查位数和数字总和。",
+    },
+    "zh_tw": {
+        "activation_title": "版本核驗",
+        "activation_code": "啟用碼",
+        "activation_hint": "Pro：7 位數字且數字總和為 54。Ultra：8 位數字且數字總和為 66。",
+        "activation_current": "目前版本：{edition}",
+        "activate_pro": "核驗 Pro",
+        "activate_ultra": "核驗 Ultra",
+        "activation_success": "核驗通過，已解鎖：{edition}",
+        "activation_failed": "啟用碼無效，請檢查位數和數字總和。",
+    },
+    "en_us": {
+        "activation_title": "Edition Activation",
+        "activation_code": "Activation Code",
+        "activation_hint": "Pro: 7 digits with a digit sum of 54. Ultra: 8 digits with a digit sum of 66.",
+        "activation_current": "Current edition: {edition}",
+        "activate_pro": "Activate Pro",
+        "activate_ultra": "Activate Ultra",
+        "activation_success": "Activation passed. Unlocked: {edition}",
+        "activation_failed": "Invalid activation code. Check the length and digit sum.",
+    },
+    "en_gb": {
+        "activation_title": "Edition Activation",
+        "activation_code": "Activation Code",
+        "activation_hint": "Pro: 7 digits with a digit sum of 54. Ultra: 8 digits with a digit sum of 66.",
+        "activation_current": "Current edition: {edition}",
+        "activate_pro": "Activate Pro",
+        "activate_ultra": "Activate Ultra",
+        "activation_success": "Activation passed. Unlocked: {edition}",
+        "activation_failed": "Invalid activation code. Check the length and digit sum.",
+    },
+    "ja": {
+        "activation_title": "エディション認証",
+        "activation_code": "認証コード",
+        "activation_hint": "Pro：7 桁で数字の合計が 54。Ultra：8 桁で数字の合計が 66。",
+        "activation_current": "現在のエディション：{edition}",
+        "activate_pro": "Pro を認証",
+        "activate_ultra": "Ultra を認証",
+        "activation_success": "認証しました：{edition}",
+        "activation_failed": "認証コードが無効です。桁数と数字の合計を確認してください。",
+    },
+    "fr": {
+        "activation_title": "Activation de l'édition",
+        "activation_code": "Code d'activation",
+        "activation_hint": "Pro : 7 chiffres avec une somme de 54. Ultra : 8 chiffres avec une somme de 66.",
+        "activation_current": "Édition actuelle : {edition}",
+        "activate_pro": "Activer Pro",
+        "activate_ultra": "Activer Ultra",
+        "activation_success": "Activation validée : {edition}",
+        "activation_failed": "Code d'activation invalide. Vérifiez la longueur et la somme des chiffres.",
+    },
+    "de": {
+        "activation_title": "Edition aktivieren",
+        "activation_code": "Aktivierungscode",
+        "activation_hint": "Pro: 7 Ziffern mit Quersumme 54. Ultra: 8 Ziffern mit Quersumme 66.",
+        "activation_current": "Aktuelle Edition: {edition}",
+        "activate_pro": "Pro aktivieren",
+        "activate_ultra": "Ultra aktivieren",
+        "activation_success": "Aktivierung erfolgreich: {edition}",
+        "activation_failed": "Ungültiger Aktivierungscode. Länge und Quersumme prüfen.",
+    },
+}
+for _code, _values in CHAT_ACTIVATION_TEXT.items():
+    CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
+
 CHAT_SCREENSHOT_TEXT = {
     "zh_cn": {
         "save_device_screenshot": "保存本机信息截图",
@@ -6110,6 +6567,35 @@ for _code, _values in ADDITIONAL_CHAT_TEXT_OVERRIDES.items():
     _base = CHAT_GUI_TEXT.get("en_us", CHAT_GUI_TEXT["zh_cn"]).copy()
     _base.update(_values)
     CHAT_GUI_TEXT[_code] = _base
+
+LOCALAI_EXTRA_CHAT_OVERRIDES = {
+    "ko": {"new_chat": "새 대화", "history": "대화 기록", "export": "대화 내보내기", "wallpaper": "배경 추가", "web_off": "웹: 끔", "web_on": "웹: 켬", "input_hint": "메시지를 입력하세요. Enter 전송, Shift+Enter 줄바꿈.", "history_title": "대화 기록", "model_title": "모델 선택", "device_title": "기기 정보", "export_done": "대화를 내보냈습니다:\n{path}", "export_empty": "내보낼 대화가 없습니다.", "no_model": "모델이 선택되지 않았습니다.", "no_models": "설치된 모델을 찾지 못했습니다.", "model_saved": "모델이 변경되었습니다: {model}", "language_saved": "언어가 변경되었습니다: {language}", "ollama_error": "Ollama에 연결할 수 없습니다. Ollama가 실행 중인지 확인하세요.", "wallpaper_error": "이 이미지를 불러올 수 없습니다.", "import_file": "파일 가져오기", "imported_files": "{count}개 파일을 가져왔습니다", "file_imported": "가져옴: {names}", "file_error": "선택한 파일을 읽을 수 없습니다.", "qemu_bridge": "QEMU 변환"},
+    "es": {"new_chat": "Nuevo chat", "history": "Historial", "export": "Exportar chat", "wallpaper": "Añadir fondo", "web_off": "Web: desactivada", "web_on": "Web: activada", "input_hint": "Escribe un mensaje. Enter envía, Shift+Enter añade línea.", "history_title": "Historial", "model_title": "Elegir modelo", "device_title": "Información del dispositivo", "export_done": "Chat exportado:\n{path}", "export_empty": "No hay contenido para exportar.", "no_model": "No hay modelo seleccionado.", "no_models": "No se detectaron modelos instalados.", "model_saved": "Modelo cambiado a: {model}", "language_saved": "Idioma cambiado a: {language}", "ollama_error": "No se puede conectar con Ollama. Comprueba que esté ejecutándose.", "wallpaper_error": "No se puede cargar esta imagen.", "import_file": "Importar archivo", "imported_files": "{count} archivos importados", "file_imported": "Importado: {names}", "file_error": "No se puede leer el archivo seleccionado.", "qemu_bridge": "Puente QEMU"},
+    "it": {"new_chat": "Nuova chat", "history": "Cronologia", "export": "Esporta chat", "wallpaper": "Aggiungi sfondo", "web_off": "Web: off", "web_on": "Web: on", "input_hint": "Scrivi un messaggio. Enter invia, Shift+Enter va a capo.", "history_title": "Cronologia", "model_title": "Scegli modello", "device_title": "Informazioni dispositivo", "export_done": "Chat esportata:\n{path}", "export_empty": "Non c'è nulla da esportare.", "no_model": "Nessun modello selezionato.", "no_models": "Nessun modello installato rilevato.", "model_saved": "Modello cambiato in: {model}", "language_saved": "Lingua cambiata in: {language}", "ollama_error": "Impossibile connettersi a Ollama.", "wallpaper_error": "Impossibile caricare questa immagine.", "import_file": "Importa file", "imported_files": "{count} file importati", "file_imported": "Importato: {names}", "file_error": "Impossibile leggere il file selezionato.", "qemu_bridge": "Bridge QEMU"},
+    "pt": {"new_chat": "Novo chat", "history": "Histórico", "export": "Exportar conversa", "wallpaper": "Adicionar papel de parede", "web_off": "Web: desligada", "web_on": "Web: ligada", "input_hint": "Digite uma mensagem. Enter envia, Shift+Enter quebra linha.", "history_title": "Histórico", "model_title": "Escolher modelo", "device_title": "Informações do dispositivo", "export_done": "Conversa exportada:\n{path}", "export_empty": "Não há conteúdo para exportar.", "no_model": "Nenhum modelo selecionado.", "no_models": "Nenhum modelo instalado detectado.", "model_saved": "Modelo alterado para: {model}", "language_saved": "Idioma alterado para: {language}", "ollama_error": "Não foi possível conectar ao Ollama.", "wallpaper_error": "Não foi possível carregar esta imagem.", "import_file": "Importar arquivo", "imported_files": "{count} arquivos importados", "file_imported": "Importado: {names}", "file_error": "Não foi possível ler o arquivo selecionado.", "qemu_bridge": "Ponte QEMU"},
+    "ru": {"new_chat": "Новый чат", "history": "История", "export": "Экспорт чата", "wallpaper": "Добавить фон", "web_off": "Сеть: выкл.", "web_on": "Сеть: вкл.", "input_hint": "Введите сообщение. Enter отправляет, Shift+Enter переносит строку.", "history_title": "История", "model_title": "Выберите модель", "device_title": "Информация об устройстве", "export_done": "Чат экспортирован:\n{path}", "export_empty": "Нет содержимого для экспорта.", "no_model": "Модель не выбрана.", "no_models": "Установленные модели не найдены.", "model_saved": "Модель изменена на: {model}", "language_saved": "Язык изменён на: {language}", "ollama_error": "Не удалось подключиться к Ollama.", "wallpaper_error": "Не удалось загрузить это изображение.", "import_file": "Импорт файла", "imported_files": "Импортировано файлов: {count}", "file_imported": "Импортировано: {names}", "file_error": "Не удалось прочитать выбранный файл.", "qemu_bridge": "Мост QEMU"},
+    "nl": {"new_chat": "Nieuwe chat", "history": "Geschiedenis", "export": "Chat exporteren", "wallpaper": "Achtergrond toevoegen", "web_off": "Web: uit", "web_on": "Web: aan", "input_hint": "Typ een bericht. Enter verzendt, Shift+Enter maakt een nieuwe regel.", "history_title": "Geschiedenis", "model_title": "Model kiezen", "device_title": "Apparaatinformatie", "export_done": "Chat geëxporteerd:\n{path}", "export_empty": "Er is niets om te exporteren.", "no_model": "Geen model geselecteerd.", "no_models": "Geen geïnstalleerde modellen gevonden.", "model_saved": "Model gewijzigd naar: {model}", "language_saved": "Taal gewijzigd naar: {language}", "ollama_error": "Kan geen verbinding maken met Ollama.", "wallpaper_error": "Kan deze afbeelding niet laden.", "import_file": "Bestand importeren", "imported_files": "{count} bestanden geïmporteerd", "file_imported": "Geïmporteerd: {names}", "file_error": "Kan het geselecteerde bestand niet lezen.", "qemu_bridge": "QEMU-brug"},
+    "sv": {"new_chat": "Ny chatt", "history": "Historik", "export": "Exportera chatt", "wallpaper": "Lägg till bakgrund", "web_off": "Webb: av", "web_on": "Webb: på", "input_hint": "Skriv ett meddelande. Enter skickar, Shift+Enter gör ny rad.", "history_title": "Historik", "model_title": "Välj modell", "device_title": "Enhetsinformation", "export_done": "Chatten exporterades:\n{path}", "export_empty": "Det finns inget att exportera.", "no_model": "Ingen modell vald.", "no_models": "Inga installerade modeller hittades.", "model_saved": "Modell ändrad till: {model}", "language_saved": "Språk ändrat till: {language}", "ollama_error": "Kan inte ansluta till Ollama.", "wallpaper_error": "Kan inte läsa in bilden.", "import_file": "Importera fil", "imported_files": "{count} filer importerade", "file_imported": "Importerad: {names}", "file_error": "Kan inte läsa vald fil.", "qemu_bridge": "QEMU-brygga"},
+    "da": {"new_chat": "Ny chat", "history": "Historik", "export": "Eksportér chat", "wallpaper": "Tilføj baggrund", "web_off": "Web: fra", "web_on": "Web: til", "input_hint": "Skriv en besked. Enter sender, Shift+Enter laver ny linje.", "history_title": "Historik", "model_title": "Vælg model", "device_title": "Enhedsinfo", "export_done": "Chat eksporteret:\n{path}", "export_empty": "Der er intet at eksportere.", "no_model": "Ingen model valgt.", "no_models": "Ingen installerede modeller fundet.", "model_saved": "Model ændret til: {model}", "language_saved": "Sprog ændret til: {language}", "ollama_error": "Kan ikke forbinde til Ollama.", "wallpaper_error": "Kan ikke indlæse billedet.", "import_file": "Importér fil", "imported_files": "{count} filer importeret", "file_imported": "Importeret: {names}", "file_error": "Kan ikke læse den valgte fil.", "qemu_bridge": "QEMU-bro"},
+    "fi": {"new_chat": "Uusi keskustelu", "history": "Historia", "export": "Vie keskustelu", "wallpaper": "Lisää taustakuva", "web_off": "Verkko: pois", "web_on": "Verkko: päällä", "input_hint": "Kirjoita viesti. Enter lähettää, Shift+Enter lisää rivin.", "history_title": "Historia", "model_title": "Valitse malli", "device_title": "Laitetiedot", "export_done": "Keskustelu viety:\n{path}", "export_empty": "Ei vietävää sisältöä.", "no_model": "Mallia ei ole valittu.", "no_models": "Asennettuja malleja ei löytynyt.", "model_saved": "Malli vaihdettu: {model}", "language_saved": "Kieli vaihdettu: {language}", "ollama_error": "Ollamaan ei saada yhteyttä.", "wallpaper_error": "Kuvaa ei voi ladata.", "import_file": "Tuo tiedosto", "imported_files": "{count} tiedostoa tuotu", "file_imported": "Tuotu: {names}", "file_error": "Valittua tiedostoa ei voi lukea.", "qemu_bridge": "QEMU-silta"},
+    "no": {"new_chat": "Ny chat", "history": "Historikk", "export": "Eksporter chat", "wallpaper": "Legg til bakgrunn", "web_off": "Web: av", "web_on": "Web: på", "input_hint": "Skriv en melding. Enter sender, Shift+Enter gir ny linje.", "history_title": "Historikk", "model_title": "Velg modell", "device_title": "Enhetsinformasjon", "export_done": "Chat eksportert:\n{path}", "export_empty": "Det finnes ikke noe å eksportere.", "no_model": "Ingen modell valgt.", "no_models": "Ingen installerte modeller funnet.", "model_saved": "Modell endret til: {model}", "language_saved": "Språk endret til: {language}", "ollama_error": "Kan ikke koble til Ollama.", "wallpaper_error": "Kan ikke laste bildet.", "import_file": "Importer fil", "imported_files": "{count} filer importert", "file_imported": "Importert: {names}", "file_error": "Kan ikke lese valgt fil.", "qemu_bridge": "QEMU-bro"},
+}
+LOCALAI_EXTRA_CHAT_OVERRIDES.update({
+    "tr": {"language_saved": "Dil değiştirildi: {language}", "new_chat": "Yeni sohbet", "history": "Geçmiş", "export": "Sohbeti dışa aktar", "wallpaper": "Duvar kâğıdı ekle", "web_off": "Web: kapalı", "web_on": "Web: açık", "input_hint": "Mesaj yazın. Enter gönderir, Shift+Enter satır ekler.", "qemu_bridge": "QEMU Köprüsü"},
+    "pl": {"language_saved": "Zmieniono język na: {language}", "new_chat": "Nowy czat", "history": "Historia", "export": "Eksportuj czat", "wallpaper": "Dodaj tło", "web_off": "Sieć: wył.", "web_on": "Sieć: wł.", "input_hint": "Wpisz wiadomość. Enter wysyła, Shift+Enter dodaje linię.", "qemu_bridge": "Most QEMU"},
+    "cs": {"language_saved": "Jazyk změněn na: {language}", "new_chat": "Nový chat", "history": "Historie", "export": "Exportovat chat", "wallpaper": "Přidat pozadí", "web_off": "Web: vyp.", "web_on": "Web: zap.", "input_hint": "Napište zprávu. Enter odešle, Shift+Enter vloží řádek.", "qemu_bridge": "Most QEMU"},
+    "uk": {"language_saved": "Мову змінено на: {language}", "new_chat": "Новий чат", "history": "Історія", "export": "Експорт чату", "wallpaper": "Додати фон", "web_off": "Веб: вимк.", "web_on": "Веб: увімк.", "input_hint": "Введіть повідомлення. Enter надсилає, Shift+Enter додає рядок.", "qemu_bridge": "Міст QEMU"},
+    "el": {"language_saved": "Η γλώσσα άλλαξε σε: {language}", "new_chat": "Νέα συνομιλία", "history": "Ιστορικό", "export": "Εξαγωγή συνομιλίας", "wallpaper": "Προσθήκη φόντου", "web_off": "Web: ανενεργό", "web_on": "Web: ενεργό", "input_hint": "Πληκτρολογήστε μήνυμα. Enter για αποστολή, Shift+Enter για νέα γραμμή.", "qemu_bridge": "Γέφυρα QEMU"},
+    "ar": {"language_saved": "تم تغيير اللغة إلى: {language}", "new_chat": "محادثة جديدة", "history": "السجل", "export": "تصدير المحادثة", "wallpaper": "إضافة خلفية", "web_off": "الويب: إيقاف", "web_on": "الويب: تشغيل", "input_hint": "اكتب رسالة. Enter للإرسال و Shift+Enter لسطر جديد.", "qemu_bridge": "جسر QEMU"},
+    "mn": {"language_saved": "Хэл солигдлоо: {language}", "new_chat": "Шинэ чат", "history": "Түүх", "export": "Чатыг экспортлох", "wallpaper": "Дэвсгэр нэмэх", "web_off": "Вэб: хаалттай", "web_on": "Вэб: нээлттэй", "input_hint": "Зурвас бичнэ үү. Enter илгээнэ, Shift+Enter мөр нэмнэ.", "qemu_bridge": "QEMU гүүр"},
+    "th": {"language_saved": "เปลี่ยนภาษาเป็น: {language}", "new_chat": "แชตใหม่", "history": "ประวัติ", "export": "ส่งออกแชต", "wallpaper": "เพิ่มวอลเปเปอร์", "web_off": "เว็บ: ปิด", "web_on": "เว็บ: เปิด", "input_hint": "พิมพ์ข้อความ Enter เพื่อส่ง Shift+Enter ขึ้นบรรทัดใหม่", "qemu_bridge": "สะพาน QEMU"},
+    "vi": {"language_saved": "Đã đổi ngôn ngữ sang: {language}", "new_chat": "Cuộc trò chuyện mới", "history": "Lịch sử", "export": "Xuất trò chuyện", "wallpaper": "Thêm hình nền", "web_off": "Web: tắt", "web_on": "Web: bật", "input_hint": "Nhập tin nhắn. Enter gửi, Shift+Enter xuống dòng.", "qemu_bridge": "Cầu QEMU"},
+    "id": {"language_saved": "Bahasa diubah ke: {language}", "new_chat": "Chat baru", "history": "Riwayat", "export": "Ekspor chat", "wallpaper": "Tambah wallpaper", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Ketik pesan. Enter mengirim, Shift+Enter menambah baris.", "qemu_bridge": "Jembatan QEMU"},
+    "ms": {"language_saved": "Bahasa ditukar kepada: {language}", "new_chat": "Sembang baharu", "history": "Sejarah", "export": "Eksport sembang", "wallpaper": "Tambah kertas dinding", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Taip mesej. Enter menghantar, Shift+Enter baris baharu.", "qemu_bridge": "Jambatan QEMU"},
+    "hi": {"language_saved": "भाषा बदली गई: {language}", "new_chat": "नई चैट", "history": "इतिहास", "export": "चैट निर्यात करें", "wallpaper": "वॉलपेपर जोड़ें", "web_off": "वेब: बंद", "web_on": "वेब: चालू", "input_hint": "संदेश लिखें। Enter भेजता है, Shift+Enter नई पंक्ति जोड़ता है.", "qemu_bridge": "QEMU ब्रिज"},
+})
+for _code, _values in LOCALAI_EXTRA_CHAT_OVERRIDES.items():
+    CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
 
 def chat_gui_text(config, key, **kwargs):
     code = get_lang(config)
@@ -7320,7 +7806,7 @@ def run_chat_gui(config, web_answer_func=None):
             def show_settings(self):
                 win = tk.Toplevel(self)
                 win.title(self.ct("settings_title"))
-                win.geometry(self.child_geometry(420, 420))
+                win.geometry(self.child_geometry(420, 470))
                 win.configure(bg=self.colors["window"])
                 tk.Label(win, text=self.ct("settings_title"), bg=self.colors["window"], fg=self.colors["text"], font=(get_platform_font(), 16, "bold")).pack(anchor="w", padx=18, pady=(18, 10))
                 body = tk.Frame(win, bg=self.colors["window"])
@@ -7331,6 +7817,7 @@ def run_chat_gui(config, web_answer_func=None):
 
                 items = [
                     (self.ct("appearance"), self.show_theme_picker),
+                    (self.ct("activation_title"), self.show_activation_settings),
                     (self.ct("model_title"), self.show_model_picker),
                     (self.ct("provider_title"), self.show_provider_settings),
                     (self.ct("language_title"), self.show_language_picker),
@@ -7351,6 +7838,102 @@ def run_chat_gui(config, web_answer_func=None):
                 except Exception as exc:
                     log_error(exc)
                     messagebox.showerror("LocalAI", tr(self.config_data, "generic_error", error_type=type(exc).__name__, error=exc))
+
+            def show_activation_settings(self):
+                win = tk.Toplevel(self)
+                win.title(self.ct("activation_title"))
+                win.geometry(self.child_geometry(480, 320))
+                win.configure(bg=self.colors["window"])
+                tk.Label(
+                    win,
+                    text=self.ct("activation_title"),
+                    bg=self.colors["window"],
+                    fg=self.colors["text"],
+                    font=(get_platform_font(), 16, "bold"),
+                ).pack(anchor="w", padx=18, pady=(18, 8))
+
+                body = tk.Frame(win, bg=self.colors["window"])
+                body.pack(fill="both", expand=True, padx=18)
+                current_label = tk.Label(
+                    body,
+                    text=self.ct("activation_current", edition=edition_display_name(self.config_data.get("edition"))),
+                    bg=self.colors["window"],
+                    fg=self.colors["text"],
+                    font=(get_platform_font(), 12),
+                )
+                current_label.pack(anchor="w", pady=(4, 10))
+                tk.Label(
+                    body,
+                    text=self.ct("activation_code"),
+                    bg=self.colors["window"],
+                    fg=self.colors["muted"],
+                    font=(get_platform_font(), 10),
+                ).pack(anchor="w", pady=(4, 2))
+                code_entry = tk.Entry(
+                    body,
+                    bg=self.colors["input"],
+                    fg=self.colors["text"],
+                    insertbackground=self.colors["text"],
+                    relief="flat",
+                    bd=0,
+                    highlightthickness=1,
+                    highlightbackground=self.colors["border"],
+                    highlightcolor=self.colors["border"],
+                )
+                code_entry.insert(0, self.config_data.get("activation_code", ""))
+                code_entry.pack(fill="x", ipady=7)
+                tk.Label(
+                    body,
+                    text=self.ct("activation_hint"),
+                    bg=self.colors["window"],
+                    fg=self.colors["muted"],
+                    wraplength=int(420 * getattr(self, "ui_scale", 1.0)),
+                    justify="left",
+                    font=(get_platform_font(), 10),
+                ).pack(anchor="w", pady=(10, 4))
+                status = tk.Label(body, text="", bg=self.colors["window"], fg=self.colors["muted"], wraplength=420, justify="left")
+                status.pack(anchor="w", pady=(6, 0))
+
+                def activate(target_edition):
+                    code = code_entry.get().strip()
+                    if not validate_activation_code(target_edition, code):
+                        status.config(text=self.ct("activation_failed"), fg="#dc2626")
+                        return
+                    self.config_data["edition"] = normalize_edition(target_edition)
+                    self.config_data["activation_code"] = code
+                    normalize_provider_config(self.config_data)
+                    save_config(self.config_data)
+                    current_label.config(text=self.ct("activation_current", edition=edition_display_name(self.config_data.get("edition"))))
+                    status.config(
+                        text=self.ct("activation_success", edition=edition_display_name(self.config_data.get("edition"))),
+                        fg="#16a34a",
+                    )
+                    if hasattr(self, "provider_button"):
+                        self.provider_button.config(text=self.provider_label())
+
+                actions = tk.Frame(win, bg=self.colors["window"])
+                actions.pack(fill="x", padx=18, pady=16)
+                self.flat_button(
+                    actions,
+                    self.ct("activate_pro"),
+                    lambda: activate(EDITION_PRO),
+                    bg=self.colors["surface"],
+                    hover_bg=self.colors["surface_hover"],
+                    padx=16,
+                    pady=8,
+                    anchor="center",
+                ).pack(side="left")
+                self.flat_button(
+                    actions,
+                    self.ct("activate_ultra"),
+                    lambda: activate(EDITION_ULTRA),
+                    bg="#2563eb",
+                    fg="#ffffff",
+                    hover_bg="#1d4ed8",
+                    padx=16,
+                    pady=8,
+                    anchor="center",
+                ).pack(side="right")
 
             def show_theme_picker(self):
                 win = tk.Toplevel(self)
@@ -7396,11 +7979,16 @@ def run_chat_gui(config, web_answer_func=None):
                 win.title(self.ct("provider_title"))
                 win.geometry(self.child_geometry(460, 520))
                 win.configure(bg=self.colors["window"])
-                provider_var = tk.StringVar(value=normalize_provider(self.config_data.get("provider", "ollama")))
+                normalize_provider_config(self.config_data)
+                supported_providers = get_supported_providers(self.config_data)
+                current_provider = normalize_provider(self.config_data.get("provider", "ollama"))
+                if current_provider not in supported_providers:
+                    current_provider = "ollama"
+                provider_var = tk.StringVar(value=current_provider)
                 tk.Label(win, text=self.ct("provider_title"), bg=self.colors["window"], fg=self.colors["text"], font=(get_platform_font(), 16, "bold")).pack(anchor="w", padx=18, pady=(18, 10))
                 body = tk.Frame(win, bg=self.colors["window"])
                 body.pack(fill="both", expand=True, padx=18)
-                for provider in SUPPORTED_PROVIDERS:
+                for provider in supported_providers:
                     tk.Radiobutton(
                         body,
                         text=provider_display_name(provider),
@@ -7425,16 +8013,16 @@ def run_chat_gui(config, web_answer_func=None):
                     entry.pack(fill="x")
                     entries[key] = entry
 
-                if "lm_studio" in SUPPORTED_PROVIDERS:
+                if "lm_studio" in supported_providers:
                     add_entry("lmstudio_base_url", self.ct("lmstudio_base_url"), self.config_data.get("lmstudio_base_url", "http://localhost:1234/v1"))
-                if "openai_compatible" in SUPPORTED_PROVIDERS:
+                if "openai_compatible" in supported_providers:
                     add_entry("api_base_url", self.ct("api_base_url"), self.config_data.get("api_base_url", ""))
                     add_entry("api_key", self.ct("api_key"), self.config_data.get("api_key", ""), show="*")
                     add_entry("openai_model", self.ct("openai_model"), self.config_data.get("openai_model", ""))
-                elif "openai_official" in SUPPORTED_PROVIDERS:
+                elif "openai_official" in supported_providers:
                     add_entry("api_key", self.ct("api_key"), self.config_data.get("api_key", ""), show="*")
                     add_entry("openai_model", self.ct("openai_model"), self.config_data.get("openai_model", ""))
-                if "openai_official" in SUPPORTED_PROVIDERS and "openai_compatible" in SUPPORTED_PROVIDERS:
+                if "openai_official" in supported_providers and "openai_compatible" in supported_providers:
                     if "api_key" not in entries:
                         add_entry("api_key", self.ct("api_key"), self.config_data.get("api_key", ""), show="*")
                     if "openai_model" not in entries:

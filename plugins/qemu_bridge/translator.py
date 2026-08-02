@@ -2,6 +2,7 @@ import copy
 import shlex
 
 from .models import ConversionResult, TargetPlatform, ValidationIssue
+from .parser import default_machine_for_arch, normalize_architecture_name
 from .validator import validate_config
 
 
@@ -25,10 +26,13 @@ EXECUTABLES = {
 def convert_config(source, target):
     target = TargetPlatform(target)
     config = copy.deepcopy(source)
+    config.architecture = normalize_architecture_name(config.architecture)
+    if not config.machine:
+        config.machine = default_machine_for_arch(config.architecture)
     issues = validate_config(config, target)
 
     if config.accelerator in {"auto", "hvf", "whpx", "kvm"}:
-        desired = ACCELERATORS[target]
+        desired = preferred_accelerator(config, target)
         if config.accelerator not in {"auto", desired}:
             issues.append(ValidationIssue("warning", "accelerator_replaced", f"{config.accelerator} 已替换为 {desired}。"))
         config.accelerator = desired
@@ -37,14 +41,34 @@ def convert_config(source, target):
         issues.append(ValidationIssue("warning", "host_cpu_tcg", "TCG 无法等价使用 host CPU，已改为 max。"))
         config.cpu_model = "max"
 
-    if config.architecture == "aarch64" and config.machine in {"q35", "pc"}:
+    if config.architecture == "aarch64" and machine_base(config.machine) in {"q35", "pc"}:
         issues.append(ValidationIssue("warning", "machine_arch_mismatch", "aarch64 通常应使用 virt 机型，已自动调整。"))
-        config.machine = "virt"
+        config.machine = replace_machine_base(config.machine, "virt")
+    elif config.architecture in {"ppc", "ppc64"} and machine_base(config.machine) in {"q35", "pc", "virt", ""}:
+        machine = default_machine_for_arch(config.architecture)
+        issues.append(ValidationIssue("warning", "machine_arch_mismatch", f"{config.architecture} 不应使用 {config.machine or '空'} 机型，已自动调整为 {machine}。"))
+        config.machine = replace_machine_base(config.machine, machine)
 
     if config.unsupported_args:
         issues.append(ValidationIssue("warning", "unsupported_args", "以下参数无法等价转换，已保留在命令末尾供手动检查：" + " ".join(config.unsupported_args)))
 
     return ConversionResult(render_qemu_command(config, target), config, issues)
+
+
+def preferred_accelerator(config, target):
+    arch = normalize_architecture_name(config.architecture)
+    if arch in {"ppc", "ppc64", "riscv64"}:
+        return "tcg"
+    return ACCELERATORS[target]
+
+
+def machine_base(machine: str) -> str:
+    return str(machine or "").split(",", 1)[0].strip()
+
+
+def replace_machine_base(current: str, new_base: str) -> str:
+    parts = [part for part in str(current or "").split(",") if part]
+    return ",".join([new_base] + parts[1:]) if parts else new_base
 
 
 def render_qemu_command(config, target):

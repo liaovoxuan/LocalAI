@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "Trợ lý mô hình đám mây CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "Mô-đun chính CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI cần truy cập Internet để liên hệ nhà cung cấp mô hình đám mây do người dùng cấu hình."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Màn hình chính CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

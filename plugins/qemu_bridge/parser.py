@@ -25,13 +25,38 @@ ARCH = {
     "qemu-system-riscv64": "riscv64",
 }
 
+ARCH_ALIASES = {
+    "amd64": "x86_64",
+    "x64": "x86_64",
+    "x86-64": "x86_64",
+    "x86": "i386",
+    "i686": "i386",
+    "arm64": "aarch64",
+    "powerpc": "ppc",
+    "power-pc": "ppc",
+    "ppc32": "ppc",
+    "powerpc64": "ppc64",
+    "power-pc64": "ppc64",
+    "ppc64le": "ppc64",
+}
+
+DEFAULT_MACHINES = {
+    "x86_64": "q35",
+    "i386": "pc",
+    "aarch64": "virt",
+    "arm": "virt",
+    "ppc": "mac99",
+    "ppc64": "pseries",
+    "riscv64": "virt",
+}
+
 
 def parse_qemu_command(command: str) -> VirtualMachineConfig:
     tokens = split_command(command)
     if not tokens:
         raise ValueError("QEMU command is empty.")
 
-    config = VirtualMachineConfig(architecture=ARCH.get(Path(tokens[0]).name, "x86_64"))
+    config = VirtualMachineConfig(architecture=normalize_architecture_name(ARCH.get(Path(tokens[0]).name, "x86_64")))
     i = 1
     while i < len(tokens):
         key = tokens[i]
@@ -138,14 +163,10 @@ def parse_utm_data(data, package: Path) -> VirtualMachineConfig:
     flat = flatten_plist(data)
     lower = {key.lower(): value for key, value in flat.items()}
 
-    config.architecture = str(first_value(lower, ["architecture", "system.architecture", "target.architecture"], "x86_64")).lower()
-    config.machine = str(first_value(lower, ["target", "machine", "system.target"], "virt" if config.architecture == "aarch64" else "q35"))
+    config.architecture = normalize_architecture_name(first_value(lower, ["architecture", "system.architecture", "target.architecture"], "x86_64"))
+    config.machine = str(first_value(lower, ["target", "machine", "system.target"], default_machine_for_arch(config.architecture)))
     config.cpu_cores = int_like(first_value(lower, ["cpucount", "cpucores", "cpu.count", "system.cpucount", "system.cpucores"], 2), 2)
-    config.memory_mb = int_like(first_value(lower, ["memorysize", "memory", "system.memorysize"], 4096), 4096)
-    if config.memory_mb > 1024 * 1024:
-        config.memory_mb = int(config.memory_mb / 1024 / 1024)
-    elif config.memory_mb > 1024 * 64:
-        config.memory_mb = int(config.memory_mb / 1024)
+    config.memory_mb = normalize_memory_mb(first_value(lower, ["memorysize", "memory", "system.memorysize"], 4096))
     config.cpu_model = normalize_cpu_model(first_value(lower, ["cpu", "cpumodel", "system.cpu"], "max"))
     config.cpu_model = apply_utm_cpu_flags(config.cpu_model, data)
     config.accelerator = parse_utm_accelerator(data)
@@ -203,6 +224,24 @@ def parse_memory(value: str) -> int:
     if text.endswith("k"):
         return max(1, int(float(text[:-1]) / 1024))
     return int(float(text))
+
+
+def normalize_architecture_name(value) -> str:
+    text = str(value or "x86_64").strip().lower().replace(" ", "").replace("-", "_")
+    return ARCH_ALIASES.get(text, text or "x86_64")
+
+
+def default_machine_for_arch(arch: str) -> str:
+    return DEFAULT_MACHINES.get(normalize_architecture_name(arch), "q35")
+
+
+def normalize_memory_mb(value, default: int = 4096) -> int:
+    memory = int_like(value, default)
+    if memory > 1024 * 1024:
+        return max(1, int(memory / 1024 / 1024))
+    if memory > 1024 * 64:
+        return max(1, int(memory / 1024))
+    return max(1, memory)
 
 
 def parse_smp(value: str) -> int:

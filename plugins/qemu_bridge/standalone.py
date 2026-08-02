@@ -3,12 +3,13 @@ from __future__ import annotations
 import plistlib
 import platform
 import shlex
+import os
 from dataclasses import replace
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 from .models import TargetPlatform, VirtualMachineConfig
-from .parser import parse_input
+from .parser import default_machine_for_arch, normalize_architecture_name, parse_input
 from .translator import convert_config
 
 
@@ -22,8 +23,15 @@ class ExitRequested(Exception):
 
 def main():
     print(f"=== {APP_NAME} ===")
+    profile = host_system_profile()
+    print(f"检测到系统：{profile['name']} / {profile['arch']} / {profile['family']}")
+    if profile["family"] == "macos-apple-silicon":
+        print("已启用 Apple Silicon 专用判断：ARM 架构虚拟机优先使用 HVF/UTM 虚拟化，其他架构使用解释执行。")
+    elif profile["family"] in {"harmonyos", "openharmony"}:
+        print("已识别 HarmonyOS/OpenHarmony 环境：转换输出按类 Linux 平台处理；原生应用包需要 DevEco/Hvigor 工程。")
     print("拖入路径时可直接把文件/文件夹拖到窗口里，也可以手动输入路径。")
     print("本工具只解析和生成配置文件，不启动 QEMU/UTM，也不要求本机已安装它们。")
+    print("QEMU 转 UTM 会生成 .utm 包，配置文件固定写入包内 config.plist；如需替换旧虚拟机，请在 UTM 包上右键显示包内容后替换 config.plist。")
     while True:
         try:
             run_once()
@@ -187,16 +195,14 @@ def load_source(source: str, source_type: str) -> VirtualMachineConfig:
 
 
 def normalize_architecture(config: VirtualMachineConfig) -> VirtualMachineConfig:
-    arch = str(config.architecture or "x86_64").lower()
-    if arch in {"amd64", "x64"}:
-        arch = "x86_64"
-    elif arch in {"arm64"}:
-        arch = "aarch64"
+    arch = normalize_architecture_name(config.architecture)
     config.architecture = arch
     if arch == "aarch64" and config.machine in {"q35", "pc", ""}:
         config.machine = "virt"
     elif arch in {"x86_64", "i386"} and config.machine in {"virt", ""}:
         config.machine = "q35"
+    elif arch in {"ppc", "ppc64"} and machine_base(config.machine) in {"q35", "pc", "virt", ""}:
+        config.machine = default_machine_for_arch(arch)
     return config
 
 
@@ -275,12 +281,70 @@ def write_qemu_output(config: VirtualMachineConfig, target_dir: Path) -> Path:
 
 
 def current_target_platform() -> TargetPlatform:
-    system = platform.system().lower()
-    if system == "windows":
+    family = host_system_profile()["family"]
+    if family == "windows":
         return TargetPlatform.WINDOWS
-    if system == "darwin":
+    if family.startswith("macos"):
         return TargetPlatform.MACOS
     return TargetPlatform.LINUX
+
+
+def read_os_release() -> dict[str, str]:
+    data: dict[str, str] = {}
+    if platform.system() != "Linux":
+        return data
+    for path in ("/etc/os-release", "/usr/lib/os-release"):
+        try:
+            with open(path, "r", encoding="utf-8", errors="ignore") as handle:
+                for line in handle:
+                    if "=" not in line:
+                        continue
+                    key, value = line.rstrip("\n").split("=", 1)
+                    data[key] = value.strip().strip('"')
+            if data:
+                return data
+        except OSError:
+            continue
+    return data
+
+
+def detect_harmony_family(info: dict[str, str]) -> str:
+    marker = " ".join(
+        str(info.get(key, "")).lower()
+        for key in ("ID", "ID_LIKE", "NAME", "PRETTY_NAME", "VARIANT", "VERSION_CODENAME")
+    )
+    env_marker = " ".join(
+        str(os.environ.get(key, "")).lower()
+        for key in ("OHOS_SDK_HOME", "HARMONYOS_SDK_HOME", "DEVECO_SDK_HOME")
+    )
+    marker = f"{marker} {env_marker}"
+    if "openharmony" in marker or "ohos" in marker:
+        return "openharmony"
+    if "harmonyos" in marker or "harmony os" in marker:
+        return "harmonyos"
+    return ""
+
+
+def host_system_profile() -> dict[str, str]:
+    system = platform.system()
+    arch = host_architecture()
+    if system == "Darwin":
+        return {
+            "name": f"macOS {platform.mac_ver()[0]}" if platform.mac_ver()[0] else "macOS",
+            "family": "macos-apple-silicon" if arch == "aarch64" else "macos-intel",
+            "arch": "apple-silicon" if arch == "aarch64" else arch,
+        }
+    if system == "Windows":
+        return {"name": f"Windows {platform.release()}", "family": "windows", "arch": arch}
+    if system == "Linux":
+        info = read_os_release()
+        harmony_family = detect_harmony_family(info)
+        return {
+            "name": info.get("PRETTY_NAME") or system,
+            "family": harmony_family or "linux",
+            "arch": arch,
+        }
+    return {"name": system or "Unknown", "family": (system or "unknown").lower(), "arch": arch}
 
 
 def format_issue_comment(message: str, target: TargetPlatform) -> str:
@@ -330,11 +394,16 @@ def safe_exists(path: Path) -> bool:
 
 
 def build_utm_plist(config: VirtualMachineConfig, guest_os: str, warnings: list[str]) -> dict:
-    arch = config.architecture
-    machine = "virt" if arch == "aarch64" else "q35"
+    arch = normalize_architecture_name(config.architecture)
+    machine = machine_base(config.machine) or default_machine_for_arch(arch)
+    virtualization_enabled = should_enable_utm_virtualization(arch)
     open_gl = guest_os != "linux"
     if guest_os == "linux":
         warnings.append("Linux 客户机未启用 OpenGL 加速，以避免部分发行版或 Mesa 版本显示崩溃。")
+    if virtualization_enabled:
+        warnings.append(f"客户机架构 {arch} 与本机架构 {host_architecture()} 一致，已加入 UTM/QEMU 虚拟化加速配置。")
+    else:
+        warnings.append(f"客户机架构 {arch} 与本机架构 {host_architecture()} 不一致或不支持硬件虚拟化，已关闭 UTM 虚拟化并使用 QEMU 解释执行。")
 
     drives = []
     for disk in config.disks:
@@ -348,9 +417,10 @@ def build_utm_plist(config: VirtualMachineConfig, guest_os: str, warnings: list[
     for cdrom in config.cdroms:
         drives.append({"ImagePath": cdrom, "Interface": "USB", "ReadOnly": True, "Removable": True})
 
-    network = {"NetworkMode": "Shared", "NetworkCard": "virtio-net-pci"}
+    network = {"NetworkMode": "Shared", "NetworkCard": default_utm_network_card(arch)}
     if config.networks:
         first = config.networks[0]
+        network["NetworkCard"] = first.model or network["NetworkCard"]
         if first.mac:
             network["MACAddress"] = first.mac
 
@@ -362,10 +432,10 @@ def build_utm_plist(config: VirtualMachineConfig, guest_os: str, warnings: list[
             "Target": machine,
             "CPUCores": int(config.cpu_cores or 2),
             "MemorySize": int(config.memory_mb or 4096) * 1024 * 1024,
-            "Hypervisor": True,
+            "Hypervisor": virtualization_enabled,
         },
         "Display": {
-            "Hardware": "virtio-gpu-pci" if arch == "aarch64" else "virtio-vga",
+            "Hardware": default_utm_display_hardware(arch),
             "OpenGL": open_gl,
             "ConsoleOnly": False,
         },
@@ -377,9 +447,49 @@ def build_utm_plist(config: VirtualMachineConfig, guest_os: str, warnings: list[
         "Drives": drives,
         "Sharing": build_utm_sharing(config),
         "QEMU": {
+            "Hypervisor": virtualization_enabled,
+            "UEFIBoot": bool(config.efi.secure_boot or arch in {"x86_64", "aarch64"}),
             "AdditionalArguments": sanitize_qemu_extra_args(config.extra_args + config.unsupported_args),
         },
     }
+
+
+def machine_base(machine: str) -> str:
+    return str(machine or "").split(",", 1)[0].strip()
+
+
+def default_utm_display_hardware(arch: str) -> str:
+    if arch == "aarch64":
+        return "virtio-gpu-pci"
+    if arch in {"ppc", "ppc64"}:
+        return "VGA"
+    return "virtio-vga"
+
+
+def default_utm_network_card(arch: str) -> str:
+    if arch in {"ppc", "ppc64"}:
+        return "rtl8139"
+    return "virtio-net-pci"
+
+
+def should_enable_utm_virtualization(guest_arch: str) -> bool:
+    host = host_architecture()
+    guest = normalize_architecture_name(guest_arch)
+    if guest in {"ppc", "ppc64", "riscv64", "arm"}:
+        return False
+    return guest == host
+
+
+def host_architecture() -> str:
+    machine = platform.machine().lower()
+    mapping = {
+        "amd64": "x86_64",
+        "x64": "x86_64",
+        "i686": "i386",
+        "arm64": "aarch64",
+        "riscv64gc": "riscv64",
+    }
+    return normalize_architecture_name(mapping.get(machine, machine))
 
 
 def utm_disk_interface(interface: str) -> str:

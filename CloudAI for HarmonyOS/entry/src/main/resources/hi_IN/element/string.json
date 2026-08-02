@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI क्लाउड मॉडल सहायक"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI मुख्य मॉड्यूल"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI को उपयोगकर्ता द्वारा कॉन्फ़िगर किए गए क्लाउड मॉडल प्रदाता से संपर्क करने के लिए इंटरनेट एक्सेस की आवश्यकता है।"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI मुख्य स्क्रीन"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

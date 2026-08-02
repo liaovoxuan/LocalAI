@@ -8,7 +8,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from .models import ConversionResult, DiskConfig, TargetPlatform, ValidationIssue, VirtualMachineConfig
-from .parser import parse_input
+from .parser import default_machine_for_arch, normalize_architecture_name, normalize_memory_mb, parse_input
 from .standalone import build_utm_plist
 from .translator import convert_config
 
@@ -17,9 +17,10 @@ TUTORIAL = """QEMU Bridge 转换教程：
 1. QEMU 输出必须是一条完整 qemu-system-* 命令，不能包含解释文字。
 2. UTM 输出必须保留 QEMU 可表达的硬件：架构、机型、CPU、内存、磁盘、ISO、网络、显示、USB、SPICE、共享目录和 EFI。
 3. UTM 专属字段不能直接写进 QEMU 命令；无法等价转换的字段必须转为兼容性警告或 AdditionalArguments。
-4. 架构必须匹配：x86_64/i386 使用 q35 或 pc；aarch64/arm64 使用 virt。
+4. 架构必须匹配：x86_64/i386 使用 q35 或 pc；aarch64/arm64 使用 virt；powerpc/ppc 使用 mac99/g3beige/prep；ppc64 使用 pseries/mac99。
 5. 镜像路径必须保留或按用户要求替换，不能静默删除磁盘。
-6. 生成内容必须可被 QEMU Bridge 重新解析。"""
+6. 如果用户没有要求修改架构、内存、CPU 核心或磁盘，必须保留原配置中的这些值。
+7. 生成内容必须可被 QEMU Bridge 重新解析。"""
 
 
 def build_ai_prompt(source_text: str, target_format: str, user_instruction: str) -> str:
@@ -42,33 +43,43 @@ def modify_with_ai_or_rules(source_text: str, target_format: str, user_instructi
     target_format = normalize_format(target_format)
     original = parse_input(source_text)
     ai_candidate = extract_candidate(ai_text)
+    rejection_issues = []
     if ai_candidate:
         try:
-            checked = validate_candidate(ai_candidate, target_format)
+            checked = validate_candidate(ai_candidate, target_format, original, user_instruction)
             if not checked.has_errors:
                 return checked
-        except Exception:
-            pass
+            rejection_issues = checked.issues
+        except Exception as exc:
+            rejection_issues = [ValidationIssue("warning", "ai_candidate_rejected", f"AI 输出无法通过转换检查，已改用程序转换：{exc}")]
 
     config = apply_instruction_rules(original, user_instruction)
     if target_format == "utm":
-        issues = validate_utm_plist(build_utm_plist(config, guess_guest_os(user_instruction), []))
-        return ConversionResult(render_utm_json(config, user_instruction), config, issues)
+        warnings = []
+        issues = validate_utm_plist(build_utm_plist(config, guess_guest_os(user_instruction), warnings))
+        issues = [ValidationIssue("warning", "utm_conversion_note", item) for item in warnings] + issues
+        return ConversionResult(render_utm_json(config, user_instruction), config, rejection_issues + issues)
     target = platform_from_instruction(user_instruction)
-    return convert_config(config, target)
+    result = convert_config(config, target)
+    result.issues = rejection_issues + result.issues
+    return result
 
 
-def validate_candidate(candidate: str, target_format: str) -> ConversionResult:
+def validate_candidate(candidate: str, target_format: str, original: VirtualMachineConfig | None = None, user_instruction: str = "") -> ConversionResult:
     if target_format == "utm":
         config = parse_input(candidate) if candidate.lstrip().startswith("qemu-system-") else parse_minimal_utm_json(candidate)
-        issues = validate_utm_plist(build_utm_plist(config, guess_guest_os(candidate), []))
+        warnings = []
+        issues = validate_utm_plist(build_utm_plist(config, guess_guest_os(candidate), warnings))
+        issues = [ValidationIssue("warning", "utm_conversion_note", item) for item in warnings] + issues
+        issues.extend(evaluate_candidate_against_request(original, config, user_instruction))
         return ConversionResult(render_utm_json(config, candidate), config, issues)
     if not candidate.lstrip().startswith("qemu-system-"):
         raise ValueError("QEMU candidate must start with qemu-system-*.")
     config = parse_input(candidate)
-    result = convert_config(config, platform_from_instruction(candidate))
+    result = convert_config(config, platform_from_instruction(user_instruction or candidate))
     if not result.config.disks and config.disks:
         result.issues.append(ValidationIssue("error", "disk_lost", "转换后磁盘配置丢失。"))
+    result.issues.extend(evaluate_candidate_against_request(original, result.config, user_instruction))
     return result
 
 
@@ -99,14 +110,16 @@ def apply_instruction_rules(config: VirtualMachineConfig, instruction: str) -> V
     text = str(instruction or "").lower()
     arch = detect_arch(text)
     if arch:
-        config.architecture = arch
-    if config.architecture in {"aarch64", "arm64"}:
-        config.architecture = "aarch64"
+        config.architecture = normalize_architecture_name(arch)
+    else:
+        config.architecture = normalize_architecture_name(config.architecture)
+    if config.architecture == "aarch64":
         config.machine = "virt"
-    elif config.architecture in {"x86_64", "amd64", "x64", "i386"}:
-        config.architecture = "x86_64" if config.architecture in {"amd64", "x64"} else config.architecture
+    elif config.architecture in {"x86_64", "i386"}:
         if config.machine in {"virt", ""}:
             config.machine = "q35"
+    elif config.architecture in {"ppc", "ppc64"} and machine_base(config.machine) in {"q35", "pc", "virt", ""}:
+        config.machine = default_machine_for_arch(config.architecture)
 
     memory = detect_memory_mb(text)
     if memory:
@@ -121,6 +134,10 @@ def apply_instruction_rules(config: VirtualMachineConfig, instruction: str) -> V
 
 
 def detect_arch(text: str) -> str | None:
+    if any(item in text for item in ("ppc64", "powerpc64", "power pc 64")):
+        return "ppc64"
+    if any(item in text for item in ("powerpc", "power pc", "ppc")):
+        return "ppc"
     if any(item in text for item in ("aarch64", "arm64", "apple silicon", "arm")):
         return "aarch64"
     if any(item in text for item in ("x86_64", "amd64", "x64")):
@@ -180,16 +197,70 @@ def parse_minimal_utm_json(candidate: str) -> VirtualMachineConfig:
     data = json.loads(candidate)
     system = data.get("System", data)
     config = VirtualMachineConfig(source_format="utm")
-    config.architecture = str(system.get("Architecture", "x86_64")).lower()
-    config.machine = str(system.get("Target", "virt" if config.architecture == "aarch64" else "q35"))
-    config.cpu_cores = int(system.get("CPUCores", 2))
-    memory = int(system.get("MemorySize", 4096))
-    config.memory_mb = int(memory / 1024 / 1024) if memory > 1024 * 1024 else memory
+    config.architecture = normalize_architecture_name(system.get("Architecture", "x86_64"))
+    config.machine = str(system.get("Target", default_machine_for_arch(config.architecture)))
+    config.cpu_cores = int(system.get("CPUCores") or system.get("CPUCount") or 2)
+    config.memory_mb = normalize_memory_mb(system.get("MemorySize", 4096))
     for item in data.get("Drives", []):
         path = item.get("ImagePath") or item.get("Path")
         if path:
             config.disks.append(DiskConfig(path=str(path), interface=str(item.get("Interface", "virtio")).lower()))
     return config
+
+
+def evaluate_candidate_against_request(original: VirtualMachineConfig | None, candidate: VirtualMachineConfig, instruction: str) -> list[ValidationIssue]:
+    if original is None:
+        return []
+    issues = []
+    text = str(instruction or "").lower()
+    requested_arch = detect_arch(text)
+    expected_arch = normalize_architecture_name(requested_arch or original.architecture)
+    actual_arch = normalize_architecture_name(candidate.architecture)
+    if actual_arch != expected_arch:
+        issues.append(ValidationIssue("error", "architecture_mismatch", f"架构不匹配：期望 {expected_arch}，实际 {actual_arch}。"))
+
+    requested_memory = detect_memory_mb(text)
+    expected_memory = requested_memory or original.memory_mb
+    if expected_memory and int(candidate.memory_mb or 0) != int(expected_memory):
+        issues.append(ValidationIssue("error", "memory_mismatch", f"内存不匹配：期望 {expected_memory} MB，实际 {candidate.memory_mb} MB。"))
+
+    requested_cores = detect_cpu_cores(text)
+    expected_cores = requested_cores or original.cpu_cores
+    if expected_cores and int(candidate.cpu_cores or 0) != int(expected_cores):
+        issues.append(ValidationIssue("error", "cpu_count_mismatch", f"CPU 核心数不匹配：期望 {expected_cores}，实际 {candidate.cpu_cores}。"))
+
+    if original.disks and len(candidate.disks) < len(original.disks) and not detect_path(instruction):
+        issues.append(ValidationIssue("error", "disk_lost", "AI 转换结果缺少原配置中的磁盘。"))
+    requested_path = detect_path(instruction)
+    if requested_path and all(disk.path != requested_path for disk in candidate.disks):
+        issues.append(ValidationIssue("error", "disk_path_mismatch", f"用户要求的镜像路径未写入：{requested_path}。"))
+
+    expected_machine = detect_machine(text)
+    if expected_machine and machine_base(candidate.machine) != expected_machine:
+        issues.append(ValidationIssue("error", "machine_mismatch", f"机型不匹配：期望 {expected_machine}，实际 {candidate.machine}。"))
+    elif expected_arch in {"ppc", "ppc64"}:
+        original_machine = machine_base(original.machine)
+        actual_machine = machine_base(candidate.machine)
+        invalid = {"q35", "pc", "virt", ""}
+        if actual_machine in invalid:
+            issues.append(ValidationIssue("error", "machine_arch_mismatch", f"{expected_arch} 不能使用 {actual_machine or '空'} 机型。"))
+        elif original_machine and original_machine not in invalid and actual_machine != original_machine:
+            issues.append(ValidationIssue("error", "machine_mismatch", f"PPC 机型被意外改变：期望 {original_machine}，实际 {actual_machine}。"))
+
+    if issues:
+        issues.insert(0, ValidationIssue("warning", "ai_candidate_rejected", "AI 输出未通过原配置和用户要求的一致性检查，已改用程序转换。"))
+    return issues
+
+
+def detect_machine(text: str) -> str | None:
+    for machine in ("mac99", "g3beige", "pseries", "prep", "q35", "pc", "virt"):
+        if machine in text:
+            return machine
+    return None
+
+
+def machine_base(machine: str) -> str:
+    return str(machine or "").split(",", 1)[0].strip()
 
 
 def validate_utm_plist(data: dict) -> list[ValidationIssue]:

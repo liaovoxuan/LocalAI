@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI bulut model asistanı"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI ana modülü"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI, kullanıcının yapılandırdığı bulut model sağlayıcısına bağlanmak için internet erişimine ihtiyaç duyar."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI ana ekranı"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

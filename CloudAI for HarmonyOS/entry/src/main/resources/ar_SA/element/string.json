@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "مساعد نماذج السحابة CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "الوحدة الرئيسية لـ CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "يحتاج CloudAI إلى الوصول إلى الإنترنت للاتصال بموفر نماذج السحابة الذي قام المستخدم بتكوينه."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "الشاشة الرئيسية لـ CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

@@ -1,5 +1,9 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import os
+
+TARGET_ARCH = os.environ.get("PYINSTALLER_TARGET_ARCH") or None
+
 
 a = Analysis(
     ['QEMU_Bridge.py'],
@@ -41,7 +45,7 @@ exe = EXE(
     console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
-    target_arch=None,
+    target_arch=TARGET_ARCH,
     codesign_identity=None,
     icon=None,
     entitlements_file=None,

@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI cloud model assistant"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI main module"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI needs internet access to contact the cloud model provider configured by the user."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI main screen"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

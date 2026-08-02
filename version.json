@@ -3,7 +3,7 @@
   "version": "0.8",
   "components": {
     "LocalAI": "0.8",
-    "CloudAI": "0.8",
+    "CloudAI": "1.0.0",
     "QEMU Bridge": "0.8"
   }
 }

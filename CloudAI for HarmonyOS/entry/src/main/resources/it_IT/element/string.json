@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "Assistente per modelli cloud CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "Modulo principale CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI richiede l’accesso a Internet per contattare il provider di modelli cloud configurato dall’utente."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Schermata principale di CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

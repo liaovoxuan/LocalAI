@@ -5,14 +5,62 @@ on:
   push:
     branches:
       - main
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
   build:
-    strategy:
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-
+    name: ${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            arch: x64
+            artifact-arch: x64
+            os: windows-latest
+            python-arch: x64
+            pyinstaller-target-arch: ""
+          - platform: windows
+            arch: arm64
+            artifact-arch: arm64
+            os: windows-11-arm
+            python-arch: arm64
+            pyinstaller-target-arch: ""
+          - platform: macos
+            arch: x64
+            artifact-arch: x64
+            os: macos-13
+            python-arch: x64
+            pyinstaller-target-arch: x86_64
+          - platform: macos
+            arch: arm64
+            artifact-arch: apple-silicon
+            os: macos-14
+            python-arch: arm64
+            pyinstaller-target-arch: arm64
+          - platform: linux
+            arch: x64
+            artifact-arch: x64
+            os: ubuntu-24.04
+            python-arch: x64
+            pyinstaller-target-arch: ""
+            deb-arch: amd64
+            rpm-arch: x86_64
+            appimage-arch: x86_64
+          - platform: linux
+            arch: arm64
+            artifact-arch: arm64
+            os: ubuntu-24.04-arm
+            python-arch: arm64
+            pyinstaller-target-arch: ""
+            deb-arch: arm64
+            rpm-arch: aarch64
+            appimage-arch: aarch64
 
     steps:
       - name: Checkout
@@ -22,113 +70,416 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
+          architecture: ${{ matrix.python-arch }}
 
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
 
-      - name: Install Linux GUI dependencies
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install Linux packaging dependencies
+        if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk
+          sudo apt-get install -y python3-tk desktop-file-utils fakeroot rpm curl file
 
-      - name: Build Standard Windows
-        if: matrix.os == 'windows-latest'
+      - name: Build Windows apps
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        env:
+          PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
         run: |
           pyinstaller --clean --noconfirm LocalAI.spec
-
-
-      - name: Build SE Windows
-        if: matrix.os == 'windows-latest'
-        run: |
           pyinstaller --clean --noconfirm LocalAI_SE.spec
-
-
-      - name: Build CloudAI Windows
-        if: matrix.os == 'windows-latest'
-        run: |
           pyinstaller --clean --noconfirm CloudAI.spec
-
-      - name: Build QEMU Bridge Windows
-        if: matrix.os == 'windows-latest'
-        run: |
           pyinstaller --clean --noconfirm QEMU_Bridge.spec
+          New-Item -ItemType Directory -Force release | Out-Null
+          Compress-Archive -Path "dist/LocalAI.exe" -DestinationPath "release/LocalAI-windows-${{ matrix.arch }}.zip" -Force
+          Compress-Archive -Path "dist/LocalAI_SE.exe" -DestinationPath "release/LocalAI_SE-windows-${{ matrix.arch }}.zip" -Force
+          Compress-Archive -Path "dist/CloudAI.exe" -DestinationPath "release/CloudAI-windows-${{ matrix.arch }}.zip" -Force
+          Compress-Archive -Path "dist/QEMU Bridge.exe" -DestinationPath "release/QEMU_Bridge-windows-${{ matrix.arch }}.zip" -Force
+          Get-ChildItem release -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)"
+          } | Set-Content release/SHA256SUMS
 
-      - name: Build Standard macOS
-        if: matrix.os == 'macos-latest'
+      - name: Build macOS apps
+        if: matrix.platform == 'macos'
+        env:
+          PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
+          LOCALAI_APPLE_SILICON_OPTIMIZED: ${{ matrix.arch == 'arm64' && '1' || '0' }}
         run: |
           pyinstaller --clean --noconfirm LocalAI_macOS.spec
-
-
-      - name: Build SE macOS
-        if: matrix.os == 'macos-latest'
-        run: |
           pyinstaller --clean --noconfirm LocalAI_SE_macOS.spec
-
-
-      - name: Build CloudAI macOS
-        if: matrix.os == 'macos-latest'
-        run: |
           pyinstaller --clean --noconfirm CloudAI_macOS.spec
-
-      - name: Build QEMU Bridge macOS
-        if: matrix.os == 'macos-latest'
-        run: |
           pyinstaller --clean --noconfirm QEMU_Bridge.spec
+          mkdir -p release
+          ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI.app" "release/LocalAI-macos-${{ matrix.artifact-arch }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI_SE.app" "release/LocalAI_SE-macos-${{ matrix.artifact-arch }}.zip"
+          ditto -c -k --sequesterRsrc --keepParent "dist/CloudAI.app" "release/CloudAI-macos-${{ matrix.artifact-arch }}.zip"
+          ditto -c -k --keepParent "dist/QEMU Bridge" "release/QEMU_Bridge-macos-${{ matrix.artifact-arch }}.zip"
+          (cd release && shasum -a 256 * > SHA256SUMS)
 
-      - name: Build Standard Linux
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build Linux apps
+        if: matrix.platform == 'linux'
+        env:
+          PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
         run: |
           pyinstaller --clean --noconfirm LocalAI_Linux.spec
-
-
-      - name: Build SE Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
           pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
-
-
-      - name: Build CloudAI Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
           pyinstaller --clean --noconfirm CloudAI_Linux.spec
-
-      - name: Build QEMU Bridge Linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
           pyinstaller --clean --noconfirm QEMU_Bridge.spec
 
-      - name: Upload Windows
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: LocalAI-Windows-0.8 Beta
-          path: |
-            dist/LocalAI.exe
-            dist/LocalAI_SE.exe
-            dist/CloudAI.exe
-            dist/QEMU Bridge.exe
+      - name: Package Linux AppImage/deb/rpm/tar.gz
+        if: matrix.platform == 'linux'
+        env:
+          DEB_ARCH: ${{ matrix.deb-arch }}
+          RPM_ARCH: ${{ matrix.rpm-arch }}
+          APPIMAGE_ARCH: ${{ matrix.appimage-arch }}
+        run: |
+          set -euo pipefail
+          VERSION="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("version.json").read_text(encoding="utf-8"))
+          print(str(data.get("version", "0.8")).split()[0])
+          PY
+          )"
+          mkdir -p release package-root appdirs rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
 
-      - name: Upload macOS
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: LocalAI-macOS-0.8 Beta
-          path: |
-            dist/LocalAI.app
-            dist/LocalAI_SE.app
-            dist/CloudAI.app
-            dist/QEMU Bridge
+          download_appimagetool() {
+            local tool="appimagetool-${APPIMAGE_ARCH}.AppImage"
+            if curl -L --retry 3 -o appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/${tool}"; then
+              chmod +x appimagetool
+              HAS_APPIMAGETOOL=1
+            else
+              HAS_APPIMAGETOOL=0
+              echo "AppImage tool is unavailable for ${APPIMAGE_ARCH}; deb/rpm/tar.gz will still be produced." | tee "release/AppImage-${APPIMAGE_ARCH}-UNAVAILABLE.txt"
+            fi
+          }
 
-      - name: Upload Linux
-        if: matrix.os == 'ubuntu-latest'
+          make_root() {
+            local app_id="$1"
+            local display="$2"
+            local dist_name="$3"
+            local terminal="$4"
+            local root="package-root/${app_id}"
+            rm -rf "$root"
+            mkdir -p "$root/opt/${app_id}" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/256x256/apps"
+            if [ -d "dist/${dist_name}" ]; then
+              cp -a "dist/${dist_name}/." "$root/opt/${app_id}/"
+              chmod +x "$root/opt/${app_id}/${dist_name}" || true
+              cat > "$root/usr/bin/${app_id}" <<EOF
+          #!/usr/bin/env sh
+          exec "/opt/${app_id}/${dist_name}" "\$@"
+          EOF
+            else
+              install -m 0755 "dist/${dist_name}" "$root/opt/${app_id}/${dist_name}"
+              cat > "$root/usr/bin/${app_id}" <<EOF
+          #!/usr/bin/env sh
+          exec "/opt/${app_id}/${dist_name}" "\$@"
+          EOF
+            fi
+            chmod +x "$root/usr/bin/${app_id}"
+            cp assets/icons/localai_dark_256.png "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png"
+            cat > "$root/usr/share/applications/${app_id}.desktop" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=${display}
+          Exec=${app_id}
+          Icon=${app_id}
+          Terminal=${terminal}
+          Categories=Utility;Development;
+          EOF
+          }
+
+          make_deb() {
+            local app_id="$1"
+            local display="$2"
+            local root="package-root/${app_id}"
+            mkdir -p "$root/DEBIAN"
+            cat > "$root/DEBIAN/control" <<EOF
+          Package: ${app_id}
+          Version: ${VERSION}
+          Section: utils
+          Priority: optional
+          Architecture: ${DEB_ARCH}
+          Maintainer: LocalAI <localai@example.invalid>
+          Description: ${display}
+           LocalAI family application packaged by GitHub Actions.
+          EOF
+            fakeroot dpkg-deb --build "$root" "release/${app_id}-linux-${DEB_ARCH}.deb"
+          }
+
+          make_rpm() {
+            local app_id="$1"
+            local display="$2"
+            local root="package-root/${app_id}"
+            local source_dir="$PWD/rpmbuild/SOURCES/${app_id}-root"
+            rm -rf "$source_dir"
+            mkdir -p "$source_dir"
+            cp -a "$root"/opt "$root"/usr "$source_dir"/
+            cat > "rpmbuild/SPECS/${app_id}.spec" <<EOF
+          Name: ${app_id}
+          Version: ${VERSION}
+          Release: 1%{?dist}
+          Summary: ${display}
+          License: Proprietary
+          BuildArch: ${RPM_ARCH}
+
+          %description
+          LocalAI family application packaged by GitHub Actions.
+
+          %install
+          mkdir -p %{buildroot}
+          cp -a %{_sourcedir}/${app_id}-root/* %{buildroot}/
+
+          %files
+          /opt/${app_id}
+          /usr/bin/${app_id}
+          /usr/share/applications/${app_id}.desktop
+          /usr/share/icons/hicolor/256x256/apps/${app_id}.png
+          EOF
+            rpmbuild -bb "rpmbuild/SPECS/${app_id}.spec" --define "_topdir $PWD/rpmbuild"
+            find "rpmbuild/RPMS/${RPM_ARCH}" -name "${app_id}-*.rpm" -exec cp {} "release/${app_id}-linux-${RPM_ARCH}.rpm" \;
+          }
+
+          make_tar() {
+            local app_id="$1"
+            tar -C "package-root/${app_id}" -czf "release/${app_id}-linux-${APPIMAGE_ARCH}.tar.gz" opt usr
+          }
+
+          make_appimage() {
+            local app_id="$1"
+            local display="$2"
+            if [ "${HAS_APPIMAGETOOL:-0}" != "1" ]; then
+              echo "Skipped ${display} AppImage because appimagetool is unavailable for ${APPIMAGE_ARCH}."
+              return 0
+            fi
+            local root="package-root/${app_id}"
+            local appdir="appdirs/${app_id}.AppDir"
+            rm -rf "$appdir"
+            mkdir -p "$appdir"
+            cp -a "$root"/opt "$root"/usr "$appdir"/
+            cp "$root/usr/share/applications/${app_id}.desktop" "$appdir/${app_id}.desktop"
+            cp "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png" "$appdir/${app_id}.png"
+            cat > "$appdir/AppRun" <<EOF
+          #!/usr/bin/env sh
+          HERE="\$(dirname "\$(readlink -f "\$0")")"
+          export PATH="\$HERE/usr/bin:\$PATH"
+          exec "\$HERE/usr/bin/${app_id}" "\$@"
+          EOF
+            chmod +x "$appdir/AppRun"
+            desktop-file-validate "$appdir/${app_id}.desktop"
+            ARCH="${APPIMAGE_ARCH}" APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool "$appdir" "release/${app_id}-linux-${APPIMAGE_ARCH}.AppImage"
+          }
+
+          download_appimagetool
+
+          while IFS='|' read -r app_id display dist_name terminal; do
+            [ -n "$app_id" ] || continue
+            make_root "$app_id" "$display" "$dist_name" "$terminal"
+            make_deb "$app_id" "$display"
+            make_rpm "$app_id" "$display"
+            make_tar "$app_id"
+            make_appimage "$app_id" "$display"
+          done <<'APPS'
+          localai|LocalAI|LocalAI|false
+          localai-se|LocalAI SE|LocalAI_SE|true
+          cloudai|CloudAI|CloudAI|false
+          qemu-bridge|QEMU Bridge|QEMU Bridge|true
+          APPS
+
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - name: Sign artifacts with GPG
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${GPG_PRIVATE_KEY:-}" ]; then
+            echo "GPG_PRIVATE_KEY is not configured; SHA256SUMS will be used as the verification file."
+            exit 0
+          fi
+          if ! command -v gpg >/dev/null 2>&1; then
+            echo "gpg is not available on this runner; skipping detached signatures."
+            exit 0
+          fi
+          mkdir -p ~/.gnupg
+          chmod 700 ~/.gnupg
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          for file in release/*; do
+            [ -f "$file" ] || continue
+            case "$file" in
+              *.asc) continue ;;
+            esac
+            gpg --batch --yes --pinentry-mode loopback --passphrase "${GPG_PASSPHRASE:-}" --armor --detach-sign "$file"
+          done
+
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LocalAI-Linux-0.8 Beta
-          path: |
-            dist/LocalAI
-            dist/LocalAI_SE
-            dist/CloudAI
-            dist/QEMU Bridge
+          name: LocalAI-${{ matrix.platform }}-${{ matrix.artifact-arch }}-0.8-Beta
+          path: release/*
+          if-no-files-found: error
+
+      - name: Upload tagged release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+
+  linux-riscv64:
+    name: linux-riscv64
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable QEMU for RISC-V
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: riscv64
+
+      - name: Build Linux RISC-V apps
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/riscv64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y python3 python3-pip python3-venv python3-tk python3-dev gcc binutils fakeroot dpkg-dev rpm tar gzip file
+            python3 -m venv .venv-riscv64
+            . .venv-riscv64/bin/activate
+            python -m pip install --upgrade pip
+            pip install pyinstaller requests psutil py-cpuinfo pillow
+            pyinstaller --clean --noconfirm LocalAI_Linux.spec
+            pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
+            pyinstaller --clean --noconfirm CloudAI_Linux.spec
+            pyinstaller --clean --noconfirm QEMU_Bridge.spec
+            VERSION="$(python - <<PY
+          import json
+          from pathlib import Path
+          data = json.loads(Path("version.json").read_text(encoding="utf-8"))
+          print(str(data.get("version", "0.8")).split()[0])
+          PY
+          )"
+            mkdir -p release package-root
+            make_root() {
+              app_id="$1"; display="$2"; dist_name="$3"; terminal="$4"
+              root="package-root/${app_id}"
+              rm -rf "$root"
+              mkdir -p "$root/opt/${app_id}" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/256x256/apps"
+              if [ -d "dist/${dist_name}" ]; then
+                cp -a "dist/${dist_name}/." "$root/opt/${app_id}/"
+                chmod +x "$root/opt/${app_id}/${dist_name}" || true
+              else
+                install -m 0755 "dist/${dist_name}" "$root/opt/${app_id}/${dist_name}"
+              fi
+              printf "%s\n" "#!/usr/bin/env sh" "exec \"/opt/${app_id}/${dist_name}\" \"\$@\"" > "$root/usr/bin/${app_id}"
+              chmod +x "$root/usr/bin/${app_id}"
+              cp assets/icons/localai_dark_256.png "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png"
+              printf "%s\n" "[Desktop Entry]" "Type=Application" "Name=${display}" "Exec=${app_id}" "Icon=${app_id}" "Terminal=${terminal}" "Categories=Utility;Development;" > "$root/usr/share/applications/${app_id}.desktop"
+              mkdir -p "$root/DEBIAN"
+              printf "%s\n" "Package: ${app_id}" "Version: ${VERSION}" "Section: utils" "Priority: optional" "Architecture: riscv64" "Maintainer: LocalAI <localai@example.invalid>" "Description: ${display}" " LocalAI family application packaged by GitHub Actions." > "$root/DEBIAN/control"
+              fakeroot dpkg-deb --build "$root" "release/${app_id}-linux-riscv64.deb"
+              tar -C "$root" -czf "release/${app_id}-linux-riscv64.tar.gz" opt usr
+            }
+            while IFS="|" read -r app_id display dist_name terminal; do
+              [ -n "$app_id" ] || continue
+              make_root "$app_id" "$display" "$dist_name" "$terminal"
+            done <<APPS
+          localai|LocalAI|LocalAI|false
+          localai-se|LocalAI SE|LocalAI_SE|true
+          cloudai|CloudAI|CloudAI|false
+          qemu-bridge|QEMU Bridge|QEMU Bridge|true
+          APPS
+            echo "RISC-V AppImage is skipped unless a compatible appimagetool-riscv64 binary is available." > release/AppImage-riscv64-UNAVAILABLE.txt
+            (cd release && sha256sum * > SHA256SUMS)
+          '
+
+      - name: Upload Linux RISC-V artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-linux-riscv64-0.8-Beta
+          path: release/*
+          if-no-files-found: error
+
+      - name: Upload tagged Linux RISC-V release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+
+  harmony-openharmony:
+    name: ${{ matrix.target }}-${{ matrix.arch }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: harmonyos
+            arch: arm64
+            project-dir: harmonyos
+          - target: openharmony
+            arch: x64
+            project-dir: openharmony
+          - target: openharmony
+            arch: arm64
+            project-dir: openharmony
+          - target: openharmony
+            arch: riscv64
+            project-dir: openharmony
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build or describe Harmony/OpenHarmony package
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          PROJECT_DIR="${{ matrix.project-dir }}"
+          TARGET="${{ matrix.target }}"
+          TARGET_ARCH="${{ matrix.arch }}"
+          NOTE="release/${TARGET}-${TARGET_ARCH}-PORTING_REQUIRED.txt"
+          if [ ! -d "$PROJECT_DIR" ]; then
+            {
+              echo "${TARGET} ${TARGET_ARCH} native package was not built because ${PROJECT_DIR}/ does not exist."
+              echo "CloudAI and QEMU Bridge are currently Python/Tkinter/PyInstaller desktop apps."
+              echo "Native ${TARGET} packages require a DevEco Studio or OpenHarmony SDK project with Hvigor/HvigorW."
+              echo "HarmonyOS is configured for ARM only. OpenHarmony is configured for ARM, x64 and RISC-V."
+              echo "Required external tools: DevEco Studio or HarmonyOS/OpenHarmony SDK, Hvigor/HvigorW, signing certificate/profile."
+            } > "$NOTE"
+          elif [ -x "$PROJECT_DIR/hvigorw" ]; then
+            (cd "$PROJECT_DIR" && ./hvigorw --mode module assembleHap || ./hvigorw assembleHap)
+            find "$PROJECT_DIR" -type f \( -name "*.hap" -o -name "*.app" -o -name "*.hsp" \) -exec cp {} release/ \;
+          elif command -v hvigorw >/dev/null 2>&1; then
+            (cd "$PROJECT_DIR" && hvigorw --mode module assembleHap || hvigorw assembleHap)
+            find "$PROJECT_DIR" -type f \( -name "*.hap" -o -name "*.app" -o -name "*.hsp" \) -exec cp {} release/ \;
+          else
+            {
+              echo "${PROJECT_DIR}/ exists, but Hvigor/HvigorW was not found."
+              echo "Install DevEco Studio or HarmonyOS/OpenHarmony SDK and add Hvigor/HvigorW to PATH."
+              echo "Target: ${TARGET} ${TARGET_ARCH}"
+            } > "$NOTE"
+          fi
+          if ! find release -type f | grep -q .; then
+            echo "No package output was produced." > "$NOTE"
+          fi
+          (cd release && sha256sum * > SHA256SUMS)
+
+      - name: Upload Harmony/OpenHarmony artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CloudAI-QEMUBridge-${{ matrix.target }}-${{ matrix.arch }}-0.8-Beta
+          path: release/*
+          if-no-files-found: error
+
+      - name: Upload tagged Harmony/OpenHarmony release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*

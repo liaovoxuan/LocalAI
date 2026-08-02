@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "Assistente de modelos em nuvem CloudAI"
+    },
+    {
+      "name": "module_desc",
+      "value": "Módulo principal do CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "O CloudAI precisa de acesso à Internet para contatar o provedor de modelos em nuvem configurado pelo usuário."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Tela principal do CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

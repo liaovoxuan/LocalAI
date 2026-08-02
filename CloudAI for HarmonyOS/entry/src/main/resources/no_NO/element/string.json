@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI assistent for skymodeller"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI hovedmodul"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI trenger internettilgang for å kontakte skymodellleverandøren som brukeren har konfigurert."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI hovedskjerm"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

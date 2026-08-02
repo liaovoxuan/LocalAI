@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI үүлэн загварын туслах"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI үндсэн модуль"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI нь хэрэглэгчийн тохируулсан үүлэн загвар нийлүүлэгчтэй холбогдохын тулд интернет шаарддаг."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "CloudAI үндсэн дэлгэц"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

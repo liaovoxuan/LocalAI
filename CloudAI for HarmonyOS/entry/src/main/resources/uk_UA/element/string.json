@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI помічник хмарних моделей"
+    },
+    {
+      "name": "module_desc",
+      "value": "Головний модуль CloudAI"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI потребує доступу до Інтернету для підключення до постачальника хмарних моделей, налаштованого користувачем."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Головний екран CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

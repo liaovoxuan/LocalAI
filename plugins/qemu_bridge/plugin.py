@@ -21,6 +21,7 @@ PLUGIN_TEXT = {
         "open_utm": "导入文件/包",
         "result": "转换结果",
         "warnings": "兼容性警告",
+        "guide": "QEMU 转 UTM 会保存为 .utm 包，包内配置文件固定为 config.plist。替换旧虚拟机时：在旧 .utm 上右键显示包内容，备份原 config.plist，再用新生成的 config.plist 替换。",
         "copy": "复制结果",
         "ai_modify": "AI 修改",
         "target_format": "目标格式",
@@ -42,6 +43,7 @@ PLUGIN_TEXT = {
         "open_utm": "匯入檔案/套件",
         "result": "轉換結果",
         "warnings": "相容性警告",
+        "guide": "QEMU 轉 UTM 會儲存為 .utm 套件，套件內設定檔固定為 config.plist。替換舊虛擬機時：在舊 .utm 上右鍵顯示套件內容，備份原 config.plist，再用新產生的 config.plist 替換。",
         "copy": "複製結果",
         "ai_modify": "AI 修改",
         "target_format": "目標格式",
@@ -63,6 +65,7 @@ PLUGIN_TEXT = {
         "open_utm": "Import File/Package",
         "result": "Conversion Result",
         "warnings": "Compatibility Warnings",
+        "guide": "QEMU to UTM is saved as a .utm package with config.plist inside. To replace an existing VM, show package contents on the old .utm, back up its config.plist, then replace it with the generated config.plist.",
         "copy": "Copy Result",
         "ai_modify": "AI Modify",
         "target_format": "Target format",
@@ -76,6 +79,58 @@ PLUGIN_TEXT = {
         "no_warnings": "No compatibility warnings.",
     },
 }
+PLUGIN_TEXT["en_gb"] = PLUGIN_TEXT["en_us"]
+PLUGIN_TEXT["en_au"] = PLUGIN_TEXT["en_us"]
+PLUGIN_TEXT.update({
+    "ja": {
+        **PLUGIN_TEXT["en_us"],
+        "qemu_bridge": "QEMU 変換",
+        "title": "QEMU / UTM 変換",
+        "target": "対象プラットフォーム",
+        "convert": "変換",
+        "open_utm": "ファイル/パッケージを読み込む",
+        "result": "変換結果",
+        "warnings": "互換性の警告",
+        "copy": "結果をコピー",
+        "ai_modify": "AI で修正",
+        "target_format": "対象形式",
+        "instruction": "変換/修正指示",
+        "save_as": "変換結果を保存",
+        "saved": "保存しました：{path}",
+        "copied": "変換結果をコピーしました。",
+        "empty": "QEMU コマンドを入力するか .utm パッケージを選択してください。",
+        "error": "変換に失敗しました：{error}",
+        "no_warnings": "互換性の警告はありません。",
+    },
+    "ko": {"qemu_bridge": "QEMU 변환", "title": "QEMU / UTM 변환", "target": "대상 플랫폼", "convert": "변환", "open_utm": "파일/패키지 가져오기", "result": "변환 결과", "warnings": "호환성 경고", "copy": "결과 복사", "ai_modify": "AI 수정", "target_format": "대상 형식", "instruction": "변환/수정 지시", "save_as": "변환 결과 저장", "saved": "저장됨: {path}", "copied": "변환 결과가 복사되었습니다.", "empty": "QEMU 명령을 입력하거나 .utm 패키지를 선택하세요.", "error": "변환 실패: {error}", "no_warnings": "호환성 경고가 없습니다."},
+    "fr": {"qemu_bridge": "Pont QEMU", "title": "Pont QEMU / UTM", "target": "Plateforme cible", "convert": "Convertir", "open_utm": "Importer fichier/paquet", "result": "Résultat", "warnings": "Avertissements", "copy": "Copier", "ai_modify": "Modifier avec l'IA", "target_format": "Format cible", "instruction": "Instruction", "save_as": "Enregistrer le résultat", "saved": "Enregistré : {path}", "copied": "Résultat copié.", "empty": "Saisissez une commande QEMU ou choisissez un paquet .utm.", "error": "Échec de la conversion : {error}", "no_warnings": "Aucun avertissement."},
+    "de": {"qemu_bridge": "QEMU-Brücke", "title": "QEMU / UTM-Brücke", "target": "Zielplattform", "convert": "Konvertieren", "open_utm": "Datei/Paket importieren", "result": "Ergebnis", "warnings": "Kompatibilitätswarnungen", "copy": "Kopieren", "ai_modify": "Mit KI ändern", "target_format": "Zielformat", "instruction": "Anweisung", "save_as": "Ergebnis speichern", "saved": "Gespeichert: {path}", "copied": "Ergebnis kopiert.", "empty": "QEMU-Befehl eingeben oder .utm-Paket wählen.", "error": "Konvertierung fehlgeschlagen: {error}", "no_warnings": "Keine Warnungen."},
+    "es": {"qemu_bridge": "Puente QEMU", "title": "Puente QEMU / UTM", "target": "Plataforma destino", "convert": "Convertir", "open_utm": "Importar archivo/paquete", "result": "Resultado", "warnings": "Advertencias", "copy": "Copiar", "ai_modify": "Modificar con IA", "target_format": "Formato destino", "instruction": "Instrucción", "save_as": "Guardar resultado", "saved": "Guardado en: {path}", "copied": "Resultado copiado.", "empty": "Introduce un comando QEMU o elige un paquete .utm.", "error": "Error de conversión: {error}", "no_warnings": "Sin advertencias."},
+    "it": {"qemu_bridge": "Bridge QEMU", "title": "Bridge QEMU / UTM", "target": "Piattaforma destinazione", "convert": "Converti", "open_utm": "Importa file/pacchetto", "result": "Risultato", "warnings": "Avvisi", "copy": "Copia", "ai_modify": "Modifica con IA", "target_format": "Formato destinazione", "instruction": "Istruzione", "save_as": "Salva risultato", "saved": "Salvato in: {path}", "copied": "Risultato copiato.", "empty": "Inserisci un comando QEMU o scegli un pacchetto .utm.", "error": "Conversione non riuscita: {error}", "no_warnings": "Nessun avviso."},
+    "pt": {"qemu_bridge": "Ponte QEMU", "title": "Ponte QEMU / UTM", "target": "Plataforma alvo", "convert": "Converter", "open_utm": "Importar arquivo/pacote", "result": "Resultado", "warnings": "Avisos", "copy": "Copiar", "ai_modify": "Modificar com IA", "target_format": "Formato alvo", "instruction": "Instrução", "save_as": "Salvar resultado", "saved": "Salvo em: {path}", "copied": "Resultado copiado.", "empty": "Digite um comando QEMU ou escolha um pacote .utm.", "error": "Falha na conversão: {error}", "no_warnings": "Sem avisos."},
+    "ru": {"qemu_bridge": "Мост QEMU", "title": "Мост QEMU / UTM", "target": "Целевая платформа", "convert": "Преобразовать", "open_utm": "Импорт файла/пакета", "result": "Результат", "warnings": "Предупреждения", "copy": "Копировать", "ai_modify": "Изменить с ИИ", "target_format": "Целевой формат", "instruction": "Инструкция", "save_as": "Сохранить результат", "saved": "Сохранено: {path}", "copied": "Результат скопирован.", "empty": "Введите команду QEMU или выберите пакет .utm.", "error": "Ошибка преобразования: {error}", "no_warnings": "Предупреждений нет."},
+    "nl": {"qemu_bridge": "QEMU-brug", "title": "QEMU / UTM-brug", "target": "Doelplatform", "convert": "Converteren", "open_utm": "Bestand/pakket importeren", "result": "Resultaat", "warnings": "Waarschuwingen", "copy": "Kopiëren", "ai_modify": "Wijzigen met AI", "target_format": "Doelformaat", "instruction": "Instructie", "save_as": "Resultaat opslaan", "saved": "Opgeslagen: {path}", "copied": "Resultaat gekopieerd.", "empty": "Voer een QEMU-opdracht in of kies een .utm-pakket.", "error": "Conversie mislukt: {error}", "no_warnings": "Geen waarschuwingen."},
+    "sv": {"qemu_bridge": "QEMU-brygga", "title": "QEMU / UTM-brygga", "target": "Målplattform", "convert": "Konvertera", "open_utm": "Importera fil/paket", "result": "Resultat", "warnings": "Varningar", "copy": "Kopiera", "ai_modify": "Ändra med AI", "target_format": "Målformat", "instruction": "Instruktion", "save_as": "Spara resultat", "saved": "Sparat: {path}", "copied": "Resultat kopierat.", "empty": "Ange ett QEMU-kommando eller välj ett .utm-paket.", "error": "Konvertering misslyckades: {error}", "no_warnings": "Inga varningar."},
+    "da": {"qemu_bridge": "QEMU-bro", "title": "QEMU / UTM-bro", "target": "Målplatform", "convert": "Konverter", "open_utm": "Importer fil/pakke", "result": "Resultat", "warnings": "Advarsler", "copy": "Kopiér", "ai_modify": "Rediger med AI", "target_format": "Målformat", "instruction": "Instruktion", "save_as": "Gem resultat", "saved": "Gemt: {path}", "copied": "Resultat kopieret.", "empty": "Indtast en QEMU-kommando eller vælg en .utm-pakke.", "error": "Konvertering mislykkedes: {error}", "no_warnings": "Ingen advarsler."},
+    "fi": {"qemu_bridge": "QEMU-silta", "title": "QEMU / UTM-silta", "target": "Kohdealusta", "convert": "Muunna", "open_utm": "Tuo tiedosto/paketti", "result": "Tulos", "warnings": "Varoitukset", "copy": "Kopioi", "ai_modify": "Muokkaa AI:lla", "target_format": "Kohdemuoto", "instruction": "Ohje", "save_as": "Tallenna tulos", "saved": "Tallennettu: {path}", "copied": "Tulos kopioitu.", "empty": "Anna QEMU-komento tai valitse .utm-paketti.", "error": "Muunnos epäonnistui: {error}", "no_warnings": "Ei varoituksia."},
+    "no": {"qemu_bridge": "QEMU-bro", "title": "QEMU / UTM-bro", "target": "Målplattform", "convert": "Konverter", "open_utm": "Importer fil/pakke", "result": "Resultat", "warnings": "Advarsler", "copy": "Kopier", "ai_modify": "Endre med AI", "target_format": "Målformat", "instruction": "Instruksjon", "save_as": "Lagre resultat", "saved": "Lagret: {path}", "copied": "Resultat kopiert.", "empty": "Skriv inn en QEMU-kommando eller velg en .utm-pakke.", "error": "Konvertering mislyktes: {error}", "no_warnings": "Ingen advarsler."},
+    "tr": {"qemu_bridge": "QEMU Köprüsü", "title": "QEMU / UTM Köprüsü", "target": "Hedef platform", "convert": "Dönüştür", "open_utm": "Dosya/paket içe aktar", "result": "Sonuç", "warnings": "Uyarılar", "copy": "Kopyala", "ai_modify": "AI ile değiştir", "target_format": "Hedef biçim", "instruction": "Talimat", "save_as": "Sonucu kaydet", "saved": "Kaydedildi: {path}", "copied": "Sonuç kopyalandı.", "empty": "Bir QEMU komutu girin veya .utm paketi seçin.", "error": "Dönüştürme başarısız: {error}", "no_warnings": "Uyarı yok."},
+    "pl": {"qemu_bridge": "Most QEMU", "title": "Most QEMU / UTM", "target": "Platforma docelowa", "convert": "Konwertuj", "open_utm": "Importuj plik/pakiet", "result": "Wynik", "warnings": "Ostrzeżenia", "copy": "Kopiuj", "ai_modify": "Zmień z AI", "target_format": "Format docelowy", "instruction": "Instrukcja", "save_as": "Zapisz wynik", "saved": "Zapisano: {path}", "copied": "Wynik skopiowany.", "empty": "Wpisz polecenie QEMU lub wybierz pakiet .utm.", "error": "Konwersja nie powiodła się: {error}", "no_warnings": "Brak ostrzeżeń."},
+    "cs": {"qemu_bridge": "Most QEMU", "title": "Most QEMU / UTM", "target": "Cílová platforma", "convert": "Převést", "open_utm": "Importovat soubor/balíček", "result": "Výsledek", "warnings": "Varování", "copy": "Kopírovat", "ai_modify": "Upravit pomocí AI", "target_format": "Cílový formát", "instruction": "Pokyn", "save_as": "Uložit výsledek", "saved": "Uloženo: {path}", "copied": "Výsledek zkopírován.", "empty": "Zadejte příkaz QEMU nebo vyberte balíček .utm.", "error": "Převod selhal: {error}", "no_warnings": "Žádná varování."},
+    "uk": {"qemu_bridge": "Міст QEMU", "title": "Міст QEMU / UTM", "target": "Цільова платформа", "convert": "Перетворити", "open_utm": "Імпорт файлу/пакета", "result": "Результат", "warnings": "Попередження", "copy": "Копіювати", "ai_modify": "Змінити з ШІ", "target_format": "Цільовий формат", "instruction": "Інструкція", "save_as": "Зберегти результат", "saved": "Збережено: {path}", "copied": "Результат скопійовано.", "empty": "Введіть команду QEMU або виберіть пакет .utm.", "error": "Помилка перетворення: {error}", "no_warnings": "Попереджень немає."},
+    "el": {"qemu_bridge": "Γέφυρα QEMU", "title": "Γέφυρα QEMU / UTM", "target": "Πλατφόρμα στόχος", "convert": "Μετατροπή", "open_utm": "Εισαγωγή αρχείου/πακέτου", "result": "Αποτέλεσμα", "warnings": "Προειδοποιήσεις", "copy": "Αντιγραφή", "ai_modify": "Τροποποίηση με AI", "target_format": "Μορφή στόχος", "instruction": "Οδηγία", "save_as": "Αποθήκευση αποτελέσματος", "saved": "Αποθηκεύτηκε: {path}", "copied": "Το αποτέλεσμα αντιγράφηκε.", "empty": "Πληκτρολογήστε εντολή QEMU ή επιλέξτε πακέτο .utm.", "error": "Η μετατροπή απέτυχε: {error}", "no_warnings": "Δεν υπάρχουν προειδοποιήσεις."},
+    "ar": {"qemu_bridge": "جسر QEMU", "title": "جسر QEMU / UTM", "target": "المنصة الهدف", "convert": "تحويل", "open_utm": "استيراد ملف/حزمة", "result": "النتيجة", "warnings": "تحذيرات التوافق", "copy": "نسخ", "ai_modify": "تعديل بالذكاء الاصطناعي", "target_format": "الصيغة الهدف", "instruction": "التعليمات", "save_as": "حفظ النتيجة", "saved": "تم الحفظ: {path}", "copied": "تم نسخ النتيجة.", "empty": "أدخل أمر QEMU أو اختر حزمة .utm.", "error": "فشل التحويل: {error}", "no_warnings": "لا توجد تحذيرات."},
+    "mn": {"qemu_bridge": "QEMU гүүр", "title": "QEMU / UTM гүүр", "target": "Зорилтот платформ", "convert": "Хөрвүүлэх", "open_utm": "Файл/багц импортлох", "result": "Үр дүн", "warnings": "Анхааруулга", "copy": "Хуулах", "ai_modify": "AI-аар засах", "target_format": "Зорилтот формат", "instruction": "Заавар", "save_as": "Үр дүн хадгалах", "saved": "Хадгалсан: {path}", "copied": "Үр дүн хуулагдлаа.", "empty": "QEMU команд оруулах эсвэл .utm багц сонгоно уу.", "error": "Хөрвүүлэлт амжилтгүй: {error}", "no_warnings": "Анхааруулга байхгүй."},
+    "th": {"qemu_bridge": "สะพาน QEMU", "title": "สะพาน QEMU / UTM", "target": "แพลตฟอร์มปลายทาง", "convert": "แปลง", "open_utm": "นำเข้าไฟล์/แพ็กเกจ", "result": "ผลลัพธ์", "warnings": "คำเตือน", "copy": "คัดลอก", "ai_modify": "แก้ไขด้วย AI", "target_format": "รูปแบบปลายทาง", "instruction": "คำสั่ง", "save_as": "บันทึกผลลัพธ์", "saved": "บันทึกแล้ว: {path}", "copied": "คัดลอกผลลัพธ์แล้ว", "empty": "ป้อนคำสั่ง QEMU หรือเลือกแพ็กเกจ .utm", "error": "การแปลงล้มเหลว: {error}", "no_warnings": "ไม่มีคำเตือน"},
+    "vi": {"qemu_bridge": "Cầu QEMU", "title": "Cầu QEMU / UTM", "target": "Nền tảng đích", "convert": "Chuyển đổi", "open_utm": "Nhập tệp/gói", "result": "Kết quả", "warnings": "Cảnh báo", "copy": "Sao chép", "ai_modify": "Sửa bằng AI", "target_format": "Định dạng đích", "instruction": "Chỉ dẫn", "save_as": "Lưu kết quả", "saved": "Đã lưu: {path}", "copied": "Đã sao chép kết quả.", "empty": "Nhập lệnh QEMU hoặc chọn gói .utm.", "error": "Chuyển đổi thất bại: {error}", "no_warnings": "Không có cảnh báo."},
+    "id": {"qemu_bridge": "Jembatan QEMU", "title": "Jembatan QEMU / UTM", "target": "Platform target", "convert": "Konversi", "open_utm": "Impor file/paket", "result": "Hasil", "warnings": "Peringatan", "copy": "Salin", "ai_modify": "Ubah dengan AI", "target_format": "Format target", "instruction": "Instruksi", "save_as": "Simpan hasil", "saved": "Disimpan: {path}", "copied": "Hasil disalin.", "empty": "Masukkan perintah QEMU atau pilih paket .utm.", "error": "Konversi gagal: {error}", "no_warnings": "Tidak ada peringatan."},
+    "ms": {"qemu_bridge": "Jambatan QEMU", "title": "Jambatan QEMU / UTM", "target": "Platform sasaran", "convert": "Tukar", "open_utm": "Import fail/pakej", "result": "Hasil", "warnings": "Amaran", "copy": "Salin", "ai_modify": "Ubah dengan AI", "target_format": "Format sasaran", "instruction": "Arahan", "save_as": "Simpan hasil", "saved": "Disimpan: {path}", "copied": "Hasil disalin.", "empty": "Masukkan arahan QEMU atau pilih pakej .utm.", "error": "Penukaran gagal: {error}", "no_warnings": "Tiada amaran."},
+    "hi": {"qemu_bridge": "QEMU ब्रिज", "title": "QEMU / UTM ब्रिज", "target": "लक्ष्य प्लेटफ़ॉर्म", "convert": "बदलें", "open_utm": "फ़ाइल/पैकेज आयात करें", "result": "परिणाम", "warnings": "चेतावनियाँ", "copy": "कॉपी करें", "ai_modify": "AI से बदलें", "target_format": "लक्ष्य फ़ॉर्मैट", "instruction": "निर्देश", "save_as": "परिणाम सहेजें", "saved": "सहेजा गया: {path}", "copied": "परिणाम कॉपी हुआ.", "empty": "QEMU कमांड दर्ज करें या .utm पैकेज चुनें.", "error": "रूपांतरण विफल: {error}", "no_warnings": "कोई चेतावनी नहीं."},
+})
+for _code, _text in list(PLUGIN_TEXT.items()):
+    _base = PLUGIN_TEXT["en_us"].copy()
+    _base.update(_text)
+    PLUGIN_TEXT[_code] = _base
 
 
 class QEMUBridgePlugin:
@@ -139,6 +194,7 @@ class QEMUBridgePlugin:
         body = tk.Frame(win, bg=bg, padx=18, pady=16)
         body.pack(fill="both", expand=True)
         tk.Label(body, text=tr("title"), bg=bg, fg=text, font=(font_name, 17, "bold")).pack(anchor="w")
+        tk.Label(body, text=tr("guide"), bg=bg, fg=muted, font=(font_name, 10), wraplength=740, justify="left").pack(anchor="w", pady=(8, 4))
         tk.Label(body, text=tr("input"), bg=bg, fg=muted, font=(font_name, 10)).pack(anchor="w", pady=(14, 4))
         input_box = tk.Text(
             body,
@@ -376,10 +432,12 @@ def save_utm_payload(payload, path: Path):
         path = path.with_suffix(".utm")
     if path.exists() and path.is_file():
         raise ValueError(f"{path} is a file, not a UTM package directory.")
-    path.mkdir(parents=True, exist_ok=True)
     try:
         data = json.loads(payload.command)
     except Exception:
+        if getattr(payload, "config", None) is None:
+            raise ValueError("UTM result must be valid JSON or a checked conversion payload.")
         data = build_utm_plist(payload.config, "other", [])
+    path.mkdir(parents=True, exist_ok=True)
     with (path / "config.plist").open("wb") as handle:
         plistlib.dump(data, handle, sort_keys=False)

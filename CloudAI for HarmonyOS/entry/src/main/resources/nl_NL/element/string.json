@@ -1,0 +1,28 @@
+{
+  "string": [
+    {
+      "name": "app_name",
+      "value": "CloudAI"
+    },
+    {
+      "name": "description_application",
+      "value": "CloudAI assistent voor cloudmodellen"
+    },
+    {
+      "name": "module_desc",
+      "value": "CloudAI hoofdmodule"
+    },
+    {
+      "name": "internet_reason",
+      "value": "CloudAI heeft internettoegang nodig om verbinding te maken met de door de gebruiker ingestelde cloudmodelprovider."
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "Hoofdscherm van CloudAI"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "CloudAI"
+    }
+  ]
+}

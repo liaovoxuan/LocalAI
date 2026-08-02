@@ -5,15 +5,18 @@ import mimetypes
 import os
 import platform
 import re
+import subprocess
 import sys
+import time
 import traceback
 import zipfile
 from datetime import datetime
+from pathlib import Path
 from xml.etree import ElementTree
 
 import requests
 
-APP_VERSION = "0.8 Beta"
+APP_VERSION = "v1.0.0"
 LOCALAI_APP_NAME = "LocalAI"
 APP_NAME = "CloudAI"
 MASK = "********"
@@ -37,6 +40,8 @@ def normalized_arch():
         return "arm64"
     if machine in {"i386", "i686", "x86"}:
         return "x86"
+    if machine in {"riscv64", "riscv64gc"}:
+        return "riscv64"
     return machine or "unknown"
 
 
@@ -59,6 +64,24 @@ def read_linux_os_release():
     return data
 
 
+def detect_harmony_family(info=None):
+    info = info or {}
+    marker = " ".join(
+        str(info.get(key, "")).lower()
+        for key in ("ID", "ID_LIKE", "NAME", "PRETTY_NAME", "VARIANT", "VERSION_CODENAME")
+    )
+    env_marker = " ".join(
+        str(os.environ.get(key, "")).lower()
+        for key in ("OHOS_SDK_HOME", "HARMONYOS_SDK_HOME", "DEVECO_SDK_HOME")
+    )
+    marker = f"{marker} {env_marker}"
+    if "openharmony" in marker or "ohos" in marker:
+        return "openharmony"
+    if "harmonyos" in marker or "harmony os" in marker:
+        return "harmonyos"
+    return ""
+
+
 def get_os_optimization_profile():
     system = platform.system()
     arch = normalized_arch()
@@ -77,13 +100,15 @@ def get_os_optimization_profile():
         mac_version = platform.mac_ver()[0] or ""
         version = version_tuple(mac_version)
         targeted = version >= (10, 14) if version else True
+        apple_silicon = arch == "arm64"
         profile.update({
             "name": f"macOS {mac_version}" if mac_version else "macOS",
-            "family": "macos",
+            "family": "macos-apple-silicon" if apple_silicon else "macos-intel",
             "targeted": targeted,
-            "ui_scale_bias": 1.04 if arch == "arm64" else 1.01,
+            "ui_scale_bias": 1.06 if apple_silicon else 1.01,
             "scroll_units": 1,
             "font": "SF Pro Text" if version >= (10, 15) or not version else "Helvetica Neue",
+            "apple_silicon": apple_silicon,
         })
         return profile
 
@@ -112,6 +137,19 @@ def get_os_optimization_profile():
         distro_id = (info.get("ID") or "").lower()
         like = (info.get("ID_LIKE") or "").lower()
         version = version_tuple(info.get("VERSION_ID") or "")
+        harmony_family = detect_harmony_family(info)
+        if harmony_family:
+            is_openharmony = harmony_family == "openharmony"
+            profile.update({
+                "name": info.get("PRETTY_NAME") or ("OpenHarmony" if is_openharmony else "HarmonyOS"),
+                "family": harmony_family,
+                "targeted": arch in ({"arm64", "x64", "riscv64"} if is_openharmony else {"arm64"}),
+                "ui_scale_bias": 1.04,
+                "scroll_units": 3,
+                "font": "Noto Sans CJK SC",
+                "package_targets": ["hap", "app"] if is_openharmony else ["hap"],
+            })
+            return profile
         domestic_ids = {"uos", "deepin", "kylin", "openkylin", "uniontech", "loongnix", "neokylin", "asianux"}
         is_domestic = distro_id in domestic_ids or any(item in like for item in domestic_ids)
         is_ubuntu = (distro_id == "ubuntu" or "ubuntu" in like) and version >= (20, 4)
@@ -134,7 +172,7 @@ def get_os_optimization_profile():
 def configure_runtime_environment():
     profile = get_os_optimization_profile()
     family = profile.get("family", "")
-    if family == "macos":
+    if family.startswith("macos"):
         os.environ.setdefault("TK_SILENCE_DEPRECATION", "1")
         os.environ.setdefault("OBJC_DISABLE_INITIALIZE_FORK_SAFETY", "YES")
     elif family == "windows":
@@ -295,6 +333,11 @@ CLOUD_TEXT = {
         "cloud_wizard_title": "CloudAI 首次启动向导",
         "cloud_welcome": "欢迎使用 CloudAI",
         "cloud_welcome_subtitle": "CloudAI 使用云模型提供商。语言设置与 LocalAI 共用。",
+        "cloud_policy_title": "隐私政策与使用指南",
+        "cloud_policy_subtitle": "请先了解 CloudAI 的隐私政策和使用指南。文档会随应用一起提供，也可以稍后在应用目录中查看。",
+        "cloud_policy_location": "文档位置：{path}",
+        "cloud_policy_open": "打开文档",
+        "cloud_policy_missing": "未找到文档，请确认 CloudAI 隐私政策.docx 已放在应用目录或打包资源中。",
         "cloud_provider": "云模型提供商",
         "cloud_api_key": "API Key",
         "cloud_base_url": "Base URL",
@@ -337,12 +380,38 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "自动",
         "cloud_theme_saved": "外观设置已保存。",
         "cloud_untitled_chat": "未命名对话",
+        "cloud_qemu_bridge": "QEMU 转换",
+        "cloud_qemu_title": "QEMU / UTM 转换",
+        "cloud_qemu_input": "QEMU 命令、UTM 包路径或 plist 内容",
+        "cloud_qemu_import": "导入文件/包",
+        "cloud_qemu_target_platform": "目标平台",
+        "cloud_qemu_target_format": "目标格式",
+        "cloud_qemu_instruction": "转换/修改指令",
+        "cloud_qemu_program": "程序转换",
+        "cloud_qemu_ai": "AI 编写",
+        "cloud_qemu_check": "AI 输出后进行程序检查",
+        "cloud_qemu_result": "转换结果",
+        "cloud_qemu_warnings": "兼容性警告",
+        "cloud_qemu_guide": "QEMU 转 UTM 会保存为 .utm 包，包内配置文件固定为 config.plist。替换旧虚拟机时：在旧 .utm 上右键显示包内容，备份原 config.plist，再用新生成的 config.plist 替换。",
+        "cloud_qemu_copy": "复制结果",
+        "cloud_qemu_save": "保存结果",
+        "cloud_qemu_saved": "已保存到：{path}",
+        "cloud_qemu_copied": "已复制转换结果。",
+        "cloud_qemu_empty": "请输入 QEMU 命令或导入 .utm/.plist 文件。",
+        "cloud_qemu_no_warnings": "没有兼容性警告。",
+        "cloud_qemu_error": "转换失败：{error}",
+        "cloud_qemu_ai_no_key": "当前云模型 Provider 未配置 API Key，无法使用 AI 编写。",
     },
     "zh_tw": {
         "cloud_title": "CloudAI",
         "cloud_wizard_title": "CloudAI 首次啟動精靈",
         "cloud_welcome": "歡迎使用 CloudAI",
         "cloud_welcome_subtitle": "CloudAI 使用雲端模型提供商。語言設定與 LocalAI 共用。",
+        "cloud_policy_title": "隱私政策與使用指南",
+        "cloud_policy_subtitle": "請先了解 CloudAI 的隱私政策和使用指南。文件會隨應用一起提供，也可以稍後在應用目錄中查看。",
+        "cloud_policy_location": "文件位置：{path}",
+        "cloud_policy_open": "開啟文件",
+        "cloud_policy_missing": "找不到文件，請確認 CloudAI 隱私政策.docx 已放在應用目錄或打包資源中。",
         "cloud_provider": "雲端模型提供商",
         "cloud_api_key": "API Key",
         "cloud_base_url": "Base URL",
@@ -385,12 +454,38 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "自動",
         "cloud_theme_saved": "外觀設定已儲存。",
         "cloud_untitled_chat": "未命名對話",
+        "cloud_qemu_bridge": "QEMU 轉換",
+        "cloud_qemu_title": "QEMU / UTM 轉換",
+        "cloud_qemu_input": "QEMU 指令、UTM 套件路徑或 plist 內容",
+        "cloud_qemu_import": "匯入檔案/套件",
+        "cloud_qemu_target_platform": "目標平台",
+        "cloud_qemu_target_format": "目標格式",
+        "cloud_qemu_instruction": "轉換/修改指令",
+        "cloud_qemu_program": "程式轉換",
+        "cloud_qemu_ai": "AI 編寫",
+        "cloud_qemu_check": "AI 輸出後進行程式檢查",
+        "cloud_qemu_result": "轉換結果",
+        "cloud_qemu_warnings": "相容性警告",
+        "cloud_qemu_guide": "QEMU 轉 UTM 會儲存為 .utm 套件，套件內設定檔固定為 config.plist。替換舊虛擬機時：在舊 .utm 上右鍵顯示套件內容，備份原 config.plist，再用新產生的 config.plist 替換。",
+        "cloud_qemu_copy": "複製結果",
+        "cloud_qemu_save": "儲存結果",
+        "cloud_qemu_saved": "已儲存到：{path}",
+        "cloud_qemu_copied": "已複製轉換結果。",
+        "cloud_qemu_empty": "請輸入 QEMU 指令或匯入 .utm/.plist 檔案。",
+        "cloud_qemu_no_warnings": "沒有相容性警告。",
+        "cloud_qemu_error": "轉換失敗：{error}",
+        "cloud_qemu_ai_no_key": "目前雲端模型 Provider 未設定 API Key，無法使用 AI 編寫。",
     },
     "en_us": {
         "cloud_title": "CloudAI",
         "cloud_wizard_title": "CloudAI First Launch Wizard",
         "cloud_welcome": "Welcome to CloudAI",
         "cloud_welcome_subtitle": "CloudAI uses cloud model providers. Language settings are shared with LocalAI.",
+        "cloud_policy_title": "Privacy Policy and User Guide",
+        "cloud_policy_subtitle": "Review CloudAI's privacy policy and user guide before continuing. The document is bundled with the app and can be opened later from the app folder.",
+        "cloud_policy_location": "Document location: {path}",
+        "cloud_policy_open": "Open Document",
+        "cloud_policy_missing": "Document not found. Make sure CloudAI 隐私政策.docx is in the app folder or bundled resources.",
         "cloud_provider": "Cloud Model Provider",
         "cloud_api_key": "API Key",
         "cloud_base_url": "Base URL",
@@ -433,6 +528,27 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "Auto",
         "cloud_theme_saved": "Appearance settings saved.",
         "cloud_untitled_chat": "Untitled Chat",
+        "cloud_qemu_bridge": "QEMU Bridge",
+        "cloud_qemu_title": "QEMU / UTM Bridge",
+        "cloud_qemu_input": "QEMU command, UTM package path, or plist content",
+        "cloud_qemu_import": "Import File/Package",
+        "cloud_qemu_target_platform": "Target platform",
+        "cloud_qemu_target_format": "Target format",
+        "cloud_qemu_instruction": "Conversion instruction",
+        "cloud_qemu_program": "Program Convert",
+        "cloud_qemu_ai": "AI Write",
+        "cloud_qemu_check": "Run program check after AI output",
+        "cloud_qemu_result": "Conversion Result",
+        "cloud_qemu_warnings": "Compatibility Warnings",
+        "cloud_qemu_guide": "QEMU to UTM is saved as a .utm package with config.plist inside. To replace an existing VM, show package contents on the old .utm, back up its config.plist, then replace it with the generated config.plist.",
+        "cloud_qemu_copy": "Copy Result",
+        "cloud_qemu_save": "Save Result",
+        "cloud_qemu_saved": "Saved to: {path}",
+        "cloud_qemu_copied": "Conversion result copied.",
+        "cloud_qemu_empty": "Enter a QEMU command or import a .utm/.plist file.",
+        "cloud_qemu_no_warnings": "No compatibility warnings.",
+        "cloud_qemu_error": "Conversion failed: {error}",
+        "cloud_qemu_ai_no_key": "The current cloud provider has no API Key configured, so AI writing is unavailable.",
     },
 }
 CLOUD_TEXT["en_gb"] = CLOUD_TEXT["en_us"]
@@ -494,6 +610,37 @@ ADDITIONAL_CHAT_TEXT = {
     "hi": {"language_title": "भाषा चुनें", "send": "भेजें", "save": "सहेजें"},
 }
 for _code, _values in ADDITIONAL_CHAT_TEXT.items():
+    CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
+
+CLOUDAI_EXTRA_TEXT = {
+    "ja": {"cloud_settings": "設定", "cloud_history": "履歴", "cloud_export": "チャットを書き出す", "cloud_wallpaper": "壁紙を変更", "cloud_import_file": "ファイルを読み込む", "cloud_theme": "外観", "cloud_qemu_bridge": "QEMU 変換", "cloud_qemu_title": "QEMU / UTM 変換", "cloud_qemu_program": "プログラムで変換", "cloud_qemu_ai": "AI で作成", "cloud_qemu_save": "結果を保存", "cloud_qemu_copy": "結果をコピー", "cloud_qemu_warnings": "互換性の警告", "cloud_qemu_no_warnings": "互換性の警告はありません。", "cloud_language_saved": "言語を変更しました：{language}"},
+    "fr": {"cloud_settings": "Réglages", "cloud_history": "Historique", "cloud_export": "Exporter le chat", "cloud_wallpaper": "Changer le fond", "cloud_import_file": "Importer un fichier", "cloud_theme": "Apparence", "cloud_qemu_bridge": "Pont QEMU", "cloud_qemu_title": "Pont QEMU / UTM", "cloud_qemu_program": "Conversion par programme", "cloud_qemu_ai": "Écrire avec l'IA", "cloud_qemu_save": "Enregistrer le résultat", "cloud_qemu_copy": "Copier le résultat", "cloud_qemu_warnings": "Avertissements", "cloud_qemu_no_warnings": "Aucun avertissement.", "cloud_language_saved": "Langue changée : {language}"},
+    "de": {"cloud_settings": "Einstellungen", "cloud_history": "Verlauf", "cloud_export": "Chat exportieren", "cloud_wallpaper": "Hintergrund ändern", "cloud_import_file": "Datei importieren", "cloud_theme": "Darstellung", "cloud_qemu_bridge": "QEMU-Brücke", "cloud_qemu_title": "QEMU / UTM-Brücke", "cloud_qemu_program": "Per Programm konvertieren", "cloud_qemu_ai": "Mit KI schreiben", "cloud_qemu_save": "Ergebnis speichern", "cloud_qemu_copy": "Ergebnis kopieren", "cloud_qemu_warnings": "Warnungen", "cloud_qemu_no_warnings": "Keine Warnungen.", "cloud_language_saved": "Sprache geändert zu: {language}"},
+    "ko": {"cloud_welcome": "CloudAI에 오신 것을 환영합니다", "cloud_next": "다음", "cloud_send": "보내기", "cloud_settings": "설정", "cloud_history": "기록", "cloud_export": "대화 내보내기", "cloud_wallpaper": "배경 변경", "cloud_import_file": "파일 가져오기", "cloud_theme": "화면 모드", "cloud_qemu_bridge": "QEMU 변환", "cloud_qemu_title": "QEMU / UTM 변환", "cloud_qemu_program": "프로그램 변환", "cloud_qemu_ai": "AI 작성", "cloud_qemu_save": "결과 저장", "cloud_qemu_copy": "결과 복사", "cloud_qemu_warnings": "호환성 경고", "cloud_qemu_no_warnings": "호환성 경고가 없습니다.", "cloud_language_saved": "언어가 변경되었습니다: {language}"},
+    "es": {"cloud_welcome": "Bienvenido a CloudAI", "cloud_next": "Siguiente", "cloud_send": "Enviar", "cloud_settings": "Configuración", "cloud_history": "Historial", "cloud_export": "Exportar chat", "cloud_wallpaper": "Cambiar fondo", "cloud_import_file": "Importar archivo", "cloud_theme": "Apariencia", "cloud_qemu_bridge": "Puente QEMU", "cloud_qemu_title": "Puente QEMU / UTM", "cloud_qemu_program": "Conversión automática", "cloud_qemu_ai": "Escribir con IA", "cloud_qemu_save": "Guardar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Advertencias", "cloud_qemu_no_warnings": "Sin advertencias.", "cloud_language_saved": "Idioma cambiado a: {language}"},
+    "it": {"cloud_welcome": "Benvenuto in CloudAI", "cloud_next": "Avanti", "cloud_send": "Invia", "cloud_settings": "Impostazioni", "cloud_history": "Cronologia", "cloud_export": "Esporta chat", "cloud_wallpaper": "Cambia sfondo", "cloud_import_file": "Importa file", "cloud_theme": "Aspetto", "cloud_qemu_bridge": "Bridge QEMU", "cloud_qemu_title": "Bridge QEMU / UTM", "cloud_qemu_program": "Conversione programma", "cloud_qemu_ai": "Scrivi con IA", "cloud_qemu_save": "Salva risultato", "cloud_qemu_copy": "Copia risultato", "cloud_qemu_warnings": "Avvisi", "cloud_qemu_no_warnings": "Nessun avviso.", "cloud_language_saved": "Lingua cambiata in: {language}"},
+    "pt": {"cloud_welcome": "Bem-vindo ao CloudAI", "cloud_next": "Avançar", "cloud_send": "Enviar", "cloud_settings": "Configurações", "cloud_history": "Histórico", "cloud_export": "Exportar conversa", "cloud_wallpaper": "Alterar papel de parede", "cloud_import_file": "Importar arquivo", "cloud_theme": "Aparência", "cloud_qemu_bridge": "Ponte QEMU", "cloud_qemu_title": "Ponte QEMU / UTM", "cloud_qemu_program": "Converter pelo programa", "cloud_qemu_ai": "Escrever com IA", "cloud_qemu_save": "Salvar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Avisos", "cloud_qemu_no_warnings": "Sem avisos.", "cloud_language_saved": "Idioma alterado para: {language}"},
+    "ru": {"cloud_welcome": "Добро пожаловать в CloudAI", "cloud_next": "Далее", "cloud_send": "Отправить", "cloud_settings": "Настройки", "cloud_history": "История", "cloud_export": "Экспорт чата", "cloud_wallpaper": "Сменить фон", "cloud_import_file": "Импорт файла", "cloud_theme": "Оформление", "cloud_qemu_bridge": "Мост QEMU", "cloud_qemu_title": "Мост QEMU / UTM", "cloud_qemu_program": "Преобразовать программой", "cloud_qemu_ai": "Написать с ИИ", "cloud_qemu_save": "Сохранить результат", "cloud_qemu_copy": "Копировать результат", "cloud_qemu_warnings": "Предупреждения", "cloud_qemu_no_warnings": "Предупреждений нет.", "cloud_language_saved": "Язык изменён на: {language}"},
+    "nl": {"cloud_welcome": "Welkom bij CloudAI", "cloud_next": "Volgende", "cloud_send": "Verzenden", "cloud_settings": "Instellingen", "cloud_history": "Geschiedenis", "cloud_export": "Chat exporteren", "cloud_wallpaper": "Achtergrond wijzigen", "cloud_import_file": "Bestand importeren", "cloud_theme": "Weergave", "cloud_qemu_bridge": "QEMU-brug", "cloud_qemu_title": "QEMU / UTM-brug", "cloud_qemu_program": "Programma converteren", "cloud_qemu_ai": "Schrijven met AI", "cloud_qemu_save": "Resultaat opslaan", "cloud_qemu_copy": "Resultaat kopiëren", "cloud_qemu_warnings": "Waarschuwingen", "cloud_qemu_no_warnings": "Geen waarschuwingen.", "cloud_language_saved": "Taal gewijzigd naar: {language}"},
+    "sv": {"cloud_welcome": "Välkommen till CloudAI", "cloud_next": "Nästa", "cloud_send": "Skicka", "cloud_settings": "Inställningar", "cloud_history": "Historik", "cloud_export": "Exportera chatt", "cloud_wallpaper": "Byt bakgrund", "cloud_import_file": "Importera fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "QEMU-brygga", "cloud_qemu_title": "QEMU / UTM-brygga", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Spara resultat", "cloud_qemu_copy": "Kopiera resultat", "cloud_qemu_warnings": "Varningar", "cloud_qemu_no_warnings": "Inga varningar.", "cloud_language_saved": "Språk ändrat till: {language}"},
+    "da": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Næste", "cloud_send": "Send", "cloud_settings": "Indstillinger", "cloud_history": "Historik", "cloud_export": "Eksportér chat", "cloud_wallpaper": "Skift baggrund", "cloud_import_file": "Importér fil", "cloud_theme": "Udseende", "cloud_qemu_bridge": "QEMU-bro", "cloud_qemu_title": "QEMU / UTM-bro", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Gem resultat", "cloud_qemu_copy": "Kopiér resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Sprog ændret til: {language}"},
+    "fi": {"cloud_welcome": "Tervetuloa CloudAI:hin", "cloud_next": "Seuraava", "cloud_send": "Lähetä", "cloud_settings": "Asetukset", "cloud_history": "Historia", "cloud_export": "Vie keskustelu", "cloud_wallpaper": "Vaihda taustakuva", "cloud_import_file": "Tuo tiedosto", "cloud_theme": "Ulkoasu", "cloud_qemu_bridge": "QEMU-silta", "cloud_qemu_title": "QEMU / UTM-silta", "cloud_qemu_program": "Ohjelmamuunnos", "cloud_qemu_ai": "Kirjoita AI:lla", "cloud_qemu_save": "Tallenna tulos", "cloud_qemu_copy": "Kopioi tulos", "cloud_qemu_warnings": "Varoitukset", "cloud_qemu_no_warnings": "Ei varoituksia.", "cloud_language_saved": "Kieli vaihdettu: {language}"},
+    "no": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Neste", "cloud_send": "Send", "cloud_settings": "Innstillinger", "cloud_history": "Historikk", "cloud_export": "Eksporter chat", "cloud_wallpaper": "Bytt bakgrunn", "cloud_import_file": "Importer fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "QEMU-bro", "cloud_qemu_title": "QEMU / UTM-bro", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Lagre resultat", "cloud_qemu_copy": "Kopier resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Språk endret til: {language}"},
+    "tr": {"cloud_welcome": "CloudAI'ye hoş geldiniz", "cloud_next": "İleri", "cloud_send": "Gönder", "cloud_settings": "Ayarlar", "cloud_history": "Geçmiş", "cloud_export": "Sohbeti dışa aktar", "cloud_wallpaper": "Duvar kâğıdını değiştir", "cloud_import_file": "Dosya içe aktar", "cloud_theme": "Görünüm", "cloud_qemu_bridge": "QEMU Köprüsü", "cloud_qemu_title": "QEMU / UTM Köprüsü", "cloud_qemu_program": "Programla dönüştür", "cloud_qemu_ai": "AI ile yaz", "cloud_qemu_save": "Sonucu kaydet", "cloud_qemu_copy": "Sonucu kopyala", "cloud_qemu_warnings": "Uyarılar", "cloud_qemu_no_warnings": "Uyarı yok.", "cloud_language_saved": "Dil değiştirildi: {language}"},
+    "pl": {"cloud_welcome": "Witamy w CloudAI", "cloud_next": "Dalej", "cloud_send": "Wyślij", "cloud_settings": "Ustawienia", "cloud_history": "Historia", "cloud_export": "Eksportuj czat", "cloud_wallpaper": "Zmień tło", "cloud_import_file": "Importuj plik", "cloud_theme": "Wygląd", "cloud_qemu_bridge": "Most QEMU", "cloud_qemu_title": "Most QEMU / UTM", "cloud_qemu_program": "Konwersja programu", "cloud_qemu_ai": "Napisz z AI", "cloud_qemu_save": "Zapisz wynik", "cloud_qemu_copy": "Kopiuj wynik", "cloud_qemu_warnings": "Ostrzeżenia", "cloud_qemu_no_warnings": "Brak ostrzeżeń.", "cloud_language_saved": "Zmieniono język na: {language}"},
+    "cs": {"cloud_welcome": "Vítejte v CloudAI", "cloud_next": "Další", "cloud_send": "Odeslat", "cloud_settings": "Nastavení", "cloud_history": "Historie", "cloud_export": "Exportovat chat", "cloud_wallpaper": "Změnit pozadí", "cloud_import_file": "Importovat soubor", "cloud_theme": "Vzhled", "cloud_qemu_bridge": "Most QEMU", "cloud_qemu_title": "Most QEMU / UTM", "cloud_qemu_program": "Programový převod", "cloud_qemu_ai": "Psát pomocí AI", "cloud_qemu_save": "Uložit výsledek", "cloud_qemu_copy": "Kopírovat výsledek", "cloud_qemu_warnings": "Varování", "cloud_qemu_no_warnings": "Žádná varování.", "cloud_language_saved": "Jazyk změněn na: {language}"},
+    "uk": {"cloud_welcome": "Ласкаво просимо до CloudAI", "cloud_next": "Далі", "cloud_send": "Надіслати", "cloud_settings": "Налаштування", "cloud_history": "Історія", "cloud_export": "Експорт чату", "cloud_wallpaper": "Змінити фон", "cloud_import_file": "Імпорт файлу", "cloud_theme": "Вигляд", "cloud_qemu_bridge": "Міст QEMU", "cloud_qemu_title": "Міст QEMU / UTM", "cloud_qemu_program": "Програмне перетворення", "cloud_qemu_ai": "Написати з ШІ", "cloud_qemu_save": "Зберегти результат", "cloud_qemu_copy": "Копіювати результат", "cloud_qemu_warnings": "Попередження", "cloud_qemu_no_warnings": "Попереджень немає.", "cloud_language_saved": "Мову змінено на: {language}"},
+    "el": {"cloud_welcome": "Καλώς ήρθατε στο CloudAI", "cloud_next": "Επόμενο", "cloud_send": "Αποστολή", "cloud_settings": "Ρυθμίσεις", "cloud_history": "Ιστορικό", "cloud_export": "Εξαγωγή συνομιλίας", "cloud_wallpaper": "Αλλαγή φόντου", "cloud_import_file": "Εισαγωγή αρχείου", "cloud_theme": "Εμφάνιση", "cloud_qemu_bridge": "Γέφυρα QEMU", "cloud_qemu_title": "Γέφυρα QEMU / UTM", "cloud_qemu_program": "Μετατροπή προγράμματος", "cloud_qemu_ai": "Σύνταξη με AI", "cloud_qemu_save": "Αποθήκευση αποτελέσματος", "cloud_qemu_copy": "Αντιγραφή αποτελέσματος", "cloud_qemu_warnings": "Προειδοποιήσεις", "cloud_qemu_no_warnings": "Δεν υπάρχουν προειδοποιήσεις.", "cloud_language_saved": "Η γλώσσα άλλαξε σε: {language}"},
+    "ar": {"cloud_welcome": "مرحبًا بك في CloudAI", "cloud_next": "التالي", "cloud_send": "إرسال", "cloud_settings": "الإعدادات", "cloud_history": "السجل", "cloud_export": "تصدير المحادثة", "cloud_wallpaper": "تغيير الخلفية", "cloud_import_file": "استيراد ملف", "cloud_theme": "المظهر", "cloud_qemu_bridge": "جسر QEMU", "cloud_qemu_title": "جسر QEMU / UTM", "cloud_qemu_program": "تحويل بالبرنامج", "cloud_qemu_ai": "كتابة بالذكاء الاصطناعي", "cloud_qemu_save": "حفظ النتيجة", "cloud_qemu_copy": "نسخ النتيجة", "cloud_qemu_warnings": "تحذيرات", "cloud_qemu_no_warnings": "لا توجد تحذيرات.", "cloud_language_saved": "تم تغيير اللغة إلى: {language}"},
+    "mn": {"cloud_welcome": "CloudAI-д тавтай морил", "cloud_next": "Дараах", "cloud_send": "Илгээх", "cloud_settings": "Тохиргоо", "cloud_history": "Түүх", "cloud_export": "Чат экспортлох", "cloud_wallpaper": "Дэвсгэр солих", "cloud_import_file": "Файл импортлох", "cloud_theme": "Харагдах байдал", "cloud_qemu_bridge": "QEMU гүүр", "cloud_qemu_title": "QEMU / UTM гүүр", "cloud_qemu_program": "Программаар хөрвүүлэх", "cloud_qemu_ai": "AI-аар бичих", "cloud_qemu_save": "Үр дүн хадгалах", "cloud_qemu_copy": "Үр дүн хуулах", "cloud_qemu_warnings": "Анхааруулга", "cloud_qemu_no_warnings": "Анхааруулга байхгүй.", "cloud_language_saved": "Хэл солигдлоо: {language}"},
+    "th": {"cloud_welcome": "ยินดีต้อนรับสู่ CloudAI", "cloud_next": "ถัดไป", "cloud_send": "ส่ง", "cloud_settings": "การตั้งค่า", "cloud_history": "ประวัติ", "cloud_export": "ส่งออกแชต", "cloud_wallpaper": "เปลี่ยนวอลเปเปอร์", "cloud_import_file": "นำเข้าไฟล์", "cloud_theme": "รูปลักษณ์", "cloud_qemu_bridge": "สะพาน QEMU", "cloud_qemu_title": "สะพาน QEMU / UTM", "cloud_qemu_program": "แปลงด้วยโปรแกรม", "cloud_qemu_ai": "เขียนด้วย AI", "cloud_qemu_save": "บันทึกผลลัพธ์", "cloud_qemu_copy": "คัดลอกผลลัพธ์", "cloud_qemu_warnings": "คำเตือน", "cloud_qemu_no_warnings": "ไม่มีคำเตือน", "cloud_language_saved": "เปลี่ยนภาษาเป็น: {language}"},
+    "vi": {"cloud_welcome": "Chào mừng đến với CloudAI", "cloud_next": "Tiếp theo", "cloud_send": "Gửi", "cloud_settings": "Cài đặt", "cloud_history": "Lịch sử", "cloud_export": "Xuất trò chuyện", "cloud_wallpaper": "Đổi hình nền", "cloud_import_file": "Nhập tệp", "cloud_theme": "Giao diện", "cloud_qemu_bridge": "Cầu QEMU", "cloud_qemu_title": "Cầu QEMU / UTM", "cloud_qemu_program": "Chuyển đổi bằng chương trình", "cloud_qemu_ai": "Viết bằng AI", "cloud_qemu_save": "Lưu kết quả", "cloud_qemu_copy": "Sao chép kết quả", "cloud_qemu_warnings": "Cảnh báo", "cloud_qemu_no_warnings": "Không có cảnh báo.", "cloud_language_saved": "Đã đổi ngôn ngữ sang: {language}"},
+    "id": {"cloud_welcome": "Selamat datang di CloudAI", "cloud_next": "Berikutnya", "cloud_send": "Kirim", "cloud_settings": "Pengaturan", "cloud_history": "Riwayat", "cloud_export": "Ekspor chat", "cloud_wallpaper": "Ganti wallpaper", "cloud_import_file": "Impor file", "cloud_theme": "Tampilan", "cloud_qemu_bridge": "Jembatan QEMU", "cloud_qemu_title": "Jembatan QEMU / UTM", "cloud_qemu_program": "Konversi program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Peringatan", "cloud_qemu_no_warnings": "Tidak ada peringatan.", "cloud_language_saved": "Bahasa diubah ke: {language}"},
+    "ms": {"cloud_welcome": "Selamat datang ke CloudAI", "cloud_next": "Seterusnya", "cloud_send": "Hantar", "cloud_settings": "Tetapan", "cloud_history": "Sejarah", "cloud_export": "Eksport sembang", "cloud_wallpaper": "Tukar kertas dinding", "cloud_import_file": "Import fail", "cloud_theme": "Penampilan", "cloud_qemu_bridge": "Jambatan QEMU", "cloud_qemu_title": "Jambatan QEMU / UTM", "cloud_qemu_program": "Tukar dengan program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Amaran", "cloud_qemu_no_warnings": "Tiada amaran.", "cloud_language_saved": "Bahasa ditukar kepada: {language}"},
+    "hi": {"cloud_welcome": "CloudAI में आपका स्वागत है", "cloud_next": "अगला", "cloud_send": "भेजें", "cloud_settings": "सेटिंग्स", "cloud_history": "इतिहास", "cloud_export": "चैट निर्यात करें", "cloud_wallpaper": "वॉलपेपर बदलें", "cloud_import_file": "फ़ाइल आयात करें", "cloud_theme": "दिखावट", "cloud_qemu_bridge": "QEMU ब्रिज", "cloud_qemu_title": "QEMU / UTM ब्रिज", "cloud_qemu_program": "प्रोग्राम से बदलें", "cloud_qemu_ai": "AI से लिखें", "cloud_qemu_save": "परिणाम सहेजें", "cloud_qemu_copy": "परिणाम कॉपी करें", "cloud_qemu_warnings": "चेतावनियाँ", "cloud_qemu_no_warnings": "कोई चेतावनी नहीं.", "cloud_language_saved": "भाषा बदली गई: {language}"},
+}
+for _code, _values in CLOUDAI_EXTRA_TEXT.items():
+    CLOUD_TEXT.setdefault(_code, CLOUD_TEXT["en_us"].copy()).update(_values)
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
 
 
@@ -796,6 +943,49 @@ def apply_window_icon(window, theme):
         window._cloudai_icon_image = image
     except Exception:
         pass
+
+
+CLOUDAI_POLICY_DOC = "CloudAI 隐私政策.docx"
+
+
+def bundled_document_path(filename):
+    return resource_path(filename)
+
+
+def read_docx_preview(path, max_chars=2200):
+    if not path or not os.path.exists(path):
+        return ""
+    try:
+        with zipfile.ZipFile(path) as archive:
+            xml_data = archive.read("word/document.xml")
+        root = ElementTree.fromstring(xml_data)
+        namespace = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
+        paragraphs = []
+        for paragraph in root.findall(".//w:p", namespace):
+            parts = [node.text or "" for node in paragraph.findall(".//w:t", namespace)]
+            text = "".join(parts).strip()
+            if text:
+                paragraphs.append(text)
+            if len("\n".join(paragraphs)) >= max_chars:
+                break
+        return "\n\n".join(paragraphs)[:max_chars]
+    except Exception:
+        return ""
+
+
+def open_document_file(path):
+    if not path or not os.path.exists(path):
+        return False
+    try:
+        if platform.system() == "Darwin":
+            subprocess.Popen(["open", path])
+        elif platform.system() == "Windows":
+            os.startfile(path)
+        else:
+            subprocess.Popen(["xdg-open", path])
+        return True
+    except Exception:
+        return False
 
 
 def export_chat_markdown(messages):
@@ -1155,6 +1345,7 @@ def run_cloudai_wizard(local_config, cloud_config):
             self.geometry("560x420")
             self.minsize(520, 380)
             self.configure(bg="#f7f8fb")
+            apply_window_icon(self, self.local_config.get("theme", "auto"))
             self.protocol("WM_DELETE_WINDOW", self.finish_later)
             self.body = tk.Frame(self, bg="#f7f8fb")
             self.body.pack(fill="both", expand=True, padx=28, pady=24)
@@ -1189,7 +1380,32 @@ def run_cloudai_wizard(local_config, cloud_config):
             self.clear()
             self.label(cloud_text(self.local_config, "cloud_welcome"), 22, True)
             self.label(cloud_text(self.local_config, "cloud_welcome_subtitle"), 12)
-            self.button(cloud_text(self.local_config, "cloud_next"), self.show_provider)
+            self.button(cloud_text(self.local_config, "cloud_next"), self.show_policy)
+
+        def show_policy(self):
+            self.clear()
+            self.label(cloud_text(self.local_config, "cloud_policy_title"), 20, True)
+            self.label(cloud_text(self.local_config, "cloud_policy_subtitle"), 11)
+            doc_path = bundled_document_path(CLOUDAI_POLICY_DOC)
+            location = cloud_text(
+                self.local_config,
+                "cloud_policy_location",
+                path=doc_path if os.path.exists(doc_path) else cloud_text(self.local_config, "cloud_policy_missing"),
+            )
+            tk.Label(self.body, text=location, bg="#f7f8fb", fg="#4b5563", font=(get_platform_font(), 10), wraplength=480, justify="left").pack(anchor="w", pady=(0, 8))
+            text_frame = tk.Frame(self.body, bg="#f7f8fb")
+            text_frame.pack(fill="both", expand=True)
+            scrollbar = tk.Scrollbar(text_frame)
+            scrollbar.pack(side="right", fill="y")
+            preview = tk.Text(text_frame, height=8, wrap="word", bg="#ffffff", fg="#111827", relief="solid", bd=1, yscrollcommand=scrollbar.set)
+            preview.pack(side="left", fill="both", expand=True)
+            scrollbar.config(command=preview.yview)
+            preview.insert("1.0", read_docx_preview(doc_path) or cloud_text(self.local_config, "cloud_policy_missing"))
+            preview.configure(state="disabled")
+            actions = tk.Frame(self.body, bg="#f7f8fb")
+            actions.pack(fill="x", pady=10)
+            tk.Button(actions, text=cloud_text(self.local_config, "cloud_policy_open"), command=lambda: open_document_file(doc_path), relief="flat").pack(side="left")
+            tk.Button(actions, text=cloud_text(self.local_config, "cloud_next"), command=self.show_provider, bg="#2563eb", fg="white", relief="flat", padx=18, pady=8).pack(side="right")
 
         def show_provider(self):
             self.clear()
@@ -1251,19 +1467,18 @@ def run_cloudai_wizard(local_config, cloud_config):
             if getattr(self, "_closing", False):
                 return
             self._closing = True
-            def force_destroy():
-                try:
-                    self.quit()
-                except Exception:
-                    pass
-                try:
-                    self.destroy()
-                except Exception:
-                    pass
             try:
-                self.after_idle(force_destroy)
+                self.update_idletasks()
             except Exception:
-                force_destroy()
+                pass
+            try:
+                self.quit()
+            except Exception:
+                pass
+            try:
+                self.destroy()
+            except Exception:
+                pass
 
     app = Wizard()
     app.mainloop()
@@ -1298,12 +1513,14 @@ def run_cloudai_gui():
             self.content_height = 0
             self.last_canvas_width = 0
             self.last_canvas_height = 0
+            self.message_layout_width = 0
             self.last_trackpad_scroll_time = 0
             self.status_window = None
             self.pending_files = []
             self.title(f"CloudAI {APP_VERSION}")
             self.colors = self.palette()
             self.configure(bg=self.colors["window"])
+            self.configure_ttk_style()
             apply_window_icon(self, self.local_config.get("theme", "auto"))
             self.protocol("WM_DELETE_WINDOW", self.close)
             self.register_macos_quit()
@@ -1317,6 +1534,34 @@ def run_cloudai_gui():
 
         def palette(self):
             return theme_palette(self.local_config.get("theme", "auto"))
+
+        def configure_ttk_style(self):
+            try:
+                style = ttk.Style(self)
+                if platform.system() != "Darwin":
+                    try:
+                        style.theme_use("clam")
+                    except Exception:
+                        pass
+                style.configure(
+                    "TCombobox",
+                    fieldbackground=self.colors["input"],
+                    background=self.colors["input"],
+                    foreground=self.colors["text"],
+                    arrowcolor=self.colors["text"],
+                    bordercolor=self.colors["border"],
+                    lightcolor=self.colors["border"],
+                    darkcolor=self.colors["border"],
+                )
+                style.map(
+                    "TCombobox",
+                    fieldbackground=[("readonly", self.colors["input"])],
+                    foreground=[("readonly", self.colors["text"])],
+                    selectbackground=[("readonly", self.colors["surface_hover"])],
+                    selectforeground=[("readonly", self.colors["text"])],
+                )
+            except Exception:
+                pass
 
         def apply_responsive_window(self):
             screen_w = max(self.winfo_screenwidth(), 1)
@@ -1368,6 +1613,7 @@ def run_cloudai_gui():
             self.styled_button(toolbar, self.t("cloud_new_chat"), self.new_chat).pack(side="left", padx=6, pady=8)
             self.styled_button(toolbar, self.t("cloud_history"), self.show_history).pack(side="left", padx=6, pady=8)
             self.styled_button(toolbar, self.t("cloud_import_file"), self.import_files).pack(side="left", padx=6, pady=8)
+            self.styled_button(toolbar, self.t("cloud_qemu_bridge"), self.show_qemu_bridge).pack(side="left", padx=6, pady=8)
             self.styled_button(toolbar, self.t("cloud_export"), self.export_current_chat).pack(side="left", padx=6, pady=8)
             self.styled_button(toolbar, self.t("cloud_wallpaper"), self.choose_wallpaper).pack(side="left", padx=6, pady=8)
             self.styled_button(toolbar, self.t("cloud_settings"), self.show_settings).pack(side="left", padx=6, pady=8)
@@ -1411,7 +1657,27 @@ def run_cloudai_gui():
             self.update_provider_label()
             self.update_send_button_state()
             self.after(120, lambda: self.apply_wallpaper(self.local_config.get("wallpaper_path", ""), False))
+            self.after_idle(self.mark_canvas_layout_ready)
             self.update_file_label()
+
+        def mark_canvas_layout_ready(self):
+            try:
+                self.update_idletasks()
+                self.message_layout_width = max(self.canvas.winfo_width(), 1)
+            except Exception:
+                pass
+
+        def stable_canvas_width(self):
+            try:
+                self.update_idletasks()
+            except Exception:
+                pass
+            return max(
+                int(self.canvas.winfo_width() or 0),
+                int(self.message_layout_width or 0),
+                int(self.winfo_width() or 0) - 48,
+                360,
+            )
 
         def bind_mousewheel(self):
             def scroll(event):
@@ -1451,9 +1717,18 @@ def run_cloudai_gui():
 
         def perform_canvas_resize(self):
             self.wallpaper_resize_job = None
-            self.wallpaper_image = None
-            self.redraw_wallpaper()
-            self.render_messages(preserve_scroll=True)
+            canvas_width = max(self.canvas.winfo_width(), 1)
+            if self.local_config.get("wallpaper_path"):
+                self.wallpaper_image = None
+                self.apply_wallpaper(self.local_config.get("wallpaper_path", ""), False)
+            else:
+                self.redraw_wallpaper()
+            has_messages = bool(self.message_windows or self.status_window)
+            if has_messages and abs(canvas_width - self.message_layout_width) >= 8:
+                self.message_layout_width = canvas_width
+                self.render_messages(preserve_scroll=True)
+            elif not has_messages:
+                self.message_layout_width = canvas_width
 
         def focus_input(self):
             try:
@@ -1474,7 +1749,10 @@ def run_cloudai_gui():
             is_user = role == "user"
             bubble_bg = self.colors["user_bubble"] if is_user else self.colors["ai_bubble"]
             bubble_fg = self.colors["user_text"] if is_user else self.colors["ai_text"]
-            wrap = max(360, int(max(self.canvas.winfo_width(), self.winfo_width()) * 0.88))
+            canvas_width = self.stable_canvas_width()
+            if not self.message_layout_width:
+                self.message_layout_width = canvas_width
+            wrap = max(360, int(canvas_width * 0.88))
             box = tk.Frame(
                 self.canvas,
                 bg=bubble_bg,
@@ -1497,7 +1775,7 @@ def run_cloudai_gui():
             box.update_idletasks()
             bubble_width = min(max(box.winfo_reqwidth(), 120), wrap + 34)
             bubble_height = max(box.winfo_reqheight(), 44)
-            x = self.canvas.winfo_width() - 22 if is_user else 22
+            x = canvas_width - 22 if is_user else 22
             y = self.content_height + 16
             window_id = self.canvas.create_window(x, y, window=box, anchor="ne" if is_user else "nw", width=bubble_width)
             self.message_windows.append((window_id, box))
@@ -1592,13 +1870,218 @@ def run_cloudai_gui():
                                 justify="left", font=(get_platform_font(), 11))
                 btn.pack(fill="x", pady=5)
 
+        def show_qemu_bridge(self):
+            try:
+                from plugins.qemu_bridge.ai_modify import build_ai_prompt, extract_candidate, modify_with_ai_or_rules
+                from plugins.qemu_bridge.models import TargetPlatform
+                from plugins.qemu_bridge.plugin import load_imported_source, program_convert_result, save_result_dialog, save_utm_payload
+            except Exception as exc:
+                log_cloud_error(exc)
+                messagebox.showerror(APP_NAME, self.t("cloud_qemu_error", error=exc))
+                return
+
+            win = tk.Toplevel(self)
+            win.title(self.t("cloud_qemu_title"))
+            win.geometry("860x760")
+            win.configure(bg=self.colors["window"])
+            apply_window_icon(win, self.local_config.get("theme", "auto"))
+
+            body = tk.Frame(win, bg=self.colors["window"], padx=18, pady=16)
+            body.pack(fill="both", expand=True)
+            tk.Label(body, text=self.t("cloud_qemu_title"), bg=self.colors["window"], fg=self.colors["text"],
+                     font=(get_platform_font(), 17, "bold")).pack(anchor="w")
+            tk.Label(body, text=self.t("cloud_qemu_guide"), bg=self.colors["window"], fg=self.colors["muted"],
+                     font=(get_platform_font(), 10), wraplength=800, justify="left").pack(anchor="w", pady=(8, 4))
+            tk.Label(body, text=self.t("cloud_qemu_input"), bg=self.colors["window"], fg=self.colors["muted"],
+                     font=(get_platform_font(), 10)).pack(anchor="w", pady=(14, 4))
+            input_box = tk.Text(body, height=7, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
+                                insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
+                                highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
+                                font=(get_platform_font(), 11))
+            input_box.pack(fill="x")
+
+            controls = tk.Frame(body, bg=self.colors["window"])
+            controls.pack(fill="x", pady=12)
+            tk.Label(controls, text=self.t("cloud_qemu_target_platform"), bg=self.colors["window"],
+                     fg=self.colors["text"], font=(get_platform_font(), 11)).pack(side="left")
+            target_platform_var = tk.StringVar(value=TargetPlatform.MACOS.value)
+            ttk.Combobox(controls, textvariable=target_platform_var, values=[item.value for item in TargetPlatform],
+                         state="readonly", width=14).pack(side="left", padx=10)
+            tk.Label(controls, text=self.t("cloud_qemu_target_format"), bg=self.colors["window"],
+                     fg=self.colors["text"], font=(get_platform_font(), 11)).pack(side="left", padx=(18, 0))
+            target_format_var = tk.StringVar(value="QEMU")
+            ttk.Combobox(controls, textvariable=target_format_var, values=["QEMU", "UTM"],
+                         state="readonly", width=10).pack(side="left", padx=10)
+            check_var = tk.BooleanVar(value=True)
+            tk.Checkbutton(controls, text=self.t("cloud_qemu_check"), variable=check_var,
+                           bg=self.colors["window"], fg=self.colors["text"], activebackground=self.colors["window"],
+                           activeforeground=self.colors["text"], selectcolor=self.colors["surface"]).pack(side="left", padx=(18, 0))
+
+            tk.Label(body, text=self.t("cloud_qemu_instruction"), bg=self.colors["window"], fg=self.colors["muted"],
+                     font=(get_platform_font(), 10)).pack(anchor="w", pady=(0, 4))
+            instruction_box = tk.Text(body, height=3, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
+                                      insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
+                                      highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
+                                      font=(get_platform_font(), 11))
+            instruction_box.pack(fill="x")
+
+            tk.Label(body, text=self.t("cloud_qemu_result"), bg=self.colors["window"], fg=self.colors["text"],
+                     font=(get_platform_font(), 12, "bold")).pack(anchor="w", pady=(6, 4))
+            result_box = tk.Text(body, height=10, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
+                                 insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
+                                 highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
+                                 font=(get_platform_font(), 11))
+            result_box.pack(fill="both", expand=True)
+
+            tk.Label(body, text=self.t("cloud_qemu_warnings"), bg=self.colors["window"], fg=self.colors["text"],
+                     font=(get_platform_font(), 12, "bold")).pack(anchor="w", pady=(10, 4))
+            warning_box = tk.Text(body, height=5, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
+                                  relief="flat", highlightthickness=1, highlightbackground=self.colors["border"],
+                                  highlightcolor=self.colors["border"], font=(get_platform_font(), 10))
+            warning_box.pack(fill="x")
+
+            current_output = {"text": "", "target_format": "qemu", "payload": None}
+
+            def set_text(widget, value, disabled=False):
+                widget.configure(state="normal")
+                widget.delete("1.0", "end")
+                widget.insert("1.0", value)
+                if disabled:
+                    widget.configure(state="disabled")
+
+            def show_payload(payload, target_format):
+                current_output["text"] = payload.command
+                current_output["target_format"] = target_format
+                current_output["payload"] = payload
+                set_text(result_box, payload.command)
+                if payload.issues:
+                    issues = "\n".join(f"[{item.level}] {item.code}: {item.message}" for item in payload.issues)
+                    set_text(warning_box, issues)
+                else:
+                    set_text(warning_box, self.t("cloud_qemu_no_warnings"))
+
+            def source_text():
+                return input_box.get("1.0", "end-1c").strip()
+
+            def instruction_text():
+                return instruction_box.get("1.0", "end-1c").strip()
+
+            def choose_file():
+                path = filedialog.askdirectory(title=self.t("cloud_qemu_import"), mustexist=True)
+                if not path:
+                    path = filedialog.askopenfilename(
+                        title=self.t("cloud_qemu_import"),
+                        filetypes=[
+                            ("Supported", "*.utm *.plist *.sh *.cmd *.txt"),
+                            ("UTM Package", "*.utm"),
+                            ("Property List", "*.plist"),
+                            ("QEMU Script", "*.sh *.cmd"),
+                            ("All files", "*.*"),
+                        ],
+                    )
+                if path:
+                    input_box.delete("1.0", "end")
+                    input_box.insert("1.0", load_imported_source(path))
+
+            def program_convert():
+                source = source_text()
+                if not source:
+                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_empty"))
+                    return
+                try:
+                    payload = program_convert_result(source, target_format_var.get(), target_platform_var.get())
+                    show_payload(payload, target_format_var.get().lower())
+                except Exception as exc:
+                    set_text(result_box, "")
+                    set_text(warning_box, self.t("cloud_qemu_error", error=exc))
+
+            def ai_write():
+                source = source_text()
+                if not source:
+                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_empty"))
+                    return
+                provider, _base_url, _model, key = active_provider_config(self.cloud_config)
+                if not key:
+                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_ai_no_key"))
+                    return
+                target_format = target_format_var.get().lower()
+                prompt = build_ai_prompt(source, target_format, instruction_text())
+                set_text(warning_box, self.t("cloud_thinking"))
+
+                def worker():
+                    try:
+                        ai_text = ask_cloudai([{"role": "user", "content": prompt}], self.cloud_config, [])
+                        if check_var.get():
+                            payload = modify_with_ai_or_rules(source, target_format, instruction_text(), ai_text)
+                            win.after(0, lambda: show_payload(payload, target_format))
+                        else:
+                            candidate = extract_candidate(ai_text) or ai_text
+                            current_output["text"] = candidate
+                            current_output["target_format"] = target_format
+                            current_output["payload"] = None
+                            win.after(0, lambda: (set_text(result_box, candidate), set_text(warning_box, self.t("cloud_qemu_no_warnings"))))
+                    except Exception as exc:
+                        log_cloud_error(exc)
+                        win.after(0, lambda: set_text(warning_box, self.t("cloud_qemu_error", error=exc)))
+
+                threading.Thread(target=worker, daemon=True).start()
+
+            def copy_result():
+                value = result_box.get("1.0", "end-1c").strip()
+                if value:
+                    win.clipboard_clear()
+                    win.clipboard_append(value)
+                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_copied"))
+
+            def save_raw_result():
+                value = result_box.get("1.0", "end-1c").strip()
+                if not value:
+                    return
+                target_format = current_output.get("target_format", "qemu")
+                payload = current_output.get("payload")
+                if payload is not None:
+                    try:
+                        saved = save_result_dialog(payload, target_format, lambda key, **kwargs: self.t("cloud_qemu_save") if key == "save_as" else key, filedialog)
+                        if saved:
+                            messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=saved))
+                        return
+                    except Exception:
+                        pass
+                if target_format == "utm":
+                    path = filedialog.asksaveasfilename(
+                        title=self.t("cloud_qemu_save"),
+                        defaultextension=".utm",
+                        filetypes=[("UTM Package", "*.utm"), ("All files", "*.*")],
+                    )
+                    if path:
+                        from types import SimpleNamespace
+
+                        save_utm_payload(SimpleNamespace(command=value, config=None), Path(path))
+                        messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=path))
+                    return
+                extension = ".sh"
+                path = filedialog.asksaveasfilename(title=self.t("cloud_qemu_save"), defaultextension=extension,
+                                                    filetypes=[("QEMU/UTM Result", f"*{extension}"), ("All files", "*.*")])
+                if path:
+                    with open(path, "w", encoding="utf-8") as handle:
+                        handle.write(value.rstrip() + "\n")
+                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=path))
+
+            actions = tk.Frame(body, bg=self.colors["window"])
+            actions.pack(fill="x", pady=(12, 0))
+            self.styled_button(actions, self.t("cloud_qemu_import"), choose_file).pack(side="left", padx=(0, 8))
+            self.styled_button(actions, self.t("cloud_qemu_program"), program_convert, True).pack(side="left", padx=8)
+            self.styled_button(actions, self.t("cloud_qemu_ai"), ai_write, True).pack(side="left", padx=8)
+            self.styled_button(actions, self.t("cloud_qemu_save"), save_raw_result).pack(side="right", padx=(8, 0))
+            self.styled_button(actions, self.t("cloud_qemu_copy"), copy_result).pack(side="right")
+
         def schedule_send_button_update(self, _event=None):
             if self.send_update_job:
                 try:
                     self.after_cancel(self.send_update_job)
                 except Exception:
                     pass
-            delay = 80 if platform.system() == "Darwin" else 35
+            delay = 20 if platform.system() == "Darwin" else 25
             self.send_update_job = self.after(delay, self.update_send_button_state)
 
         def handle_text_modified(self, _event=None):
@@ -1618,8 +2101,9 @@ def run_cloudai_gui():
             self.send_button.config(bg=bg, fg=fg, cursor="hand2" if enabled else "arrow")
 
         def update_scroll_region(self):
+            canvas_width = self.stable_canvas_width()
             height = max(self.content_height + 20, self.canvas.winfo_height())
-            self.canvas.configure(scrollregion=(0, 0, self.canvas.winfo_width(), height))
+            self.canvas.configure(scrollregion=(0, 0, canvas_width, height))
             self.raise_message_windows()
             self.canvas.yview_moveto(1.0)
 
@@ -1781,9 +2265,15 @@ def run_cloudai_gui():
             except Exception as exc:
                 log_cloud_error(exc)
                 answer = str(exc) if str(exc) != "missing_api_key" else self.t("cloud_no_key")
-            self.after(0, lambda: self.finish_answer(answer))
+            if not self.closing:
+                try:
+                    self.after(0, lambda: self.finish_answer(answer))
+                except Exception:
+                    pass
 
         def finish_answer(self, answer):
+            if self.closing:
+                return
             self.asking = False
             self.messages.append({"role": "assistant", "content": answer})
             self.replace_status("assistant", answer)
@@ -1990,8 +2480,17 @@ def run_cloudai_gui():
 
         def rebuild_ui(self):
             self.colors = self.palette()
+            self.configure_ttk_style()
             apply_window_icon(self, self.local_config.get("theme", "auto"))
             saved_messages = list(self.messages)
+            self.message_windows = []
+            self.status_window = None
+            self.content_height = 0
+            self.wallpaper_item = None
+            self.wallpaper_image = None
+            self.last_canvas_width = 0
+            self.last_canvas_height = 0
+            self.message_layout_width = 0
             for child in self.winfo_children():
                 child.destroy()
             self.build()
@@ -2006,26 +2505,44 @@ def run_cloudai_gui():
                 self.protocol("WM_DELETE_WINDOW", lambda: None)
             except Exception:
                 pass
-            self.current_chat_path = save_cloud_chat(self.current_chat_path, self.messages, self.local_config)
+            try:
+                self.current_chat_path = save_cloud_chat(self.current_chat_path, self.messages, self.local_config)
+            except Exception as exc:
+                log_cloud_error(exc)
             for job in (self.send_update_job, self.wallpaper_resize_job):
                 if job:
                     try:
                         self.after_cancel(job)
                     except Exception:
                         pass
-            def force_destroy():
+            for child in list(self.winfo_children()):
                 try:
-                    self.quit()
-                except Exception:
-                    pass
-                try:
-                    self.destroy()
+                    child.destroy()
                 except Exception:
                     pass
             try:
-                self.after_idle(force_destroy)
+                self.update_idletasks()
             except Exception:
-                force_destroy()
+                pass
+            try:
+                self.quit()
+            except Exception:
+                pass
+            try:
+                self.destroy()
+            except Exception:
+                pass
+
+            def force_destroy():
+                try:
+                    if self.winfo_exists():
+                        self.destroy()
+                except Exception:
+                    pass
+            try:
+                self.after(50, force_destroy)
+            except Exception:
+                pass
 
     app = App()
     app.mainloop()
