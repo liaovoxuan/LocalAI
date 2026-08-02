@@ -5,6 +5,7 @@ import mimetypes
 import os
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -19,6 +20,7 @@ import requests
 APP_VERSION = "v1.0.0"
 LOCALAI_APP_NAME = "LocalAI"
 APP_NAME = "CloudAI"
+CLOUDAI_APP_NAME = "CloudAI"
 MASK = "********"
 
 
@@ -209,27 +211,37 @@ def get_base_dir():
     return os.path.dirname(os.path.abspath(__file__))
 
 
-def get_app_data_dir():
-    if os.environ.get("LOCALAI_PORTABLE") == "1":
+def get_app_data_dir_for(app_name):
+    if os.environ.get("CLOUDAI_PORTABLE") == "1":
         return get_base_dir()
     system = platform.system()
     if system == "Windows":
         root = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
         if root:
-            return os.path.join(root, LOCALAI_APP_NAME)
+            return os.path.join(root, app_name)
     if system == "Darwin":
-        return os.path.join(os.path.expanduser("~"), "Library", "Application Support", LOCALAI_APP_NAME)
+        return os.path.join(os.path.expanduser("~"), "Library", "Application Support", app_name)
     root = os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
-    return os.path.join(root, LOCALAI_APP_NAME)
+    return os.path.join(root, app_name)
+
+
+def get_app_data_dir():
+    return get_app_data_dir_for(CLOUDAI_APP_NAME)
 
 
 APP_DATA_DIR = get_app_data_dir()
+LOCALAI_DATA_DIR = get_app_data_dir_for(LOCALAI_APP_NAME)
 LOG_DIR = os.path.join(APP_DATA_DIR, "logs")
 LOCAL_CONFIG_FILE = os.path.join(APP_DATA_DIR, "config.json")
+SHARED_LANGUAGE_CONFIG_FILE = os.path.join(LOCALAI_DATA_DIR, "config.json")
 CLOUD_CONFIG_DIR = os.path.join(APP_DATA_DIR, "config")
 CLOUD_CONFIG_FILE = os.path.join(CLOUD_CONFIG_DIR, "cloudai_config.json")
 CLOUD_SECRET_FILE = os.path.join(CLOUD_CONFIG_DIR, "cloudai_secrets.json")
 CLOUD_CHAT_DIR = os.path.join(APP_DATA_DIR, "cloud_chats")
+LEGACY_CLOUD_CONFIG_DIR = os.path.join(LOCALAI_DATA_DIR, "config")
+LEGACY_CLOUD_CONFIG_FILE = os.path.join(LEGACY_CLOUD_CONFIG_DIR, "cloudai_config.json")
+LEGACY_CLOUD_SECRET_FILE = os.path.join(LEGACY_CLOUD_CONFIG_DIR, "cloudai_secrets.json")
+LEGACY_CLOUD_CHAT_DIR = os.path.join(LOCALAI_DATA_DIR, "cloud_chats")
 
 
 DEFAULT_CONFIG = {
@@ -332,7 +344,7 @@ CLOUD_TEXT = {
         "cloud_title": "CloudAI",
         "cloud_wizard_title": "CloudAI 首次启动向导",
         "cloud_welcome": "欢迎使用 CloudAI",
-        "cloud_welcome_subtitle": "CloudAI 使用云模型提供商。语言设置与 LocalAI 共用。",
+        "cloud_welcome_subtitle": "CloudAI 使用云模型提供商，独立运行，并可沿用已有语言偏好。",
         "cloud_policy_title": "隐私政策与使用指南",
         "cloud_policy_subtitle": "请先了解 CloudAI 的隐私政策和使用指南。文档会随应用一起提供，也可以稍后在应用目录中查看。",
         "cloud_policy_location": "文档位置：{path}",
@@ -364,7 +376,7 @@ CLOUD_TEXT = {
         "cloud_usage_loading": "正在获取用量...",
         "cloud_usage_summary": "用量信息：{usage}",
         "cloud_provider_config": "云模型配置",
-        "cloud_about": "CloudAI {version}\n云端模型助手\n语言设置与 LocalAI 共用。",
+        "cloud_about": "CloudAI {version}\n云端模型助手\n独立运行，可沿用已有语言偏好。",
         "cloud_key_status_ready": "已配置",
         "cloud_key_status_missing": "未配置 API Key",
         "cloud_export": "导出聊天记录",
@@ -408,7 +420,7 @@ CLOUD_TEXT = {
         "cloud_title": "CloudAI",
         "cloud_wizard_title": "CloudAI 首次啟動精靈",
         "cloud_welcome": "歡迎使用 CloudAI",
-        "cloud_welcome_subtitle": "CloudAI 使用雲端模型提供商。語言設定與 LocalAI 共用。",
+        "cloud_welcome_subtitle": "CloudAI 使用雲端模型提供商，獨立運行，並可沿用既有語言偏好。",
         "cloud_policy_title": "隱私政策與使用指南",
         "cloud_policy_subtitle": "請先了解 CloudAI 的隱私政策和使用指南。文件會隨應用一起提供，也可以稍後在應用目錄中查看。",
         "cloud_policy_location": "文件位置：{path}",
@@ -440,7 +452,7 @@ CLOUD_TEXT = {
         "cloud_usage_loading": "正在取得用量...",
         "cloud_usage_summary": "用量資訊：{usage}",
         "cloud_provider_config": "雲端模型設定",
-        "cloud_about": "CloudAI {version}\n雲端模型助理\n語言設定與 LocalAI 共用。",
+        "cloud_about": "CloudAI {version}\n雲端模型助理\n獨立運行，可沿用既有語言偏好。",
         "cloud_key_status_ready": "已設定",
         "cloud_key_status_missing": "未設定 API Key",
         "cloud_export": "匯出聊天記錄",
@@ -484,7 +496,7 @@ CLOUD_TEXT = {
         "cloud_title": "CloudAI",
         "cloud_wizard_title": "CloudAI First Launch Wizard",
         "cloud_welcome": "Welcome to CloudAI",
-        "cloud_welcome_subtitle": "CloudAI uses cloud model providers. Language settings are shared with LocalAI.",
+        "cloud_welcome_subtitle": "CloudAI uses cloud model providers, runs independently, and can reuse an existing language preference.",
         "cloud_policy_title": "Privacy Policy and User Guide",
         "cloud_policy_subtitle": "Review CloudAI's privacy policy and user guide before continuing. The document is bundled with the app and can be opened later from the app folder.",
         "cloud_policy_location": "Document location: {path}",
@@ -516,7 +528,7 @@ CLOUD_TEXT = {
         "cloud_usage_loading": "Loading usage...",
         "cloud_usage_summary": "Usage: {usage}",
         "cloud_provider_config": "Cloud Model Configuration",
-        "cloud_about": "CloudAI {version}\nCloud model assistant\nLanguage settings are shared with LocalAI.",
+        "cloud_about": "CloudAI {version}\nCloud model assistant\nRuns independently and can reuse an existing language preference.",
         "cloud_key_status_ready": "Configured",
         "cloud_key_status_missing": "No API Key",
         "cloud_export": "Export Chat",
@@ -649,6 +661,34 @@ for _code, _values in CLOUDAI_EXTRA_TEXT.items():
     CLOUD_TEXT.setdefault(_code, CLOUD_TEXT["en_us"].copy()).update(_values)
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
 
+for _code in list(CHAT_GUI_TEXT):
+    if _code == "zh_tw":
+        _defaults = {
+            "cloud_open_history": "開啟",
+            "filetype_documents_images": "文件與圖片",
+            "filetype_documents": "文件",
+            "filetype_images": "圖片",
+            "filetype_all": "所有檔案",
+        }
+    elif _code.startswith("en"):
+        _defaults = {
+            "cloud_open_history": "Open",
+            "filetype_documents_images": "Documents and Images",
+            "filetype_documents": "Documents",
+            "filetype_images": "Images",
+            "filetype_all": "All files",
+        }
+    else:
+        _defaults = {
+            "cloud_open_history": "打开",
+            "filetype_documents_images": "文档和图片",
+            "filetype_documents": "文档",
+            "filetype_images": "图片",
+            "filetype_all": "所有文件",
+        }
+    CLOUD_TEXT.setdefault(_code, CLOUD_TEXT["en_us"].copy()).update({k: v for k, v in _defaults.items() if k not in CLOUD_TEXT.get(_code, {})})
+    CHAT_GUI_TEXT[_code].update({k: v for k, v in _defaults.items() if k not in CHAT_GUI_TEXT[_code]})
+
 
 def normalize_language(value):
     key = str(value or "zh_cn").strip().lower().replace("_", "-")
@@ -665,6 +705,32 @@ def ensure_app_dirs():
     os.makedirs(os.path.join(APP_DATA_DIR, "exports"), exist_ok=True)
 
 
+def migrate_legacy_cloud_data():
+    for source, target in (
+        (LEGACY_CLOUD_CONFIG_FILE, CLOUD_CONFIG_FILE),
+        (LEGACY_CLOUD_SECRET_FILE, CLOUD_SECRET_FILE),
+    ):
+        try:
+            if os.path.exists(source) and not os.path.exists(target):
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                shutil.copy2(source, target)
+        except Exception:
+            pass
+    try:
+        if os.path.isdir(LEGACY_CLOUD_CHAT_DIR):
+            os.makedirs(CLOUD_CHAT_DIR, exist_ok=True)
+            has_chats = any(name.endswith(".json") for name in os.listdir(CLOUD_CHAT_DIR))
+            if not has_chats:
+                for name in os.listdir(LEGACY_CLOUD_CHAT_DIR):
+                    if name.endswith(".json"):
+                        source = os.path.join(LEGACY_CLOUD_CHAT_DIR, name)
+                        target = os.path.join(CLOUD_CHAT_DIR, name)
+                        if os.path.isfile(source) and not os.path.exists(target):
+                            shutil.copy2(source, target)
+    except Exception:
+        pass
+
+
 def load_config():
     ensure_app_dirs()
     config = DEFAULT_CONFIG.copy()
@@ -674,6 +740,16 @@ def load_config():
                 data = json.load(handle)
             if isinstance(data, dict):
                 config.update(data)
+        except Exception:
+            pass
+    elif os.path.exists(SHARED_LANGUAGE_CONFIG_FILE):
+        try:
+            with open(SHARED_LANGUAGE_CONFIG_FILE, "r", encoding="utf-8") as handle:
+                shared = json.load(handle)
+            if isinstance(shared, dict):
+                for key in ("language", "theme"):
+                    if shared.get(key):
+                        config[key] = shared[key]
         except Exception:
             pass
     config["language"] = normalize_language(config.get("language"))
@@ -699,6 +775,7 @@ def ensure_cloud_dirs():
     ensure_app_dirs()
     os.makedirs(CLOUD_CONFIG_DIR, exist_ok=True)
     os.makedirs(CLOUD_CHAT_DIR, exist_ok=True)
+    migrate_legacy_cloud_data()
 
 
 def cloud_text(config, key, **kwargs):
@@ -900,6 +977,7 @@ def theme_palette(value):
             "user_bubble": "#2563eb",
             "user_text": "#ffffff",
             "disabled": "#374151",
+            "primary": "#2563eb",
         }, value)
     return with_liquid_glass_palette({
         "window": "#ffffff",
@@ -916,6 +994,7 @@ def theme_palette(value):
         "user_bubble": "#2563eb",
         "user_text": "#ffffff",
         "disabled": "#d0d5dd",
+        "primary": "#2563eb",
     }, value)
 
 
@@ -1648,6 +1727,7 @@ def run_cloudai_gui():
                 pass
 
         def styled_entry(self, parent, textvariable, show=None):
+            primary_color = self.colors.get("primary", self.colors.get("user_bubble", "#2563eb"))
             return tk.Entry(
                 parent,
                 textvariable=textvariable,
@@ -1661,12 +1741,17 @@ def run_cloudai_gui():
                 bd=1,
                 highlightthickness=1,
                 highlightbackground=self.colors["border"],
-                highlightcolor=self.colors["primary"],
+                highlightcolor=primary_color,
                 font=(get_platform_font(), 11),
             )
 
         def styled_option_menu(self, parent, variable, values):
-            widget = tk.OptionMenu(parent, variable, *values)
+            primary_color = self.colors.get("primary", self.colors.get("user_bubble", "#2563eb"))
+            if not values:
+                values = [""]
+            if not variable.get():
+                variable.set(values[0])
+            widget = tk.Menubutton(parent, textvariable=variable, indicatoron=True)
             widget.configure(
                 bg=self.colors["input"],
                 fg=self.colors["text"],
@@ -1676,21 +1761,24 @@ def run_cloudai_gui():
                 bd=1,
                 highlightthickness=1,
                 highlightbackground=self.colors["border"],
-                highlightcolor=self.colors["primary"],
+                highlightcolor=primary_color,
                 anchor="w",
                 padx=8,
                 pady=4,
                 font=(get_platform_font(), 11),
             )
-            menu = widget["menu"]
+            menu = tk.Menu(widget, tearoff=0)
             menu.configure(
                 bg=self.colors["surface"],
                 fg=self.colors["text"],
-                activebackground=self.colors["primary"],
+                activebackground=primary_color,
                 activeforeground="#ffffff",
                 tearoff=0,
                 font=(get_platform_font(), 11),
             )
+            for value in values:
+                menu.add_command(label=value, command=lambda selected=value: variable.set(selected))
+            widget.configure(menu=menu)
             return widget
 
         def build(self):
@@ -1908,10 +1996,10 @@ def run_cloudai_gui():
             paths = filedialog.askopenfilenames(
                 title=self.t("cloud_import_file"),
                 filetypes=[
-                    ("Documents and Images", "*.doc *.docx *.txt *.md *.markdown *.csv *.tsv *.json *.jsonl *.yaml *.yml *.xml *.html *.htm *.rtf *.log *.ini *.cfg *.conf *.toml *.py *.js *.ts *.java *.c *.cpp *.h *.hpp *.cs *.go *.rs *.swift *.kt *.php *.rb *.sh *.bat *.ps1 *.sql *.css *.png *.jpg *.jpeg *.gif *.bmp *.webp *.tiff *.tif *.heic *.heif *.avif *.ico"),
-                    ("Documents", "*.doc *.docx *.txt *.md *.markdown *.csv *.tsv *.json *.jsonl *.yaml *.yml *.xml *.html *.htm *.rtf *.log *.ini *.cfg *.conf *.toml *.py *.js *.ts *.java *.c *.cpp *.h *.hpp *.cs *.go *.rs *.swift *.kt *.php *.rb *.sh *.bat *.ps1 *.sql *.css"),
-                    ("Images", "*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tiff *.tif *.heic *.heif *.avif *.ico"),
-                    ("All files", "*.*"),
+                    (self.t("filetype_documents_images"), "*.doc *.docx *.txt *.md *.markdown *.csv *.tsv *.json *.jsonl *.yaml *.yml *.xml *.html *.htm *.rtf *.log *.ini *.cfg *.conf *.toml *.py *.js *.ts *.java *.c *.cpp *.h *.hpp *.cs *.go *.rs *.swift *.kt *.php *.rb *.sh *.bat *.ps1 *.sql *.css *.png *.jpg *.jpeg *.gif *.bmp *.webp *.tiff *.tif *.heic *.heif *.avif *.ico"),
+                    (self.t("filetype_documents"), "*.doc *.docx *.txt *.md *.markdown *.csv *.tsv *.json *.jsonl *.yaml *.yml *.xml *.html *.htm *.rtf *.log *.ini *.cfg *.conf *.toml *.py *.js *.ts *.java *.c *.cpp *.h *.hpp *.cs *.go *.rs *.swift *.kt *.php *.rb *.sh *.bat *.ps1 *.sql *.css"),
+                    (self.t("filetype_images"), "*.png *.jpg *.jpeg *.gif *.bmp *.webp *.tiff *.tif *.heic *.heif *.avif *.ico"),
+                    (self.t("filetype_all"), "*.*"),
                 ],
             )
             self.pending_files = [path for path in paths if os.path.exists(path)]
@@ -1933,8 +2021,8 @@ def run_cloudai_gui():
             self.current_chat_path = save_cloud_chat(self.current_chat_path, self.messages, self.local_config)
             win = tk.Toplevel(self)
             win.title(self.t("cloud_history"))
-            win.geometry("440x520")
             win.configure(bg=self.colors["panel"])
+            self.center_child_window(win, 480, 520)
             tk.Label(win, text=self.t("cloud_history"), bg=self.colors["panel"], fg=self.colors["text"],
                      font=(get_platform_font(), 18, "bold")).pack(anchor="w", padx=18, pady=(18, 10))
             list_frame = tk.Frame(win, bg=self.colors["panel"])
@@ -1945,6 +2033,27 @@ def run_cloudai_gui():
                          fg=self.colors["muted"], font=(get_platform_font(), 12)).pack(anchor="w", pady=10)
                 return
 
+            rows = []
+            primary_color = self.colors.get("primary", self.colors.get("user_bubble", "#2563eb"))
+            listbox = tk.Listbox(
+                list_frame,
+                bg=self.colors["input"],
+                fg=self.colors["text"],
+                selectbackground=primary_color,
+                selectforeground="#ffffff",
+                activestyle="none",
+                relief="solid",
+                bd=1,
+                highlightthickness=1,
+                highlightbackground=self.colors["border"],
+                highlightcolor=primary_color,
+                font=(get_platform_font(), 12),
+            )
+            scrollbar = tk.Scrollbar(list_frame, orient="vertical", command=listbox.yview)
+            listbox.configure(yscrollcommand=scrollbar.set)
+            listbox.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+
             def load(path):
                 self.current_chat_path = save_cloud_chat(self.current_chat_path, self.messages, self.local_config)
                 self.messages = open_cloud_chat(path)
@@ -1953,13 +2062,19 @@ def run_cloudai_gui():
                 win.destroy()
 
             for chat in chats:
-                text = f"{chat['title']}\n{chat.get('updated_at', '')[:19].replace('T', ' ')}"
-                btn = tk.Button(list_frame, text=text, command=lambda p=chat["path"]: load(p),
-                                bg=self.colors["surface"], fg=self.colors["text"],
-                                activebackground=self.colors["surface"], activeforeground=self.colors["text"],
-                                relief="flat", bd=0, padx=12, pady=10, anchor="w",
-                                justify="left", font=(get_platform_font(), 11))
-                btn.pack(fill="x", pady=5)
+                stamp = chat.get("updated_at", "")[:16].replace("T", " ")
+                text = f"{chat['title']}    {stamp}".strip()
+                rows.append(chat["path"])
+                listbox.insert("end", text)
+
+            def open_selected(_event=None):
+                selection = listbox.curselection()
+                if selection:
+                    load(rows[selection[0]])
+
+            listbox.bind("<Double-Button-1>", open_selected)
+            listbox.bind("<Return>", open_selected)
+            self.styled_button(win, self.t("cloud_open_history"), open_selected, True).pack(anchor="e", padx=18, pady=(0, 16))
 
         def show_qemu_bridge(self):
             try:
@@ -2403,68 +2518,27 @@ def run_cloudai_gui():
 
             footer = tk.Frame(win, bg=self.colors["toolbar"], highlightthickness=1, highlightbackground=self.colors["border"])
             footer.pack(side="bottom", fill="x", padx=0, pady=0)
-            canvas = tk.Canvas(win, bg=self.colors["panel"], highlightthickness=0, bd=0)
-            scrollbar = tk.Scrollbar(win, orient="vertical", command=canvas.yview)
-            canvas.configure(yscrollcommand=scrollbar.set)
-            scrollbar.pack(side="right", fill="y")
-            canvas.pack(side="left", fill="both", expand=True)
-            content = tk.Frame(canvas, bg=self.colors["panel"])
-            content_window = canvas.create_window((0, 0), window=content, anchor="nw")
-
-            def resize_content(event):
-                canvas.itemconfigure(content_window, width=event.width)
-
-            def update_scroll(_event=None):
-                canvas.configure(scrollregion=canvas.bbox("all"))
-
-            canvas.bind("<Configure>", resize_content)
-            content.bind("<Configure>", update_scroll)
-
-            settings_last_scroll_time = [0]
-
-            def scroll_settings(event):
-                now = time.monotonic()
-                min_interval = 0.008 if platform.system() == "Darwin" else 0.003
-                if now - settings_last_scroll_time[0] < min_interval:
-                    return "break"
-                settings_last_scroll_time[0] = now
-                units = get_scroll_units(3)
-                if getattr(event, "num", None) == 4:
-                    canvas.yview_scroll(-units, "units")
-                elif getattr(event, "num", None) == 5:
-                    canvas.yview_scroll(units, "units")
-                else:
-                    raw_delta = getattr(event, "delta", 0)
-                    if platform.system() == "Windows":
-                        delta = int(-raw_delta / 120) if raw_delta else 0
-                    else:
-                        delta = -1 if raw_delta > 0 else 1
-                    canvas.yview_scroll(delta * units, "units")
-                return "break"
-
-            canvas.bind("<MouseWheel>", scroll_settings)
-            canvas.bind("<Button-4>", scroll_settings)
-            canvas.bind("<Button-5>", scroll_settings)
-            content.bind("<MouseWheel>", scroll_settings)
+            content = tk.Frame(win, bg=self.colors["panel"])
+            content.pack(side="top", fill="both", expand=True, padx=16, pady=(8, 0))
 
             def section(title):
                 tk.Label(content, text=title, bg=self.colors["panel"], fg=self.colors["text"],
-                         font=(get_platform_font(), 15, "bold")).pack(anchor="w", padx=18, pady=(18, 8))
+                         font=(get_platform_font(), 14, "bold")).pack(anchor="w", padx=2, pady=(10, 4))
 
             def label(text):
                 tk.Label(content, text=text, bg=self.colors["panel"], fg=self.colors["muted"],
-                         font=(get_platform_font(), 11)).pack(anchor="w", padx=18, pady=(10, 4))
+                         font=(get_platform_font(), 10)).pack(anchor="w", padx=2, pady=(6, 2))
 
             section(self.t("language_title"))
             options = {item["name"]: code for code, item in LANGUAGE_OPTIONS.items()}
             current = LANGUAGE_OPTIONS[get_lang(self.local_config)]["name"]
             language_var = tk.StringVar(value=current)
-            self.styled_option_menu(content, language_var, list(options.keys())).pack(fill="x", padx=18, pady=4)
+            self.styled_option_menu(content, language_var, list(options.keys())).pack(fill="x", padx=2, pady=2)
 
             section(self.t("cloud_theme"))
             theme_var = tk.StringVar(value=self.local_config.get("theme", "auto"))
             theme_frame = tk.Frame(content, bg=self.colors["panel"])
-            theme_frame.pack(fill="x", padx=18, pady=4)
+            theme_frame.pack(fill="x", padx=2, pady=2)
             for value, label_text in (
                 ("light", self.t("cloud_theme_light")),
                 ("dark", self.t("cloud_theme_dark")),
@@ -2485,7 +2559,7 @@ def run_cloudai_gui():
             section(self.t("cloud_provider_config"))
             label(self.t("cloud_provider"))
             provider_menu = self.styled_option_menu(content, provider_var, [code for code in CLOUD_PROVIDERS])
-            provider_menu.pack(fill="x", padx=18, pady=4)
+            provider_menu.pack(fill="x", padx=2, pady=2)
             base_var = tk.StringVar()
             model_var = tk.StringVar()
             key_var = tk.StringVar()
@@ -2502,18 +2576,18 @@ def run_cloudai_gui():
 
             provider_var.trace_add("write", lambda *_args: load_provider_fields())
             label(self.t("cloud_api_key"))
-            self.styled_entry(content, key_var, show="*").pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, key_var, show="*").pack(fill="x", padx=2, pady=2, ipady=4)
             label(self.t("cloud_base_url"))
-            self.styled_entry(content, base_var).pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, base_var).pack(fill="x", padx=2, pady=2, ipady=4)
             label(self.t("cloud_model"))
-            self.styled_entry(content, model_var).pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, model_var).pack(fill="x", padx=2, pady=2, ipady=4)
             load_provider_fields()
 
             section(self.t("cloud_usage"))
             usage_var = tk.StringVar(value=self.t("cloud_usage_unavailable"))
             usage_label = tk.Label(content, textvariable=usage_var, bg=self.colors["panel"], fg=self.colors["text"],
-                                   justify="left", wraplength=500)
-            usage_label.pack(fill="x", padx=18, pady=6)
+                                   justify="left", wraplength=max(420, width - 56))
+            usage_label.pack(fill="x", padx=2, pady=3)
 
             def refresh_usage():
                 usage_var.set(self.t("cloud_usage_loading"))
@@ -2529,14 +2603,13 @@ def run_cloudai_gui():
 
                 threading.Thread(target=worker, daemon=True).start()
 
-            self.styled_button(content, self.t("cloud_refresh_usage"), refresh_usage).pack(anchor="w", padx=18, pady=(2, 8))
+            self.styled_button(content, self.t("cloud_refresh_usage"), refresh_usage).pack(anchor="w", padx=2, pady=(0, 4))
 
             section(self.t("cloud_export"))
             actions = tk.Frame(content, bg=self.colors["panel"])
-            actions.pack(fill="x", padx=18, pady=4)
+            actions.pack(fill="x", padx=2, pady=2)
             self.styled_button(actions, self.t("cloud_export"), self.export_current_chat).pack(side="left", padx=(0, 8))
             self.styled_button(actions, self.t("cloud_wallpaper"), self.choose_wallpaper).pack(side="left")
-            tk.Frame(content, bg=self.colors["panel"], height=72).pack(fill="x")
 
             def save():
                 self.local_config["language"] = normalize_language(options.get(language_var.get(), "zh_cn"))

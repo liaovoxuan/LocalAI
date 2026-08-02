@@ -1,2 +1,0 @@
-('/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/build/CloudAI_macOS/PYZ-00.pyz',
- [])
