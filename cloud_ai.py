@@ -348,6 +348,8 @@ CLOUD_TEXT = {
         "cloud_start": "开始使用",
         "cloud_settings": "CloudAI 设置",
         "cloud_no_key": "当前 Provider 尚未配置 API Key，请前往设置配置，或切换 Provider。",
+        "cloud_auth_error": "当前 Provider 的 API Key 无效、已过期或没有权限。请打开 CloudAI 设置重新填写 API Key，或切换 Provider。",
+        "cloud_request_error": "云端模型请求失败。请检查 Provider、Base URL、模型名称和网络连接。",
         "cloud_key_saved": "API Key 已保存，配置文件中不会显示完整密钥。",
         "cloud_send": "发送",
         "cloud_thinking": "CloudAI 正在思考...",
@@ -422,6 +424,8 @@ CLOUD_TEXT = {
         "cloud_start": "開始使用",
         "cloud_settings": "CloudAI 設定",
         "cloud_no_key": "目前 Provider 尚未設定 API Key，請前往設定，或切換 Provider。",
+        "cloud_auth_error": "目前 Provider 的 API Key 無效、已過期或沒有權限。請開啟 CloudAI 設定重新填寫 API Key，或切換 Provider。",
+        "cloud_request_error": "雲端模型請求失敗。請檢查 Provider、Base URL、模型名稱和網路連線。",
         "cloud_key_saved": "API Key 已儲存，設定檔不會顯示完整金鑰。",
         "cloud_send": "傳送",
         "cloud_thinking": "CloudAI 正在思考...",
@@ -496,6 +500,8 @@ CLOUD_TEXT = {
         "cloud_start": "Start",
         "cloud_settings": "CloudAI Settings",
         "cloud_no_key": "The current provider has no API Key configured. Open Settings to configure one, or switch provider.",
+        "cloud_auth_error": "The current provider rejected the API Key. Open CloudAI Settings to enter a valid key, or switch provider.",
+        "cloud_request_error": "Cloud model request failed. Check the provider, Base URL, model name and network connection.",
         "cloud_key_saved": "API Key saved. The configuration view will not show the full key.",
         "cloud_send": "Send",
         "cloud_thinking": "CloudAI is thinking...",
@@ -1325,6 +1331,28 @@ def ask_cloudai(messages, cloud_config, file_paths=None):
     return moderated_text(ask_openai_chat_completions(messages, model, base_url, api_key, file_paths))
 
 
+def cloud_exception_key(exc):
+    if isinstance(exc, PermissionError) or str(exc) == "missing_api_key":
+        return "cloud_no_key"
+    if isinstance(exc, requests.exceptions.HTTPError):
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+        if status in (401, 403):
+            return "cloud_auth_error"
+        return "cloud_request_error"
+    if isinstance(exc, (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.RequestException)):
+        return "cloud_request_error"
+    text = str(exc).lower()
+    if "401" in text or "403" in text or "authorization" in text or "unauthorized" in text:
+        return "cloud_auth_error"
+    if "missing_api_key" in text:
+        return "cloud_no_key"
+    return "cloud_request_error"
+
+
+def cloud_exception_message(config, exc):
+    return cloud_text(config, cloud_exception_key(exc))
+
+
 def run_cloudai_wizard(local_config, cloud_config):
     try:
         import tkinter as tk
@@ -1600,6 +1628,69 @@ def run_cloudai_gui():
             widget.bind("<Enter>", lambda _event: widget.configure(bg=hover) if getattr(widget, "_cloudai_enabled", True) else None)
             widget.bind("<Leave>", lambda _event: widget.configure(bg=getattr(widget, "_cloudai_bg", bg)))
             widget._cloudai_bg = bg
+            return widget
+
+        def center_child_window(self, win, width, height):
+            self.update_idletasks()
+            screen_w = max(self.winfo_screenwidth(), 1)
+            screen_h = max(self.winfo_screenheight(), 1)
+            parent_x = self.winfo_rootx()
+            parent_y = self.winfo_rooty()
+            parent_w = max(self.winfo_width(), width)
+            parent_h = max(self.winfo_height(), height)
+            x = min(max(parent_x + (parent_w - width) // 2, 0), max(screen_w - width, 0))
+            y = min(max(parent_y + (parent_h - height) // 2, 0), max(screen_h - height, 0))
+            win.geometry(f"{width}x{height}+{x}+{y}")
+            try:
+                win.transient(self)
+                win.lift()
+            except Exception:
+                pass
+
+        def styled_entry(self, parent, textvariable, show=None):
+            return tk.Entry(
+                parent,
+                textvariable=textvariable,
+                show=show or "",
+                bg=self.colors["input"],
+                fg=self.colors["text"],
+                insertbackground=self.colors["text"],
+                disabledbackground=self.colors["surface"],
+                disabledforeground=self.colors["muted"],
+                relief="solid",
+                bd=1,
+                highlightthickness=1,
+                highlightbackground=self.colors["border"],
+                highlightcolor=self.colors["primary"],
+                font=(get_platform_font(), 11),
+            )
+
+        def styled_option_menu(self, parent, variable, values):
+            widget = tk.OptionMenu(parent, variable, *values)
+            widget.configure(
+                bg=self.colors["input"],
+                fg=self.colors["text"],
+                activebackground=self.colors["surface_hover"],
+                activeforeground=self.colors["text"],
+                relief="solid",
+                bd=1,
+                highlightthickness=1,
+                highlightbackground=self.colors["border"],
+                highlightcolor=self.colors["primary"],
+                anchor="w",
+                padx=8,
+                pady=4,
+                font=(get_platform_font(), 11),
+            )
+            menu = widget["menu"]
+            menu.configure(
+                bg=self.colors["surface"],
+                fg=self.colors["text"],
+                activebackground=self.colors["primary"],
+                activeforeground="#ffffff",
+                tearoff=0,
+                font=(get_platform_font(), 11),
+            )
             return widget
 
         def build(self):
@@ -2264,7 +2355,7 @@ def run_cloudai_gui():
                 answer = ask_cloudai(self.messages, self.cloud_config, request_files)
             except Exception as exc:
                 log_cloud_error(exc)
-                answer = str(exc) if str(exc) != "missing_api_key" else self.t("cloud_no_key")
+                answer = cloud_exception_message(self.local_config, exc)
             if not self.closing:
                 try:
                     self.after(0, lambda: self.finish_answer(answer))
@@ -2283,12 +2374,12 @@ def run_cloudai_gui():
         def show_language(self):
             win = tk.Toplevel(self)
             win.title(self.t("language_title"))
-            win.geometry("420x180")
             win.configure(bg=self.colors["panel"])
+            self.center_child_window(win, 420, 180)
             options = {item["name"]: code for code, item in LANGUAGE_OPTIONS.items()}
             current = LANGUAGE_OPTIONS[get_lang(self.local_config)]["name"]
             var = tk.StringVar(value=current)
-            ttk.Combobox(win, textvariable=var, values=list(options.keys()), state="readonly").pack(fill="x", padx=18, pady=24)
+            self.styled_option_menu(win, var, list(options.keys())).pack(fill="x", padx=18, pady=24)
 
             def save():
                 self.local_config["language"] = normalize_language(options.get(var.get(), "zh_cn"))
@@ -2303,11 +2394,14 @@ def run_cloudai_gui():
 
             win = tk.Toplevel(self)
             win.title(self.t("cloud_settings"))
-            win.geometry("600x680")
             win.configure(bg=self.colors["panel"])
+            width = min(680, max(560, int(self.winfo_screenwidth() * 0.42)))
+            height = min(620, max(520, int(self.winfo_screenheight() * 0.72)))
+            self.center_child_window(win, width, height)
+            win.minsize(520, 480)
             provider_var = tk.StringVar(value=self.cloud_config.get("provider", "openai_official"))
 
-            footer = tk.Frame(win, bg=self.colors["panel"], highlightthickness=1, highlightbackground=self.colors["border"])
+            footer = tk.Frame(win, bg=self.colors["toolbar"], highlightthickness=1, highlightbackground=self.colors["border"])
             footer.pack(side="bottom", fill="x", padx=0, pady=0)
             canvas = tk.Canvas(win, bg=self.colors["panel"], highlightthickness=0, bd=0)
             scrollbar = tk.Scrollbar(win, orient="vertical", command=canvas.yview)
@@ -2365,7 +2459,7 @@ def run_cloudai_gui():
             options = {item["name"]: code for code, item in LANGUAGE_OPTIONS.items()}
             current = LANGUAGE_OPTIONS[get_lang(self.local_config)]["name"]
             language_var = tk.StringVar(value=current)
-            ttk.Combobox(content, textvariable=language_var, values=list(options.keys()), state="readonly").pack(fill="x", padx=18, pady=4)
+            self.styled_option_menu(content, language_var, list(options.keys())).pack(fill="x", padx=18, pady=4)
 
             section(self.t("cloud_theme"))
             theme_var = tk.StringVar(value=self.local_config.get("theme", "auto"))
@@ -2390,34 +2484,29 @@ def run_cloudai_gui():
 
             section(self.t("cloud_provider_config"))
             label(self.t("cloud_provider"))
-            provider_combo = ttk.Combobox(
-                content,
-                textvariable=provider_var,
-                values=[code for code in CLOUD_PROVIDERS],
-                state="readonly",
-            )
-            provider_combo.pack(fill="x", padx=18, pady=4)
+            provider_menu = self.styled_option_menu(content, provider_var, [code for code in CLOUD_PROVIDERS])
+            provider_menu.pack(fill="x", padx=18, pady=4)
             base_var = tk.StringVar()
             model_var = tk.StringVar()
             key_var = tk.StringVar()
 
             def load_provider_fields(_event=None):
                 provider = provider_var.get()
+                if provider not in CLOUD_PROVIDERS:
+                    provider = next(iter(CLOUD_PROVIDERS))
+                    provider_var.set(provider)
                 item = self.cloud_config["providers"].setdefault(provider, {})
                 base_var.set(item.get("base_url") or CLOUD_PROVIDERS[provider]["base_url"])
                 model_var.set(item.get("model") or CLOUD_PROVIDERS[provider]["models"][0])
                 key_var.set(mask_key(get_api_key(provider)))
 
-            provider_combo.bind("<<ComboboxSelected>>", load_provider_fields)
+            provider_var.trace_add("write", lambda *_args: load_provider_fields())
             label(self.t("cloud_api_key"))
-            tk.Entry(content, textvariable=key_var, show="*", bg=self.colors["input"], fg=self.colors["text"],
-                     insertbackground=self.colors["text"]).pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, key_var, show="*").pack(fill="x", padx=18, pady=4, ipady=5)
             label(self.t("cloud_base_url"))
-            tk.Entry(content, textvariable=base_var, bg=self.colors["input"], fg=self.colors["text"],
-                     insertbackground=self.colors["text"]).pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, base_var).pack(fill="x", padx=18, pady=4, ipady=5)
             label(self.t("cloud_model"))
-            tk.Entry(content, textvariable=model_var, bg=self.colors["input"], fg=self.colors["text"],
-                     insertbackground=self.colors["text"]).pack(fill="x", padx=18, pady=4, ipady=5)
+            self.styled_entry(content, model_var).pack(fill="x", padx=18, pady=4, ipady=5)
             load_provider_fields()
 
             section(self.t("cloud_usage"))
@@ -2433,11 +2522,9 @@ def run_cloudai_gui():
                     try:
                         summary = fetch_cloud_usage(self.cloud_config)
                         text = self.t("cloud_usage_summary", usage=summary) if summary else self.t("cloud_usage_unavailable")
-                    except PermissionError:
-                        text = self.t("cloud_no_key")
                     except Exception as exc:
                         log_cloud_error(exc)
-                        text = self.t("cloud_usage_unavailable")
+                        text = cloud_exception_message(self.local_config, exc)
                     win.after(0, lambda: usage_var.set(text))
 
                 threading.Thread(target=worker, daemon=True).start()
@@ -2449,7 +2536,7 @@ def run_cloudai_gui():
             actions.pack(fill="x", padx=18, pady=4)
             self.styled_button(actions, self.t("cloud_export"), self.export_current_chat).pack(side="left", padx=(0, 8))
             self.styled_button(actions, self.t("cloud_wallpaper"), self.choose_wallpaper).pack(side="left")
-            tk.Frame(content, bg=self.colors["panel"], height=16).pack(fill="x")
+            tk.Frame(content, bg=self.colors["panel"], height=72).pack(fill="x")
 
             def save():
                 self.local_config["language"] = normalize_language(options.get(language_var.get(), "zh_cn"))
