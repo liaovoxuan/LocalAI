@@ -236,15 +236,29 @@ void VirtualWorldWindow::buildUi() {
     detailLayout->addWidget(emptyStateLabel_, 1);
 
     editorPane_ = new QWidget();
-    auto* editorLayout = new QVBoxLayout(editorPane_);
-    editorLayout->setContentsMargins(0, 0, 0, 0);
-    editorLayout->setSpacing(10);
+    auto* editorOuterLayout = new QVBoxLayout(editorPane_);
+    editorOuterLayout->setContentsMargins(0, 0, 0, 0);
+    editorOuterLayout->setSpacing(0);
     detailLayout->addWidget(editorPane_, 1);
+
+    auto* editorScroll = new QScrollArea();
+    editorScroll->setWidgetResizable(true);
+    editorScroll->setFrameShape(QFrame::NoFrame);
+    editorScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    editorScroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    editorScroll->setStyleSheet("QScrollArea{background:transparent;border:0;}");
+    auto* editorContent = new QWidget();
+    auto* editorLayout = new QVBoxLayout(editorContent);
+    editorLayout->setContentsMargins(0, 0, 10, 18);
+    editorLayout->setSpacing(12);
+    editorScroll->setWidget(editorContent);
+    editorOuterLayout->addWidget(editorScroll, 1);
 
     auto* form = new QFormLayout();
     form->setHorizontalSpacing(18);
     form->setVerticalSpacing(12);
     form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
     nameEdit_ = new QLineEdit();
     storageEdit_ = new QLineEdit();
     storageEdit_->setPlaceholderText("未设置时使用系统默认虚拟机文件夹");
@@ -441,16 +455,19 @@ void VirtualWorldWindow::buildUi() {
     mediaRow->addLayout(mediaButtons);
     editorLayout->addWidget(new QLabel("镜像与磁盘"));
     editorLayout->addLayout(mediaRow);
+    mediaList_->setMinimumHeight(140);
 
     issueText_ = new QTextEdit();
     issueText_->setReadOnly(true);
     issueText_->setMaximumHeight(100);
     commandPreview_ = new QPlainTextEdit();
     commandPreview_->setReadOnly(true);
+    commandPreview_->setMinimumHeight(160);
     editorLayout->addWidget(new QLabel("兼容性提示"));
     editorLayout->addWidget(issueText_);
     editorLayout->addWidget(new QLabel("启动配置预览"));
-    editorLayout->addWidget(commandPreview_, 1);
+    editorLayout->addWidget(commandPreview_);
+    editorLayout->addStretch(1);
 }
 
 void VirtualWorldWindow::showEmptyLibrary() {
