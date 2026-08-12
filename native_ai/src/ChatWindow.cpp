@@ -4,10 +4,12 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QTextEdit>
 #include <QToolBar>
 #include <QVBoxLayout>
@@ -88,7 +90,18 @@ void ChatWindow::sendMessage() {
 void ChatWindow::openSettings() {
     QDialog dialog(this);
     dialog.setWindowTitle(trText(config_.language, "settings"));
-    auto* form = new QFormLayout(&dialog);
+    dialog.resize(560, 520);
+    auto* root = new QVBoxLayout(&dialog);
+    root->setContentsMargins(16, 16, 16, 14);
+    root->setSpacing(12);
+    auto* scroll = new QScrollArea();
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    auto* content = new QWidget();
+    auto* form = new QFormLayout(content);
+    form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    form->setVerticalSpacing(10);
     auto* language = new QComboBox();
     language->addItems(supportedLanguages());
     language->setCurrentText(config_.language);
@@ -112,8 +125,10 @@ void ChatWindow::openSettings() {
     form->addRow("Base URL", baseUrl);
     form->addRow("API Key", apiKey);
     form->addRow("Theme", theme);
+    scroll->setWidget(content);
+    root->addWidget(scroll, 1);
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel);
-    form->addWidget(buttons);
+    root->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     if (dialog.exec() != QDialog::Accepted) return;

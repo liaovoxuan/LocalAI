@@ -31,18 +31,6 @@ jobs:
             os: windows-11-arm
             python-arch: arm64
             pyinstaller-target-arch: ""
-          - platform: macos
-            arch: x64
-            artifact-arch: x64
-            os: macos-13
-            python-arch: x64
-            pyinstaller-target-arch: x86_64
-          - platform: macos
-            arch: arm64
-            artifact-arch: apple-silicon
-            os: macos-14
-            python-arch: arm64
-            pyinstaller-target-arch: arm64
           - platform: linux
             arch: x64
             artifact-arch: x64
@@ -84,7 +72,7 @@ jobs:
           sudo apt-get install -y python3-tk desktop-file-utils fakeroot rpm curl file cmake qtbase5-dev qttools5-dev-tools libopenblas-dev libvulkan-dev
 
       - name: Set up Qt for VirtualWorld
-        if: matrix.platform != 'linux'
+        if: matrix.platform == 'windows'
         uses: jurplel/install-qt-action@v4
         with:
           version: "6.7.3"
@@ -119,30 +107,6 @@ jobs:
           Get-ChildItem release -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)"
           } | Set-Content release/SHA256SUMS
-
-      - name: Build macOS apps
-        if: matrix.platform == 'macos'
-        env:
-          PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
-          LOCALAI_APPLE_SILICON_OPTIMIZED: ${{ matrix.arch == 'arm64' && '1' || '0' }}
-          LOCALAI_TARGET_OS: macos
-          LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
-        run: |
-          python3 scripts/build_llamacpp_runtime.py
-          python3 scripts/download_default_llamacpp_model.py
-          pyinstaller --clean --noconfirm LocalAI_macOS.spec
-          pyinstaller --clean --noconfirm LocalAI_SE_macOS.spec
-          pyinstaller --clean --noconfirm CloudAI_macOS.spec
-          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="${{ matrix.pyinstaller-target-arch }}"
-          cmake --build build/virtualworld --config Release
-          mkdir -p dist
-          cp build/virtualworld/VirtualWorld dist/VirtualWorld
-          mkdir -p release
-          ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI.app" "release/LocalAI-macos-${{ matrix.artifact-arch }}.zip"
-          ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI_SE.app" "release/LocalAI_SE-macos-${{ matrix.artifact-arch }}.zip"
-          ditto -c -k --sequesterRsrc --keepParent "dist/CloudAI.app" "release/CloudAI-macos-${{ matrix.artifact-arch }}.zip"
-          ditto -c -k --keepParent "dist/VirtualWorld" "release/VirtualWorld-macos-${{ matrix.artifact-arch }}.zip"
-          (cd release && shasum -a 256 * > SHA256SUMS)
 
       - name: Build Linux apps
         if: matrix.platform == 'linux'
