@@ -354,7 +354,7 @@ jobs:
       - name: Build Linux RISC-V apps
         run: |
           set -euo pipefail
-          docker run --rm --platform linux/riscv64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
+          if ! docker run --rm --platform linux/riscv64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
@@ -411,7 +411,14 @@ jobs:
           APPS
             echo "RISC-V AppImage is skipped unless a compatible appimagetool-riscv64 binary is available." > release/AppImage-riscv64-UNAVAILABLE.txt
             (cd release && sha256sum * > SHA256SUMS)
-          '
+          '; then
+            mkdir -p release
+            {
+              echo "Linux RISC-V package was not produced because the GitHub QEMU cross-runner failed."
+              echo "This experimental target does not affect Windows/Linux x64/arm64 packaging."
+            } > release/RISC-V-BUILD-UNAVAILABLE.txt
+            (cd release && sha256sum * > SHA256SUMS)
+          fi
 
       - name: Upload Linux RISC-V artifacts
         uses: actions/upload-artifact@v4
@@ -442,7 +449,7 @@ jobs:
       - name: Build Linux LoongArch64 apps
         run: |
           set -euo pipefail
-          docker run --rm --platform linux/loong64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
+          if ! docker run --rm --platform linux/loong64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
@@ -484,7 +491,17 @@ jobs:
             cp docs/llama.cpp/loongarch_support.md release/LoongArch-llama.cpp-notes.md
             cp docs/llama.cpp/loongarch_projx_readme.md release/LoongArch-projX-reference.md
             (cd release && sha256sum * > SHA256SUMS)
-          '
+          '; then
+            mkdir -p release
+            {
+              echo "Linux LoongArch64 package was not produced because the GitHub QEMU cross-runner failed."
+              echo "This experimental target does not affect Windows/Linux x64/arm64 packaging."
+              echo "LocalAI keeps LoongArch llama.cpp notes for native/manual builds."
+            } > release/LoongArch64-BUILD-UNAVAILABLE.txt
+            cp docs/llama.cpp/loongarch_support.md release/LoongArch-llama.cpp-notes.md
+            cp docs/llama.cpp/loongarch_projx_readme.md release/LoongArch-projX-reference.md
+            (cd release && sha256sum * > SHA256SUMS)
+          fi
 
       - name: Upload Linux LoongArch64 artifacts
         uses: actions/upload-artifact@v4
