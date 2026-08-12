@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
@@ -28,6 +29,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScreen>
+#include <QScrollArea>
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QSplitter>
@@ -650,22 +652,40 @@ void VirtualWorldWindow::applyGuestPreset(VmConfig& config) const {
 VmConfig VirtualWorldWindow::createVmWithWizard() {
     QDialog dialog(this);
     dialog.setWindowTitle("创建虚拟机");
-    dialog.resize(720, 560);
+    QSize dialogSize(760, 640);
+    if (QScreen* screen = QApplication::primaryScreen()) {
+        const QRect available = screen->availableGeometry();
+        dialogSize.setWidth(qMin(dialogSize.width(), qMax(560, int(available.width() * 0.72))));
+        dialogSize.setHeight(qMin(dialogSize.height(), qMax(460, int(available.height() * 0.78))));
+    }
+    dialog.resize(dialogSize);
     dialog.setStyleSheet(QString("QDialog{background:#f7f9fc;color:#1f2937;font-size:14px;}"
                                  "QLineEdit,QComboBox,QDoubleSpinBox{background:white;border:1px solid #d7deea;border-radius:8px;padding:9px;min-height:30px;}"
                                  "QLabel{background:transparent;}")
                          + buttonStyle());
     auto* layout = new QVBoxLayout(&dialog);
-    layout->setContentsMargins(28, 28, 28, 22);
-    layout->setSpacing(18);
+    layout->setContentsMargins(24, 22, 24, 18);
+    layout->setSpacing(14);
     auto* title = new QLabel("新建虚拟机");
     title->setStyleSheet("QLabel{font-size:22px;font-weight:700;color:#111827;}");
     layout->addWidget(title);
 
+    auto* scroll = new QScrollArea();
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setStyleSheet("QScrollArea{background:transparent;border:0;}");
+    auto* scrollContent = new QWidget();
+    auto* scrollLayout = new QVBoxLayout(scrollContent);
+    scrollLayout->setContentsMargins(0, 0, 8, 0);
+    scrollLayout->setSpacing(12);
+
     auto* form = new QFormLayout();
-    form->setHorizontalSpacing(22);
-    form->setVerticalSpacing(14);
+    form->setHorizontalSpacing(18);
+    form->setVerticalSpacing(10);
     form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
     auto* name = new QLineEdit("VirtualWorld VM");
     auto* storage = new QLineEdit();
     storage->setPlaceholderText("留空则自动使用系统默认虚拟机文件夹");
@@ -689,6 +709,8 @@ VmConfig VirtualWorldWindow::createVmWithWizard() {
     for (const HostGpuInfo& gpu : wizardGpus) {
         passthroughGpu->addItem(gpuDisplayText(gpu), gpu.id);
     }
+    passthroughGpu->setMinimumContentsLength(24);
+    passthroughGpu->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
     passthroughGpu->setEnabled(!wizardGpus.isEmpty());
     auto* keepVirtualDisplay = new QCheckBox("保留虚拟显卡用于安装和救援显示");
     keepVirtualDisplay->setChecked(true);
@@ -738,12 +760,15 @@ VmConfig VirtualWorldWindow::createVmWithWizard() {
     form->addRow("", keepVirtualDisplay);
     form->addRow("", download);
     form->addRow("", import);
-    layout->addLayout(form);
+    scrollLayout->addLayout(form);
 
     auto* hint = new QLabel("Classic MacOS、Linux 和其他系统镜像需要手动导入。Windows 将打开微软官方下载页；现代 macOS 将获取 IPSW 候选。");
     hint->setWordWrap(true);
     hint->setStyleSheet("QLabel{color:#667085;}");
-    layout->addWidget(hint);
+    scrollLayout->addWidget(hint);
+    scrollLayout->addStretch(1);
+    scroll->setWidget(scrollContent);
+    layout->addWidget(scroll, 1);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok);
     buttons->button(QDialogButtonBox::Ok)->setText("创建");
