@@ -3,14 +3,17 @@
 import os
 
 TARGET_ARCH = os.environ.get("PYINSTALLER_TARGET_ARCH") or None
+datas = [('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons'), ('Readme.docx', '.')]
+if os.path.isdir('runtime/llama.cpp'):
+    datas.append(('runtime/llama.cpp', 'runtime/llama.cpp'))
 
 
 a = Analysis(
     ['local_ai.py'],
     pathex=[],
     binaries=[],
-    datas=[('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons'), ('Readme.docx', '.')],
-    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'cpuinfo', 'plugins', 'plugins.qemu_bridge', 'plugins.qemu_bridge.plugin', 'plugins.qemu_bridge.models', 'plugins.qemu_bridge.parser', 'plugins.qemu_bridge.translator', 'plugins.qemu_bridge.validator', 'plugins.qemu_bridge.standalone', 'plugins.qemu_bridge.ai_modify'],
+    datas=datas,
+    hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'cpuinfo'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

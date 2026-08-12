@@ -3,13 +3,16 @@
 import os
 
 TARGET_ARCH = os.environ.get("PYINSTALLER_TARGET_ARCH") or None
+datas = [("config.json", "."), ("version.json", "."), ("assets/icons", "assets/icons"), ("Readme.docx", ".")]
+if os.path.isdir("runtime/llama.cpp"):
+    datas.append(("runtime/llama.cpp", "runtime/llama.cpp"))
 
 
 a = Analysis(
     ['local_ai_se.py'],
     pathex=[],
     binaries=[],
-    datas=[('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons'), ('Readme.docx', '.')],
+    datas=datas,
     hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'cpuinfo'],
     hookspath=[],
     hooksconfig={},

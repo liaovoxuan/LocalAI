@@ -24,11 +24,11 @@ import zipfile
 import tempfile
 import shutil
 import shlex
-import importlib
 import xml.etree.ElementTree as ET
 from html import unescape
 from urllib.parse import quote, unquote, urljoin, urlparse
 from datetime import datetime
+from pathlib import Path
 
 import requests
 import psutil
@@ -37,7 +37,7 @@ get_cpu_info = None
 _CPUINFO_LOADED = False
 
 
-APP_VERSION = "0.8 Beta"
+APP_VERSION = "1.0"
 APP_VERSION_LABEL = APP_VERSION
 
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
@@ -248,6 +248,9 @@ DEFAULT_CONFIG = {
     "openai_model": "",
     "api_key": "",
     "api_base_url": "",
+    "llamacpp_binary": "",
+    "llamacpp_model": "",
+    "llamacpp_model_dir": "",
     "provider": "ollama",
     "first_run_done": False,
     "first_welcome_done": False,
@@ -258,14 +261,14 @@ DEFAULT_CONFIG = {
     "theme": "auto",
     "first_device_info_done": False,
     "wallpaper_path": "",
-    "edition": "standard",
+    "edition": "ultra",
     "activation_code": ""
 }
 
-APP_EDITION = "standard"
-# Standard / Pro / Ultra editions are managed by activation.py
+APP_EDITION = "ultra"
+# LocalAI now ships with all Pro/Ultra features enabled for free.
 
-SUPPORTED_PROVIDERS = ('ollama', 'lm_studio', 'openai_compatible', 'openai_official')
+SUPPORTED_PROVIDERS = ('ollama', 'llama_cpp', 'lm_studio', 'openai_compatible', 'openai_official')
 EDITION_STANDARD = "standard"
 EDITION_PRO = "pro"
 EDITION_ULTRA = "ultra"
@@ -275,9 +278,9 @@ EDITION_ORDER = {
     EDITION_ULTRA: 2,
 }
 EDITION_PROVIDERS = {
-    EDITION_STANDARD: ('ollama', 'lm_studio'),
-    EDITION_PRO: ('ollama', 'lm_studio', 'openai_compatible'),
-    EDITION_ULTRA: ('ollama', 'lm_studio', 'openai_compatible', 'openai_official'),
+    EDITION_STANDARD: ('ollama', 'llama_cpp', 'lm_studio'),
+    EDITION_PRO: ('ollama', 'llama_cpp', 'lm_studio', 'openai_compatible'),
+    EDITION_ULTRA: ('ollama', 'llama_cpp', 'lm_studio', 'openai_compatible', 'openai_official'),
 }
 BASE_WEB_FEATURES = {
     "basic_web_search": True,
@@ -1529,54 +1532,48 @@ def activation_digit_sum(code):
 
 
 def validate_activation_code(edition, code):
-    edition = normalize_edition(edition)
-    code = str(code or "").strip()
-    if edition == EDITION_PRO:
-        return bool(re.fullmatch(r"\d{7}", code)) and activation_digit_sum(code) == 54
-    if edition == EDITION_ULTRA:
-        return bool(re.fullmatch(r"\d{8}", code)) and activation_digit_sum(code) == 66
-    return edition == EDITION_STANDARD
+    return normalize_edition(edition) in EDITION_ORDER
 
 
 def edition_from_activation_code(code):
-    code = str(code or "").strip()
-    if validate_activation_code(EDITION_ULTRA, code):
-        return EDITION_ULTRA
-    if validate_activation_code(EDITION_PRO, code):
-        return EDITION_PRO
-    return EDITION_STANDARD
+    return EDITION_ULTRA
 
 
 def edition_allows(active_edition, target_edition):
-    return EDITION_ORDER.get(normalize_edition(active_edition), 0) >= EDITION_ORDER.get(normalize_edition(target_edition), 0)
+    return True
 
 
 def supported_providers_for_edition(edition):
-    return EDITION_PROVIDERS.get(normalize_edition(edition), EDITION_PROVIDERS[EDITION_STANDARD])
+    return EDITION_PROVIDERS[EDITION_ULTRA]
+
+
+def runtime_prefers_llamacpp_only():
+    system = os.environ.get("LOCALAI_TARGET_OS", platform.system()).lower()
+    machine = os.environ.get("LOCALAI_TARGET_ARCH", platform.machine()).lower()
+    release = " ".join(str(v).lower() for v in read_linux_os_release().values())
+    probe = " ".join([system, machine, release, os.environ.get("OS", "").lower()])
+    if system == "windows" and machine in ("arm64", "aarch64"):
+        return True
+    return any(token in probe for token in ("harmony", "openharmony", "ohos", "loongarch", "riscv"))
 
 
 def get_supported_providers(config=None):
     config = config or get_runtime_config()
+    if runtime_prefers_llamacpp_only():
+        return ("llama_cpp",)
     return supported_providers_for_edition(config.get("edition", EDITION_STANDARD))
 
 
 def apply_activation_config(config):
     config = config or {}
-    requested = normalize_edition(config.get("edition", EDITION_STANDARD))
-    detected = edition_from_activation_code(config.get("activation_code", ""))
-    if detected != EDITION_STANDARD:
-        config["edition"] = detected
-    elif requested != EDITION_STANDARD:
-        config["edition"] = EDITION_STANDARD
-    else:
-        config["edition"] = requested
+    config["edition"] = EDITION_ULTRA
+    config["activation_code"] = ""
     return config
 
 
 def get_web_features(config=None):
-    edition = normalize_edition((config or get_runtime_config()).get("edition", EDITION_STANDARD))
     features = BASE_WEB_FEATURES.copy()
-    features.update(EDITION_WEB_FEATURES.get(edition, {}))
+    features.update(EDITION_WEB_FEATURES.get(EDITION_ULTRA, {}))
     return features
 
 
@@ -1653,9 +1650,35 @@ def first_welcome(config):
 
     config["language"] = language
     print(tr(config, "language_changed", name=LANGUAGE_OPTIONS[language]["name"]))
+    config = choose_startup_provider(config)
     config["first_welcome_done"] = True
     save_config(config)
     return config
+
+
+def choose_startup_provider(config):
+    providers = get_supported_providers(config)
+    if not providers:
+        config["provider"] = "ollama"
+        return config
+    if len(providers) == 1:
+        config["provider"] = providers[0]
+        print(f"模型提供商 / Provider: {provider_display_name(providers[0])}")
+        return normalize_provider_config(config)
+
+    current = normalize_provider(config.get("provider", providers[0]))
+    if current not in providers:
+        current = providers[0]
+    print("\n模型提供商 / Model Provider")
+    for i, provider in enumerate(providers, 1):
+        marker = "*" if provider == current else " "
+        print(f"{i}. [{marker}] {provider_display_name(provider)}")
+    choice = input("请选择模型提供商，直接回车使用默认值 / Choose provider, Enter for default: ").strip()
+    if choice.isdigit() and 1 <= int(choice) <= len(providers):
+        config["provider"] = providers[int(choice) - 1]
+    else:
+        config["provider"] = current
+    return normalize_provider_config(config)
 
 
 def choose_language(config):
@@ -2503,7 +2526,7 @@ def pull_model(model_name, config):
 
 GUI_TEXT = {
     "zh_cn": {
-        "title": "LocalAI 0.8 Beta 首次启动向导",
+        "title": "LocalAI 1.0 首次启动向导",
         "language_title": "选择语言",
         "language_subtitle": "选择 LocalAI 的界面语言。",
         "next": "下一步",
@@ -2533,7 +2556,7 @@ GUI_TEXT = {
         "later_warning": "没有 Ollama 无法运行本地模型。你可以稍后安装后重新启动 LocalAI。",
     },
     "zh_tw": {
-        "title": "LocalAI 0.8 Beta 首次啟動精靈",
+        "title": "LocalAI 1.0 首次啟動精靈",
         "language_title": "選擇語言",
         "language_subtitle": "選擇 LocalAI 的介面語言。",
         "next": "下一步",
@@ -2563,7 +2586,7 @@ GUI_TEXT = {
         "later_warning": "沒有 Ollama 無法執行本機模型。你可以稍後安裝後重新啟動 LocalAI。",
     },
     "en_us": {
-        "title": "LocalAI 0.8 Beta First Launch Wizard",
+        "title": "LocalAI 1.0 First Launch Wizard",
         "language_title": "Choose Language",
         "language_subtitle": "Choose the interface language for LocalAI.",
         "next": "Next",
@@ -2593,7 +2616,7 @@ GUI_TEXT = {
         "later_warning": "Local models cannot run without Ollama. You can install it later and restart LocalAI.",
     },
     "ja": {
-        "title": "LocalAI 0.8 Beta 初回起動ウィザード",
+        "title": "LocalAI 1.0 初回起動ウィザード",
         "language_title": "言語を選択",
         "language_subtitle": "LocalAI の表示言語を選択します。",
         "next": "次へ",
@@ -2623,7 +2646,7 @@ GUI_TEXT = {
         "later_warning": "Ollama がないとローカルモデルを実行できません。あとでインストールして LocalAI を再起動してください。",
     },
     "fr": {
-        "title": "Assistant de premier lancement LocalAI 0.8 Beta",
+        "title": "Assistant de premier lancement LocalAI 1.0",
         "language_title": "Choisir la langue",
         "language_subtitle": "Choisissez la langue de l'interface LocalAI.",
         "next": "Suivant",
@@ -2653,7 +2676,7 @@ GUI_TEXT = {
         "later_warning": "Les modèles locaux ne peuvent pas fonctionner sans Ollama. Installez-le plus tard puis relancez LocalAI.",
     },
     "de": {
-        "title": "LocalAI 0.8 Beta Ersteinrichtungsassistent",
+        "title": "LocalAI 1.0 Ersteinrichtungsassistent",
         "language_title": "Sprache wählen",
         "language_subtitle": "Wählen Sie die Sprache der LocalAI-Oberfläche.",
         "next": "Weiter",
@@ -2936,10 +2959,26 @@ def provider_model_family(base_model):
     return "qwen2.5-7b-instruct"
 
 
+def llamacpp_model_family(base_model):
+    bundled = find_llamacpp_model({}, "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf")
+    if bundled:
+        return bundled
+    name = (base_model or "").lower()
+    if "14b" in name:
+        return "Qwen2.5-14B-Instruct-Q4_K_M.gguf"
+    if "3b" in name:
+        return "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    if "0.8b" in name or "0_5b" in name:
+        return "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    return "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+
+
 def recommended_model_for_provider(provider, base_model):
     provider = normalize_provider(provider)
     if provider == "ollama":
         return base_model or "qwen2.5:7b"
+    if provider == "llama_cpp":
+        return llamacpp_model_family(base_model)
     if provider == "lm_studio":
         return provider_model_family(base_model)
     if provider == "openai_compatible":
@@ -3095,29 +3134,29 @@ for _code, _values in GUI_POLICY_TEXT.items():
     GUI_TEXT.setdefault(_code, GUI_TEXT["zh_cn"]).update(_values)
 
 ADDITIONAL_GUI_TEXT_OVERRIDES = {
-    "en_au": {"title": "LocalAI 0.8 Beta", "language_title": "Choose Language", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Next", "start_now": "Start Now", "save": "Save"},
-    "ko": {"title": "LocalAI 0.8 Beta", "language_title": "언어 선택", "language_subtitle": "Choose the interface language for LocalAI.", "next": "다음", "start_now": "다음", "save": "저장"},
-    "es": {"title": "LocalAI 0.8 Beta", "language_title": "Elegir idioma", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Siguiente", "start_now": "Siguiente", "save": "Guardar"},
-    "it": {"title": "LocalAI 0.8 Beta", "language_title": "Scegli lingua", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Avanti", "start_now": "Avanti", "save": "Salva"},
-    "pt": {"title": "LocalAI 0.8 Beta", "language_title": "Escolher idioma", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Próximo", "start_now": "Próximo", "save": "Salvar"},
-    "ru": {"title": "LocalAI 0.8 Beta", "language_title": "Выберите язык", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Далее", "start_now": "Далее", "save": "Сохранить"},
-    "nl": {"title": "LocalAI 0.8 Beta", "language_title": "Taal kiezen", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Volgende", "start_now": "Volgende", "save": "Opslaan"},
-    "sv": {"title": "LocalAI 0.8 Beta", "language_title": "Välj språk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Nästa", "start_now": "Nästa", "save": "Spara"},
-    "da": {"title": "LocalAI 0.8 Beta", "language_title": "Vælg sprog", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Næste", "start_now": "Næste", "save": "Gem"},
-    "fi": {"title": "LocalAI 0.8 Beta", "language_title": "Valitse kieli", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Seuraava", "start_now": "Seuraava", "save": "Tallenna"},
-    "no": {"title": "LocalAI 0.8 Beta", "language_title": "Velg språk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Neste", "start_now": "Neste", "save": "Lagre"},
-    "tr": {"title": "LocalAI 0.8 Beta", "language_title": "Dil seç", "language_subtitle": "Choose the interface language for LocalAI.", "next": "İleri", "start_now": "İleri", "save": "Kaydet"},
-    "pl": {"title": "LocalAI 0.8 Beta", "language_title": "Wybierz język", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Dalej", "start_now": "Dalej", "save": "Zapisz"},
-    "cs": {"title": "LocalAI 0.8 Beta", "language_title": "Vyberte jazyk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Další", "start_now": "Další", "save": "Uložit"},
-    "uk": {"title": "LocalAI 0.8 Beta", "language_title": "Виберіть мову", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Далі", "start_now": "Далі", "save": "Зберегти"},
-    "el": {"title": "LocalAI 0.8 Beta", "language_title": "Επιλογή γλώσσας", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Επόμενο", "start_now": "Επόμενο", "save": "Αποθήκευση"},
-    "ar": {"title": "LocalAI 0.8 Beta", "language_title": "اختر اللغة", "language_subtitle": "Choose the interface language for LocalAI.", "next": "التالي", "start_now": "التالي", "save": "حفظ"},
-    "mn": {"title": "LocalAI 0.8 Beta", "language_title": "Хэл сонгох", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Дараах", "start_now": "Дараах", "save": "Хадгалах"},
-    "th": {"title": "LocalAI 0.8 Beta", "language_title": "เลือกภาษา", "language_subtitle": "Choose the interface language for LocalAI.", "next": "ถัดไป", "start_now": "ถัดไป", "save": "บันทึก"},
-    "vi": {"title": "LocalAI 0.8 Beta", "language_title": "Chọn ngôn ngữ", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Tiếp theo", "start_now": "Tiếp theo", "save": "Lưu"},
-    "id": {"title": "LocalAI 0.8 Beta", "language_title": "Pilih Bahasa", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Berikutnya", "start_now": "Berikutnya", "save": "Simpan"},
-    "ms": {"title": "LocalAI 0.8 Beta", "language_title": "Pilih Bahasa", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Seterusnya", "start_now": "Seterusnya", "save": "Simpan"},
-    "hi": {"title": "LocalAI 0.8 Beta", "language_title": "भाषा चुनें", "language_subtitle": "Choose the interface language for LocalAI.", "next": "अगला", "start_now": "अगला", "save": "सहेजें"},
+    "en_au": {"title": "LocalAI 1.0", "language_title": "Choose Language", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Next", "start_now": "Start Now", "save": "Save"},
+    "ko": {"title": "LocalAI 1.0", "language_title": "언어 선택", "language_subtitle": "Choose the interface language for LocalAI.", "next": "다음", "start_now": "다음", "save": "저장"},
+    "es": {"title": "LocalAI 1.0", "language_title": "Elegir idioma", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Siguiente", "start_now": "Siguiente", "save": "Guardar"},
+    "it": {"title": "LocalAI 1.0", "language_title": "Scegli lingua", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Avanti", "start_now": "Avanti", "save": "Salva"},
+    "pt": {"title": "LocalAI 1.0", "language_title": "Escolher idioma", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Próximo", "start_now": "Próximo", "save": "Salvar"},
+    "ru": {"title": "LocalAI 1.0", "language_title": "Выберите язык", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Далее", "start_now": "Далее", "save": "Сохранить"},
+    "nl": {"title": "LocalAI 1.0", "language_title": "Taal kiezen", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Volgende", "start_now": "Volgende", "save": "Opslaan"},
+    "sv": {"title": "LocalAI 1.0", "language_title": "Välj språk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Nästa", "start_now": "Nästa", "save": "Spara"},
+    "da": {"title": "LocalAI 1.0", "language_title": "Vælg sprog", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Næste", "start_now": "Næste", "save": "Gem"},
+    "fi": {"title": "LocalAI 1.0", "language_title": "Valitse kieli", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Seuraava", "start_now": "Seuraava", "save": "Tallenna"},
+    "no": {"title": "LocalAI 1.0", "language_title": "Velg språk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Neste", "start_now": "Neste", "save": "Lagre"},
+    "tr": {"title": "LocalAI 1.0", "language_title": "Dil seç", "language_subtitle": "Choose the interface language for LocalAI.", "next": "İleri", "start_now": "İleri", "save": "Kaydet"},
+    "pl": {"title": "LocalAI 1.0", "language_title": "Wybierz język", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Dalej", "start_now": "Dalej", "save": "Zapisz"},
+    "cs": {"title": "LocalAI 1.0", "language_title": "Vyberte jazyk", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Další", "start_now": "Další", "save": "Uložit"},
+    "uk": {"title": "LocalAI 1.0", "language_title": "Виберіть мову", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Далі", "start_now": "Далі", "save": "Зберегти"},
+    "el": {"title": "LocalAI 1.0", "language_title": "Επιλογή γλώσσας", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Επόμενο", "start_now": "Επόμενο", "save": "Αποθήκευση"},
+    "ar": {"title": "LocalAI 1.0", "language_title": "اختر اللغة", "language_subtitle": "Choose the interface language for LocalAI.", "next": "التالي", "start_now": "التالي", "save": "حفظ"},
+    "mn": {"title": "LocalAI 1.0", "language_title": "Хэл сонгох", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Дараах", "start_now": "Дараах", "save": "Хадгалах"},
+    "th": {"title": "LocalAI 1.0", "language_title": "เลือกภาษา", "language_subtitle": "Choose the interface language for LocalAI.", "next": "ถัดไป", "start_now": "ถัดไป", "save": "บันทึก"},
+    "vi": {"title": "LocalAI 1.0", "language_title": "Chọn ngôn ngữ", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Tiếp theo", "start_now": "Tiếp theo", "save": "Lưu"},
+    "id": {"title": "LocalAI 1.0", "language_title": "Pilih Bahasa", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Berikutnya", "start_now": "Berikutnya", "save": "Simpan"},
+    "ms": {"title": "LocalAI 1.0", "language_title": "Pilih Bahasa", "language_subtitle": "Choose the interface language for LocalAI.", "next": "Seterusnya", "start_now": "Seterusnya", "save": "Simpan"},
+    "hi": {"title": "LocalAI 1.0", "language_title": "भाषा चुनें", "language_subtitle": "Choose the interface language for LocalAI.", "next": "अगला", "start_now": "अगला", "save": "सहेजें"},
 }
 for _code, _values in ADDITIONAL_GUI_TEXT_OVERRIDES.items():
     _base = GUI_TEXT.get("en_us", GUI_TEXT["zh_cn"]).copy()
@@ -3570,9 +3609,9 @@ def run_first_start_gui_wizard(config):
             if not hasattr(self, "model_next_button"):
                 return
             provider, model = self.parse_model_selection()
-            installed = model in self.installed_models if provider == "ollama" else bool(model)
+            installed = model in self.installed_models if provider == "ollama" else bool(find_llamacpp_model(self.config_data, model)) if provider == "llama_cpp" else bool(model)
             self.model_next_button.config(state="normal" if model and installed else "disabled")
-            can_install = provider == "ollama" and model and not installed
+            can_install = provider in ("ollama", "llama_cpp") and model and not installed
             self.install_button.config(state="disabled" if self.installing or not can_install else "normal")
             if hasattr(self, "trial_button"):
                 self.trial_button.config(state="normal" if provider == "ollama" and model in self.installed_models and not self.installing else "disabled")
@@ -3586,13 +3625,13 @@ def run_first_start_gui_wizard(config):
             if not model:
                 messagebox.showinfo(self.t("model_title"), self.t("select_model"))
                 return
-            if provider != "ollama":
+            if provider not in ("ollama", "llama_cpp"):
                 messagebox.showinfo(self.t("model_title"), self.t("ollama_install_only"))
                 return
             self.installing = True
             self.status_label.config(text=self.t("installing", model=model), fg=BLUE)
             self.refresh_model_controls()
-            threading.Thread(target=self.run_install, args=(model,), daemon=True).start()
+            threading.Thread(target=self.run_install, args=(provider, model), daemon=True).start()
             self.after(200, self.poll_install)
 
         def trial_selected_model(self):
@@ -3627,8 +3666,20 @@ def run_first_start_gui_wizard(config):
             self.status_label.config(text=self.t("trial_done", elapsed=elapsed) if ok else self.t("trial_failed"), fg=SUCCESS if ok else ERROR)
             self.refresh_model_controls()
 
-        def run_install(self, model):
+        def run_install(self, provider, model):
             try:
+                if provider == "llama_cpp":
+                    def progress(done, total):
+                        if total:
+                            self.install_queue.put(("progress", f"llama.cpp {done * 100 // total}%"))
+                        else:
+                            self.install_queue.put(("progress", f"llama.cpp {done // (1024 * 1024)} MB"))
+                    path = download_llamacpp_model(model, self.config_data, progress)
+                    self.config_data["llamacpp_model"] = path
+                    self.config_data["last_model"] = path
+                    save_config(self.config_data)
+                    self.install_queue.put(("done", True))
+                    return
                 process = subprocess.Popen(
                     [get_ollama_binary_path() or "ollama", "pull", model],
                     stdout=subprocess.PIPE,
@@ -3677,6 +3728,9 @@ def run_first_start_gui_wizard(config):
             self.config_data["language"] = self.language
             self.config_data["provider"] = provider
             if provider == "ollama":
+                self.config_data["last_model"] = model
+            elif provider == "llama_cpp":
+                self.config_data["llamacpp_model"] = model
                 self.config_data["last_model"] = model
             else:
                 self.config_data["openai_model"] = model
@@ -3788,6 +3842,16 @@ def is_valid_model_name(name):
 
 
 def choose_model(config, recommendation):
+    cfg = normalize_provider_config(config)
+    if cfg.get("provider") == "llama_cpp":
+        default = cfg.get("llamacpp_model") or llamacpp_model_family((recommendation or {}).get("model"))
+        choice = input(f"请输入 llama.cpp GGUF 模型路径，直接回车使用推荐值 / GGUF model path [{default}]: ").strip()
+        model = choice or default
+        config["llamacpp_model"] = model
+        config["last_model"] = model
+        save_config(config)
+        return model
+
     models = get_models()
 
     recommended_model = recommendation.get("model")
@@ -4119,6 +4183,9 @@ def ask_ollama(prompt, model, size, image_paths=None):
 def normalize_provider(value):
     provider = str(value or "ollama").strip().lower().replace("-", "_")
     aliases = {
+        "llamacpp": "llama_cpp",
+        "llama.cpp": "llama_cpp",
+        "llama_cpp": "llama_cpp",
         "lmstudio": "lm_studio",
         "lm_studio": "lm_studio",
         "openai_compatible_api": "openai_compatible",
@@ -4136,6 +4203,7 @@ def normalize_provider(value):
 def provider_display_name(provider):
     return {
         "ollama": "Ollama",
+        "llama_cpp": "llama.cpp",
         "lm_studio": "LM Studio",
         "openai_compatible": "OpenAI Compatible API",
         "openai_official": "OpenAI Official API",
@@ -4155,12 +4223,17 @@ def normalize_provider_config(config):
     if not config.get("openai_model") and config.get("openai_compatible_model"):
         config["openai_model"] = config.get("openai_compatible_model", "")
     config["provider"] = normalize_provider(config.get("provider", "ollama"))
-    if config["provider"] not in supported_providers_for_edition(config.get("edition", EDITION_STANDARD)):
+    if runtime_prefers_llamacpp_only():
+        config["provider"] = "llama_cpp"
+    elif config["provider"] not in supported_providers_for_edition(config.get("edition", EDITION_STANDARD)):
         config["provider"] = "ollama"
     config.setdefault("api_base_url", "")
     config.setdefault("api_key", "")
     config.setdefault("openai_model", "")
     config.setdefault("lmstudio_base_url", "http://localhost:1234/v1")
+    config.setdefault("llamacpp_binary", "")
+    config.setdefault("llamacpp_model", "")
+    config.setdefault("llamacpp_model_dir", "")
     return config
 
 
@@ -4314,6 +4387,218 @@ def ask_openai_official(messages, model, config, image_paths=None):
     return ask_openai_chat_completions(messages, cfg["openai_model"], cfg, "https://api.openai.com/v1", api_key, image_paths)
 
 
+def llamacpp_binary_candidates(config=None):
+    cfg = config or {}
+    exe = "llama-cli.exe" if os.name == "nt" else "llama-cli"
+    legacy = "main.exe" if os.name == "nt" else "main"
+    candidates = []
+    configured = (cfg.get("llamacpp_binary") or "").strip()
+    if configured:
+        candidates.append(configured)
+    app_root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    bundle_root = getattr(sys, "_MEIPASS", app_root)
+    platform_name = llamacpp_runtime_platform()
+    arch_name = llamacpp_runtime_arch()
+    roots = [app_root, bundle_root, os.getcwd(), os.path.expanduser("~/Downloads/llama.cpp-master")]
+    for root in roots:
+        candidates.extend([
+            os.path.join(root, "runtime", "llama.cpp", platform_name, arch_name, "bin", exe),
+            os.path.join(root, "runtime", "llama.cpp", platform_name, arch_name, exe),
+            os.path.join(root, "runtime", "llama.cpp", "bin", exe),
+            os.path.join(root, "runtime", "llama.cpp", exe),
+            os.path.join(root, "llama.cpp", "build", "bin", exe),
+            os.path.join(root, "build", "bin", exe),
+            os.path.join(root, "build", "bin", "Release", exe),
+            os.path.join(root, "bin", exe),
+            os.path.join(root, legacy),
+        ])
+    for name in (exe, legacy):
+        found = shutil.which(name)
+        if found:
+            candidates.append(found)
+    return candidates
+
+
+def llamacpp_runtime_platform():
+    system = os.environ.get("LOCALAI_TARGET_OS", platform.system()).lower()
+    if system == "darwin":
+        return "macos"
+    if system == "macos":
+        return "macos"
+    if system == "windows":
+        return "windows"
+    if system == "harmonyos":
+        return "harmonyos"
+    release = " ".join(str(v).lower() for v in read_linux_os_release().values())
+    if "harmony" in release or "openharmony" in release or "ohos" in release:
+        return "harmonyos"
+    return "linux"
+
+
+def llamacpp_runtime_arch():
+    machine = os.environ.get("LOCALAI_TARGET_ARCH", platform.machine()).lower()
+    if machine in ("arm64", "aarch64"):
+        return "arm64"
+    if machine in ("amd64", "x86_64"):
+        return "x64"
+    if "riscv" in machine:
+        return "riscv64"
+    if "loongarch" in machine:
+        return "loongarch64"
+    return machine or "unknown"
+
+
+def get_llamacpp_binary_path(config=None):
+    for path in llamacpp_binary_candidates(config):
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return ""
+
+
+def find_llamacpp_model(config=None, preferred=""):
+    cfg = config or {}
+    candidates = []
+    for value in (cfg.get("llamacpp_model"), preferred):
+        if value:
+            candidates.append(os.path.expanduser(str(value)))
+    app_root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    bundle_root = getattr(sys, "_MEIPASS", app_root)
+    search_roots = [
+        cfg.get("llamacpp_model_dir", ""),
+        os.path.join(bundle_root, "runtime", "llama.cpp", "models"),
+        os.path.join(app_root, "runtime", "llama.cpp", "models"),
+        os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "models"),
+        os.path.join(os.getcwd(), "models"),
+        os.path.join(os.getcwd(), "runtime", "llama.cpp", "models"),
+        os.path.expanduser("~/Downloads"),
+        os.path.expanduser("~/Downloads/llama.cpp-master/models"),
+    ]
+    for root in search_roots:
+        root = os.path.expanduser(str(root or ""))
+        if not root or not os.path.isdir(root):
+            continue
+        if preferred:
+            candidates.append(os.path.join(root, preferred))
+        try:
+            for name in os.listdir(root):
+                if name.lower().endswith(".gguf"):
+                    candidates.append(os.path.join(root, name))
+        except Exception:
+            continue
+    for path in candidates:
+        if path and os.path.isfile(path) and path.lower().endswith(".gguf"):
+            return path
+    return ""
+
+
+LLAMACPP_MODEL_URLS = {
+    "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-3B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-7B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-14B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf",
+}
+
+
+def download_llamacpp_model(model_name, config=None, progress=None):
+    cfg = config or {}
+    url = LLAMACPP_MODEL_URLS.get(os.path.basename(model_name), model_name if str(model_name).startswith(("http://", "https://")) else "")
+    if not url:
+        raise ValueError(f"No download URL for {model_name}")
+    model_dir = os.path.expanduser(cfg.get("llamacpp_model_dir") or os.path.join(get_app_data_dir(), "models", "llama.cpp"))
+    os.makedirs(model_dir, exist_ok=True)
+    target = os.path.join(model_dir, os.path.basename(urlparse(url).path) or os.path.basename(model_name))
+    temp_path = target + ".part"
+    resume = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
+    headers = {"Range": f"bytes={resume}-"} if resume else {}
+    with requests.get(url, stream=True, timeout=60, headers=headers) as response:
+        response.raise_for_status()
+        mode = "ab" if resume and response.status_code == 206 else "wb"
+        if mode == "wb":
+            resume = 0
+        total = int(response.headers.get("content-length", 0) or 0) + resume
+        done = resume
+        with open(temp_path, mode) as handle:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                handle.write(chunk)
+                done += len(chunk)
+                if progress:
+                    progress(done, total)
+    os.replace(temp_path, target)
+    return target
+
+
+def llamacpp_runtime_options(config=None):
+    cfg = config or {}
+    arch = llamacpp_runtime_arch()
+    max_threads = 4 if arch == "loongarch64" else 8
+    default_ctx = 2048 if arch == "loongarch64" else 4096
+    default_predict = 256 if arch == "loongarch64" else 512
+    threads = max(1, min(psutil.cpu_count(logical=False) or 4, max_threads))
+    ctx = int(cfg.get("llamacpp_context", default_ctx) or default_ctx)
+    predict = int(cfg.get("llamacpp_predict", default_predict) or default_predict)
+    temp = str(cfg.get("llamacpp_temperature", 0.7) or 0.7)
+    options = [
+        "-c", str(ctx),
+        "-t", str(threads),
+        "-n", str(predict),
+        "--temp", temp,
+        "--no-display-prompt",
+        "--no-conversation",
+        "--single-turn",
+        "--simple-io",
+        "--no-warmup",
+        "--no-show-timings",
+    ]
+    return options
+
+
+def clean_llamacpp_output(output, prompt):
+    text = output or ""
+    marker = f"> {prompt}"
+    if marker in text:
+        text = text.split(marker, 1)[1]
+    else:
+        prompt_index = text.rfind(prompt)
+        if prompt_index >= 0:
+            text = text[prompt_index + len(prompt):]
+    if "Exiting..." in text:
+        text = text.split("Exiting...", 1)[0]
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped == ">":
+            continue
+        if stripped.startswith("Loading model"):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def ask_llama_cpp(messages, model, config, image_paths=None):
+    cfg = normalize_provider_config(config)
+    binary = get_llamacpp_binary_path(cfg)
+    if not binary:
+        raise ValueError("llama.cpp binary not found. Set llamacpp_binary or bundle runtime/llama.cpp/bin/llama-cli.")
+    model_path = find_llamacpp_model(cfg, model)
+    if not model_path:
+        raise ValueError("llama.cpp GGUF model not found. Set llamacpp_model or llamacpp_model_dir.")
+    prompt = messages_to_prompt(messages)
+    process = subprocess.run(
+        [binary, "-m", model_path, "-p", prompt, *llamacpp_runtime_options(cfg)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=240,
+    )
+    if process.returncode != 0:
+        raise RuntimeError((process.stderr or process.stdout or "llama.cpp failed").strip())
+    return clean_llamacpp_output(process.stdout, prompt)
+
+
 def ask_model(messages, model, config):
     cfg = normalize_provider_config(config.copy() if isinstance(config, dict) else {})
     provider = normalize_provider(cfg.get("provider"))
@@ -4322,6 +4607,12 @@ def ask_model(messages, model, config):
     prompt = messages_to_prompt(messages)
     if not content_allowed(prompt):
         return MODERATION_BLOCK_MESSAGE
+    if provider == "llama_cpp":
+        try:
+            return moderated_text(ask_llama_cpp(messages, model, cfg, image_paths))
+        except Exception as exc:
+            log_error(exc)
+            return str(exc)
     if provider == "lm_studio":
         try:
             return moderated_text(ask_lm_studio(messages, model, cfg, image_paths))
@@ -4357,6 +4648,14 @@ def test_provider_connection(provider, config):
         if provider == "ollama":
             response = requests.get(OLLAMA_TAGS_URL, timeout=3)
             return response.status_code == 200, "Ollama OK" if response.status_code == 200 else response.text
+        if provider == "llama_cpp":
+            binary = get_llamacpp_binary_path(cfg)
+            model_path = find_llamacpp_model(cfg, cfg.get("openai_model") or cfg.get("last_model"))
+            if not binary:
+                return False, "llama.cpp binary not found."
+            if not model_path:
+                return False, "llama.cpp GGUF model not found."
+            return True, "llama.cpp OK"
         if provider == "lm_studio":
             url = openai_models_url(cfg.get("lmstudio_base_url") or "http://localhost:1234/v1")
             response = requests.get(url, timeout=5)
@@ -6398,13 +6697,13 @@ for _code, _values in CHAT_GUI_TEXT_UPDATES.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
 
 CHAT_PROVIDER_TEXT = {
-    "zh_cn": {"provider_label": "模型提供商", "provider_title": "模型提供商", "test_connection": "测试连接", "save": "保存", "api_base_url": "OpenAI Compatible 基础地址", "api_key": "API 密钥", "openai_model": "模型", "lmstudio_base_url": "LM Studio 基础地址"},
-    "zh_tw": {"provider_label": "模型提供商", "provider_title": "模型提供商", "test_connection": "測試連線", "save": "儲存", "api_base_url": "OpenAI Compatible 基礎位址", "api_key": "API 金鑰", "openai_model": "模型", "lmstudio_base_url": "LM Studio 基礎位址"},
-    "en_us": {"provider_label": "Provider", "provider_title": "Model Provider", "test_connection": "Test Connection", "save": "Save", "api_base_url": "OpenAI Compatible Base URL", "api_key": "API Key", "openai_model": "Model", "lmstudio_base_url": "LM Studio Base URL"},
-    "en_gb": {"provider_label": "Provider", "provider_title": "Model Provider", "test_connection": "Test Connection", "save": "Save", "api_base_url": "OpenAI Compatible Base URL", "api_key": "API Key", "openai_model": "Model", "lmstudio_base_url": "LM Studio Base URL"},
-    "ja": {"provider_label": "モデル提供元", "provider_title": "モデル提供元", "test_connection": "接続をテスト", "save": "保存", "api_base_url": "OpenAI Compatible ベース URL", "api_key": "API キー", "openai_model": "モデル", "lmstudio_base_url": "LM Studio ベース URL"},
-    "fr": {"provider_label": "Fournisseur", "provider_title": "Fournisseur de modèle", "test_connection": "Tester la connexion", "save": "Enregistrer", "api_base_url": "URL de base OpenAI Compatible", "api_key": "Clé API", "openai_model": "Modèle", "lmstudio_base_url": "URL de base LM Studio"},
-    "de": {"provider_label": "Anbieter", "provider_title": "Modellanbieter", "test_connection": "Verbindung testen", "save": "Speichern", "api_base_url": "OpenAI-Compatible Basis-URL", "api_key": "API-Schlüssel", "openai_model": "Modell", "lmstudio_base_url": "LM Studio Basis-URL"},
+    "zh_cn": {"provider_label": "模型提供商", "provider_title": "模型提供商", "test_connection": "测试连接", "save": "保存", "api_base_url": "OpenAI Compatible 基础地址", "api_key": "API 密钥", "openai_model": "模型", "lmstudio_base_url": "LM Studio 基础地址", "llamacpp_binary": "llama.cpp 可执行文件", "llamacpp_model": "llama.cpp GGUF 模型"},
+    "zh_tw": {"provider_label": "模型提供商", "provider_title": "模型提供商", "test_connection": "測試連線", "save": "儲存", "api_base_url": "OpenAI Compatible 基礎位址", "api_key": "API 金鑰", "openai_model": "模型", "lmstudio_base_url": "LM Studio 基礎位址", "llamacpp_binary": "llama.cpp 執行檔", "llamacpp_model": "llama.cpp GGUF 模型"},
+    "en_us": {"provider_label": "Provider", "provider_title": "Model Provider", "test_connection": "Test Connection", "save": "Save", "api_base_url": "OpenAI Compatible Base URL", "api_key": "API Key", "openai_model": "Model", "lmstudio_base_url": "LM Studio Base URL", "llamacpp_binary": "llama.cpp Binary", "llamacpp_model": "llama.cpp GGUF Model"},
+    "en_gb": {"provider_label": "Provider", "provider_title": "Model Provider", "test_connection": "Test Connection", "save": "Save", "api_base_url": "OpenAI Compatible Base URL", "api_key": "API Key", "openai_model": "Model", "lmstudio_base_url": "LM Studio Base URL", "llamacpp_binary": "llama.cpp Binary", "llamacpp_model": "llama.cpp GGUF Model"},
+    "ja": {"provider_label": "モデル提供元", "provider_title": "モデル提供元", "test_connection": "接続をテスト", "save": "保存", "api_base_url": "OpenAI Compatible ベース URL", "api_key": "API キー", "openai_model": "モデル", "lmstudio_base_url": "LM Studio ベース URL", "llamacpp_binary": "llama.cpp 実行ファイル", "llamacpp_model": "llama.cpp GGUF モデル"},
+    "fr": {"provider_label": "Fournisseur", "provider_title": "Fournisseur de modèle", "test_connection": "Tester la connexion", "save": "Enregistrer", "api_base_url": "URL de base OpenAI Compatible", "api_key": "Clé API", "openai_model": "Modèle", "lmstudio_base_url": "URL de base LM Studio", "llamacpp_binary": "Binaire llama.cpp", "llamacpp_model": "Modèle GGUF llama.cpp"},
+    "de": {"provider_label": "Anbieter", "provider_title": "Modellanbieter", "test_connection": "Verbindung testen", "save": "Speichern", "api_base_url": "OpenAI-Compatible Basis-URL", "api_key": "API-Schlüssel", "openai_model": "Modell", "lmstudio_base_url": "LM Studio Basis-URL", "llamacpp_binary": "llama.cpp-Binärdatei", "llamacpp_model": "llama.cpp-GGUF-Modell"},
 }
 for _code, _values in CHAT_PROVIDER_TEXT.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
@@ -6526,13 +6825,13 @@ for _code, _values in CHAT_SCREENSHOT_TEXT.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
 
 CHAT_PLUGIN_TEXT = {
-    "zh_cn": {"qemu_bridge": "QEMU 转换"},
-    "zh_tw": {"qemu_bridge": "QEMU 轉換"},
-    "en_us": {"qemu_bridge": "QEMU Bridge"},
-    "en_gb": {"qemu_bridge": "QEMU Bridge"},
-    "ja": {"qemu_bridge": "QEMU 変換"},
-    "fr": {"qemu_bridge": "Pont QEMU"},
-    "de": {"qemu_bridge": "QEMU-Brücke"},
+    "zh_cn": {"qemu_bridge": "VirtualWorld"},
+    "zh_tw": {"qemu_bridge": "VirtualWorld"},
+    "en_us": {"qemu_bridge": "VirtualWorld"},
+    "en_gb": {"qemu_bridge": "VirtualWorld"},
+    "ja": {"qemu_bridge": "VirtualWorld"},
+    "fr": {"qemu_bridge": "VirtualWorld"},
+    "de": {"qemu_bridge": "VirtualWorld"},
 }
 for _code, _values in CHAT_PLUGIN_TEXT.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["zh_cn"]).update(_values)
@@ -6569,30 +6868,30 @@ for _code, _values in ADDITIONAL_CHAT_TEXT_OVERRIDES.items():
     CHAT_GUI_TEXT[_code] = _base
 
 LOCALAI_EXTRA_CHAT_OVERRIDES = {
-    "ko": {"new_chat": "새 대화", "history": "대화 기록", "export": "대화 내보내기", "wallpaper": "배경 추가", "web_off": "웹: 끔", "web_on": "웹: 켬", "input_hint": "메시지를 입력하세요. Enter 전송, Shift+Enter 줄바꿈.", "history_title": "대화 기록", "model_title": "모델 선택", "device_title": "기기 정보", "export_done": "대화를 내보냈습니다:\n{path}", "export_empty": "내보낼 대화가 없습니다.", "no_model": "모델이 선택되지 않았습니다.", "no_models": "설치된 모델을 찾지 못했습니다.", "model_saved": "모델이 변경되었습니다: {model}", "language_saved": "언어가 변경되었습니다: {language}", "ollama_error": "Ollama에 연결할 수 없습니다. Ollama가 실행 중인지 확인하세요.", "wallpaper_error": "이 이미지를 불러올 수 없습니다.", "import_file": "파일 가져오기", "imported_files": "{count}개 파일을 가져왔습니다", "file_imported": "가져옴: {names}", "file_error": "선택한 파일을 읽을 수 없습니다.", "qemu_bridge": "QEMU 변환"},
-    "es": {"new_chat": "Nuevo chat", "history": "Historial", "export": "Exportar chat", "wallpaper": "Añadir fondo", "web_off": "Web: desactivada", "web_on": "Web: activada", "input_hint": "Escribe un mensaje. Enter envía, Shift+Enter añade línea.", "history_title": "Historial", "model_title": "Elegir modelo", "device_title": "Información del dispositivo", "export_done": "Chat exportado:\n{path}", "export_empty": "No hay contenido para exportar.", "no_model": "No hay modelo seleccionado.", "no_models": "No se detectaron modelos instalados.", "model_saved": "Modelo cambiado a: {model}", "language_saved": "Idioma cambiado a: {language}", "ollama_error": "No se puede conectar con Ollama. Comprueba que esté ejecutándose.", "wallpaper_error": "No se puede cargar esta imagen.", "import_file": "Importar archivo", "imported_files": "{count} archivos importados", "file_imported": "Importado: {names}", "file_error": "No se puede leer el archivo seleccionado.", "qemu_bridge": "Puente QEMU"},
-    "it": {"new_chat": "Nuova chat", "history": "Cronologia", "export": "Esporta chat", "wallpaper": "Aggiungi sfondo", "web_off": "Web: off", "web_on": "Web: on", "input_hint": "Scrivi un messaggio. Enter invia, Shift+Enter va a capo.", "history_title": "Cronologia", "model_title": "Scegli modello", "device_title": "Informazioni dispositivo", "export_done": "Chat esportata:\n{path}", "export_empty": "Non c'è nulla da esportare.", "no_model": "Nessun modello selezionato.", "no_models": "Nessun modello installato rilevato.", "model_saved": "Modello cambiato in: {model}", "language_saved": "Lingua cambiata in: {language}", "ollama_error": "Impossibile connettersi a Ollama.", "wallpaper_error": "Impossibile caricare questa immagine.", "import_file": "Importa file", "imported_files": "{count} file importati", "file_imported": "Importato: {names}", "file_error": "Impossibile leggere il file selezionato.", "qemu_bridge": "Bridge QEMU"},
-    "pt": {"new_chat": "Novo chat", "history": "Histórico", "export": "Exportar conversa", "wallpaper": "Adicionar papel de parede", "web_off": "Web: desligada", "web_on": "Web: ligada", "input_hint": "Digite uma mensagem. Enter envia, Shift+Enter quebra linha.", "history_title": "Histórico", "model_title": "Escolher modelo", "device_title": "Informações do dispositivo", "export_done": "Conversa exportada:\n{path}", "export_empty": "Não há conteúdo para exportar.", "no_model": "Nenhum modelo selecionado.", "no_models": "Nenhum modelo instalado detectado.", "model_saved": "Modelo alterado para: {model}", "language_saved": "Idioma alterado para: {language}", "ollama_error": "Não foi possível conectar ao Ollama.", "wallpaper_error": "Não foi possível carregar esta imagem.", "import_file": "Importar arquivo", "imported_files": "{count} arquivos importados", "file_imported": "Importado: {names}", "file_error": "Não foi possível ler o arquivo selecionado.", "qemu_bridge": "Ponte QEMU"},
-    "ru": {"new_chat": "Новый чат", "history": "История", "export": "Экспорт чата", "wallpaper": "Добавить фон", "web_off": "Сеть: выкл.", "web_on": "Сеть: вкл.", "input_hint": "Введите сообщение. Enter отправляет, Shift+Enter переносит строку.", "history_title": "История", "model_title": "Выберите модель", "device_title": "Информация об устройстве", "export_done": "Чат экспортирован:\n{path}", "export_empty": "Нет содержимого для экспорта.", "no_model": "Модель не выбрана.", "no_models": "Установленные модели не найдены.", "model_saved": "Модель изменена на: {model}", "language_saved": "Язык изменён на: {language}", "ollama_error": "Не удалось подключиться к Ollama.", "wallpaper_error": "Не удалось загрузить это изображение.", "import_file": "Импорт файла", "imported_files": "Импортировано файлов: {count}", "file_imported": "Импортировано: {names}", "file_error": "Не удалось прочитать выбранный файл.", "qemu_bridge": "Мост QEMU"},
-    "nl": {"new_chat": "Nieuwe chat", "history": "Geschiedenis", "export": "Chat exporteren", "wallpaper": "Achtergrond toevoegen", "web_off": "Web: uit", "web_on": "Web: aan", "input_hint": "Typ een bericht. Enter verzendt, Shift+Enter maakt een nieuwe regel.", "history_title": "Geschiedenis", "model_title": "Model kiezen", "device_title": "Apparaatinformatie", "export_done": "Chat geëxporteerd:\n{path}", "export_empty": "Er is niets om te exporteren.", "no_model": "Geen model geselecteerd.", "no_models": "Geen geïnstalleerde modellen gevonden.", "model_saved": "Model gewijzigd naar: {model}", "language_saved": "Taal gewijzigd naar: {language}", "ollama_error": "Kan geen verbinding maken met Ollama.", "wallpaper_error": "Kan deze afbeelding niet laden.", "import_file": "Bestand importeren", "imported_files": "{count} bestanden geïmporteerd", "file_imported": "Geïmporteerd: {names}", "file_error": "Kan het geselecteerde bestand niet lezen.", "qemu_bridge": "QEMU-brug"},
-    "sv": {"new_chat": "Ny chatt", "history": "Historik", "export": "Exportera chatt", "wallpaper": "Lägg till bakgrund", "web_off": "Webb: av", "web_on": "Webb: på", "input_hint": "Skriv ett meddelande. Enter skickar, Shift+Enter gör ny rad.", "history_title": "Historik", "model_title": "Välj modell", "device_title": "Enhetsinformation", "export_done": "Chatten exporterades:\n{path}", "export_empty": "Det finns inget att exportera.", "no_model": "Ingen modell vald.", "no_models": "Inga installerade modeller hittades.", "model_saved": "Modell ändrad till: {model}", "language_saved": "Språk ändrat till: {language}", "ollama_error": "Kan inte ansluta till Ollama.", "wallpaper_error": "Kan inte läsa in bilden.", "import_file": "Importera fil", "imported_files": "{count} filer importerade", "file_imported": "Importerad: {names}", "file_error": "Kan inte läsa vald fil.", "qemu_bridge": "QEMU-brygga"},
-    "da": {"new_chat": "Ny chat", "history": "Historik", "export": "Eksportér chat", "wallpaper": "Tilføj baggrund", "web_off": "Web: fra", "web_on": "Web: til", "input_hint": "Skriv en besked. Enter sender, Shift+Enter laver ny linje.", "history_title": "Historik", "model_title": "Vælg model", "device_title": "Enhedsinfo", "export_done": "Chat eksporteret:\n{path}", "export_empty": "Der er intet at eksportere.", "no_model": "Ingen model valgt.", "no_models": "Ingen installerede modeller fundet.", "model_saved": "Model ændret til: {model}", "language_saved": "Sprog ændret til: {language}", "ollama_error": "Kan ikke forbinde til Ollama.", "wallpaper_error": "Kan ikke indlæse billedet.", "import_file": "Importér fil", "imported_files": "{count} filer importeret", "file_imported": "Importeret: {names}", "file_error": "Kan ikke læse den valgte fil.", "qemu_bridge": "QEMU-bro"},
-    "fi": {"new_chat": "Uusi keskustelu", "history": "Historia", "export": "Vie keskustelu", "wallpaper": "Lisää taustakuva", "web_off": "Verkko: pois", "web_on": "Verkko: päällä", "input_hint": "Kirjoita viesti. Enter lähettää, Shift+Enter lisää rivin.", "history_title": "Historia", "model_title": "Valitse malli", "device_title": "Laitetiedot", "export_done": "Keskustelu viety:\n{path}", "export_empty": "Ei vietävää sisältöä.", "no_model": "Mallia ei ole valittu.", "no_models": "Asennettuja malleja ei löytynyt.", "model_saved": "Malli vaihdettu: {model}", "language_saved": "Kieli vaihdettu: {language}", "ollama_error": "Ollamaan ei saada yhteyttä.", "wallpaper_error": "Kuvaa ei voi ladata.", "import_file": "Tuo tiedosto", "imported_files": "{count} tiedostoa tuotu", "file_imported": "Tuotu: {names}", "file_error": "Valittua tiedostoa ei voi lukea.", "qemu_bridge": "QEMU-silta"},
-    "no": {"new_chat": "Ny chat", "history": "Historikk", "export": "Eksporter chat", "wallpaper": "Legg til bakgrunn", "web_off": "Web: av", "web_on": "Web: på", "input_hint": "Skriv en melding. Enter sender, Shift+Enter gir ny linje.", "history_title": "Historikk", "model_title": "Velg modell", "device_title": "Enhetsinformasjon", "export_done": "Chat eksportert:\n{path}", "export_empty": "Det finnes ikke noe å eksportere.", "no_model": "Ingen modell valgt.", "no_models": "Ingen installerte modeller funnet.", "model_saved": "Modell endret til: {model}", "language_saved": "Språk endret til: {language}", "ollama_error": "Kan ikke koble til Ollama.", "wallpaper_error": "Kan ikke laste bildet.", "import_file": "Importer fil", "imported_files": "{count} filer importert", "file_imported": "Importert: {names}", "file_error": "Kan ikke lese valgt fil.", "qemu_bridge": "QEMU-bro"},
+    "ko": {"new_chat": "새 대화", "history": "대화 기록", "export": "대화 내보내기", "wallpaper": "배경 추가", "web_off": "웹: 끔", "web_on": "웹: 켬", "input_hint": "메시지를 입력하세요. Enter 전송, Shift+Enter 줄바꿈.", "history_title": "대화 기록", "model_title": "모델 선택", "device_title": "기기 정보", "export_done": "대화를 내보냈습니다:\n{path}", "export_empty": "내보낼 대화가 없습니다.", "no_model": "모델이 선택되지 않았습니다.", "no_models": "설치된 모델을 찾지 못했습니다.", "model_saved": "모델이 변경되었습니다: {model}", "language_saved": "언어가 변경되었습니다: {language}", "ollama_error": "Ollama에 연결할 수 없습니다. Ollama가 실행 중인지 확인하세요.", "wallpaper_error": "이 이미지를 불러올 수 없습니다.", "import_file": "파일 가져오기", "imported_files": "{count}개 파일을 가져왔습니다", "file_imported": "가져옴: {names}", "file_error": "선택한 파일을 읽을 수 없습니다.", "qemu_bridge": "VirtualWorld"},
+    "es": {"new_chat": "Nuevo chat", "history": "Historial", "export": "Exportar chat", "wallpaper": "Añadir fondo", "web_off": "Web: desactivada", "web_on": "Web: activada", "input_hint": "Escribe un mensaje. Enter envía, Shift+Enter añade línea.", "history_title": "Historial", "model_title": "Elegir modelo", "device_title": "Información del dispositivo", "export_done": "Chat exportado:\n{path}", "export_empty": "No hay contenido para exportar.", "no_model": "No hay modelo seleccionado.", "no_models": "No se detectaron modelos instalados.", "model_saved": "Modelo cambiado a: {model}", "language_saved": "Idioma cambiado a: {language}", "ollama_error": "No se puede conectar con Ollama. Comprueba que esté ejecutándose.", "wallpaper_error": "No se puede cargar esta imagen.", "import_file": "Importar archivo", "imported_files": "{count} archivos importados", "file_imported": "Importado: {names}", "file_error": "No se puede leer el archivo seleccionado.", "qemu_bridge": "VirtualWorld"},
+    "it": {"new_chat": "Nuova chat", "history": "Cronologia", "export": "Esporta chat", "wallpaper": "Aggiungi sfondo", "web_off": "Web: off", "web_on": "Web: on", "input_hint": "Scrivi un messaggio. Enter invia, Shift+Enter va a capo.", "history_title": "Cronologia", "model_title": "Scegli modello", "device_title": "Informazioni dispositivo", "export_done": "Chat esportata:\n{path}", "export_empty": "Non c'è nulla da esportare.", "no_model": "Nessun modello selezionato.", "no_models": "Nessun modello installato rilevato.", "model_saved": "Modello cambiato in: {model}", "language_saved": "Lingua cambiata in: {language}", "ollama_error": "Impossibile connettersi a Ollama.", "wallpaper_error": "Impossibile caricare questa immagine.", "import_file": "Importa file", "imported_files": "{count} file importati", "file_imported": "Importato: {names}", "file_error": "Impossibile leggere il file selezionato.", "qemu_bridge": "VirtualWorld"},
+    "pt": {"new_chat": "Novo chat", "history": "Histórico", "export": "Exportar conversa", "wallpaper": "Adicionar papel de parede", "web_off": "Web: desligada", "web_on": "Web: ligada", "input_hint": "Digite uma mensagem. Enter envia, Shift+Enter quebra linha.", "history_title": "Histórico", "model_title": "Escolher modelo", "device_title": "Informações do dispositivo", "export_done": "Conversa exportada:\n{path}", "export_empty": "Não há conteúdo para exportar.", "no_model": "Nenhum modelo selecionado.", "no_models": "Nenhum modelo instalado detectado.", "model_saved": "Modelo alterado para: {model}", "language_saved": "Idioma alterado para: {language}", "ollama_error": "Não foi possível conectar ao Ollama.", "wallpaper_error": "Não foi possível carregar esta imagem.", "import_file": "Importar arquivo", "imported_files": "{count} arquivos importados", "file_imported": "Importado: {names}", "file_error": "Não foi possível ler o arquivo selecionado.", "qemu_bridge": "VirtualWorld"},
+    "ru": {"new_chat": "Новый чат", "history": "История", "export": "Экспорт чата", "wallpaper": "Добавить фон", "web_off": "Сеть: выкл.", "web_on": "Сеть: вкл.", "input_hint": "Введите сообщение. Enter отправляет, Shift+Enter переносит строку.", "history_title": "История", "model_title": "Выберите модель", "device_title": "Информация об устройстве", "export_done": "Чат экспортирован:\n{path}", "export_empty": "Нет содержимого для экспорта.", "no_model": "Модель не выбрана.", "no_models": "Установленные модели не найдены.", "model_saved": "Модель изменена на: {model}", "language_saved": "Язык изменён на: {language}", "ollama_error": "Не удалось подключиться к Ollama.", "wallpaper_error": "Не удалось загрузить это изображение.", "import_file": "Импорт файла", "imported_files": "Импортировано файлов: {count}", "file_imported": "Импортировано: {names}", "file_error": "Не удалось прочитать выбранный файл.", "qemu_bridge": "VirtualWorld"},
+    "nl": {"new_chat": "Nieuwe chat", "history": "Geschiedenis", "export": "Chat exporteren", "wallpaper": "Achtergrond toevoegen", "web_off": "Web: uit", "web_on": "Web: aan", "input_hint": "Typ een bericht. Enter verzendt, Shift+Enter maakt een nieuwe regel.", "history_title": "Geschiedenis", "model_title": "Model kiezen", "device_title": "Apparaatinformatie", "export_done": "Chat geëxporteerd:\n{path}", "export_empty": "Er is niets om te exporteren.", "no_model": "Geen model geselecteerd.", "no_models": "Geen geïnstalleerde modellen gevonden.", "model_saved": "Model gewijzigd naar: {model}", "language_saved": "Taal gewijzigd naar: {language}", "ollama_error": "Kan geen verbinding maken met Ollama.", "wallpaper_error": "Kan deze afbeelding niet laden.", "import_file": "Bestand importeren", "imported_files": "{count} bestanden geïmporteerd", "file_imported": "Geïmporteerd: {names}", "file_error": "Kan het geselecteerde bestand niet lezen.", "qemu_bridge": "VirtualWorld"},
+    "sv": {"new_chat": "Ny chatt", "history": "Historik", "export": "Exportera chatt", "wallpaper": "Lägg till bakgrund", "web_off": "Webb: av", "web_on": "Webb: på", "input_hint": "Skriv ett meddelande. Enter skickar, Shift+Enter gör ny rad.", "history_title": "Historik", "model_title": "Välj modell", "device_title": "Enhetsinformation", "export_done": "Chatten exporterades:\n{path}", "export_empty": "Det finns inget att exportera.", "no_model": "Ingen modell vald.", "no_models": "Inga installerade modeller hittades.", "model_saved": "Modell ändrad till: {model}", "language_saved": "Språk ändrat till: {language}", "ollama_error": "Kan inte ansluta till Ollama.", "wallpaper_error": "Kan inte läsa in bilden.", "import_file": "Importera fil", "imported_files": "{count} filer importerade", "file_imported": "Importerad: {names}", "file_error": "Kan inte läsa vald fil.", "qemu_bridge": "VirtualWorld"},
+    "da": {"new_chat": "Ny chat", "history": "Historik", "export": "Eksportér chat", "wallpaper": "Tilføj baggrund", "web_off": "Web: fra", "web_on": "Web: til", "input_hint": "Skriv en besked. Enter sender, Shift+Enter laver ny linje.", "history_title": "Historik", "model_title": "Vælg model", "device_title": "Enhedsinfo", "export_done": "Chat eksporteret:\n{path}", "export_empty": "Der er intet at eksportere.", "no_model": "Ingen model valgt.", "no_models": "Ingen installerede modeller fundet.", "model_saved": "Model ændret til: {model}", "language_saved": "Sprog ændret til: {language}", "ollama_error": "Kan ikke forbinde til Ollama.", "wallpaper_error": "Kan ikke indlæse billedet.", "import_file": "Importér fil", "imported_files": "{count} filer importeret", "file_imported": "Importeret: {names}", "file_error": "Kan ikke læse den valgte fil.", "qemu_bridge": "VirtualWorld"},
+    "fi": {"new_chat": "Uusi keskustelu", "history": "Historia", "export": "Vie keskustelu", "wallpaper": "Lisää taustakuva", "web_off": "Verkko: pois", "web_on": "Verkko: päällä", "input_hint": "Kirjoita viesti. Enter lähettää, Shift+Enter lisää rivin.", "history_title": "Historia", "model_title": "Valitse malli", "device_title": "Laitetiedot", "export_done": "Keskustelu viety:\n{path}", "export_empty": "Ei vietävää sisältöä.", "no_model": "Mallia ei ole valittu.", "no_models": "Asennettuja malleja ei löytynyt.", "model_saved": "Malli vaihdettu: {model}", "language_saved": "Kieli vaihdettu: {language}", "ollama_error": "Ollamaan ei saada yhteyttä.", "wallpaper_error": "Kuvaa ei voi ladata.", "import_file": "Tuo tiedosto", "imported_files": "{count} tiedostoa tuotu", "file_imported": "Tuotu: {names}", "file_error": "Valittua tiedostoa ei voi lukea.", "qemu_bridge": "VirtualWorld"},
+    "no": {"new_chat": "Ny chat", "history": "Historikk", "export": "Eksporter chat", "wallpaper": "Legg til bakgrunn", "web_off": "Web: av", "web_on": "Web: på", "input_hint": "Skriv en melding. Enter sender, Shift+Enter gir ny linje.", "history_title": "Historikk", "model_title": "Velg modell", "device_title": "Enhetsinformasjon", "export_done": "Chat eksportert:\n{path}", "export_empty": "Det finnes ikke noe å eksportere.", "no_model": "Ingen modell valgt.", "no_models": "Ingen installerte modeller funnet.", "model_saved": "Modell endret til: {model}", "language_saved": "Språk endret til: {language}", "ollama_error": "Kan ikke koble til Ollama.", "wallpaper_error": "Kan ikke laste bildet.", "import_file": "Importer fil", "imported_files": "{count} filer importert", "file_imported": "Importert: {names}", "file_error": "Kan ikke lese valgt fil.", "qemu_bridge": "VirtualWorld"},
 }
 LOCALAI_EXTRA_CHAT_OVERRIDES.update({
-    "tr": {"language_saved": "Dil değiştirildi: {language}", "new_chat": "Yeni sohbet", "history": "Geçmiş", "export": "Sohbeti dışa aktar", "wallpaper": "Duvar kâğıdı ekle", "web_off": "Web: kapalı", "web_on": "Web: açık", "input_hint": "Mesaj yazın. Enter gönderir, Shift+Enter satır ekler.", "qemu_bridge": "QEMU Köprüsü"},
-    "pl": {"language_saved": "Zmieniono język na: {language}", "new_chat": "Nowy czat", "history": "Historia", "export": "Eksportuj czat", "wallpaper": "Dodaj tło", "web_off": "Sieć: wył.", "web_on": "Sieć: wł.", "input_hint": "Wpisz wiadomość. Enter wysyła, Shift+Enter dodaje linię.", "qemu_bridge": "Most QEMU"},
-    "cs": {"language_saved": "Jazyk změněn na: {language}", "new_chat": "Nový chat", "history": "Historie", "export": "Exportovat chat", "wallpaper": "Přidat pozadí", "web_off": "Web: vyp.", "web_on": "Web: zap.", "input_hint": "Napište zprávu. Enter odešle, Shift+Enter vloží řádek.", "qemu_bridge": "Most QEMU"},
-    "uk": {"language_saved": "Мову змінено на: {language}", "new_chat": "Новий чат", "history": "Історія", "export": "Експорт чату", "wallpaper": "Додати фон", "web_off": "Веб: вимк.", "web_on": "Веб: увімк.", "input_hint": "Введіть повідомлення. Enter надсилає, Shift+Enter додає рядок.", "qemu_bridge": "Міст QEMU"},
-    "el": {"language_saved": "Η γλώσσα άλλαξε σε: {language}", "new_chat": "Νέα συνομιλία", "history": "Ιστορικό", "export": "Εξαγωγή συνομιλίας", "wallpaper": "Προσθήκη φόντου", "web_off": "Web: ανενεργό", "web_on": "Web: ενεργό", "input_hint": "Πληκτρολογήστε μήνυμα. Enter για αποστολή, Shift+Enter για νέα γραμμή.", "qemu_bridge": "Γέφυρα QEMU"},
-    "ar": {"language_saved": "تم تغيير اللغة إلى: {language}", "new_chat": "محادثة جديدة", "history": "السجل", "export": "تصدير المحادثة", "wallpaper": "إضافة خلفية", "web_off": "الويب: إيقاف", "web_on": "الويب: تشغيل", "input_hint": "اكتب رسالة. Enter للإرسال و Shift+Enter لسطر جديد.", "qemu_bridge": "جسر QEMU"},
-    "mn": {"language_saved": "Хэл солигдлоо: {language}", "new_chat": "Шинэ чат", "history": "Түүх", "export": "Чатыг экспортлох", "wallpaper": "Дэвсгэр нэмэх", "web_off": "Вэб: хаалттай", "web_on": "Вэб: нээлттэй", "input_hint": "Зурвас бичнэ үү. Enter илгээнэ, Shift+Enter мөр нэмнэ.", "qemu_bridge": "QEMU гүүр"},
-    "th": {"language_saved": "เปลี่ยนภาษาเป็น: {language}", "new_chat": "แชตใหม่", "history": "ประวัติ", "export": "ส่งออกแชต", "wallpaper": "เพิ่มวอลเปเปอร์", "web_off": "เว็บ: ปิด", "web_on": "เว็บ: เปิด", "input_hint": "พิมพ์ข้อความ Enter เพื่อส่ง Shift+Enter ขึ้นบรรทัดใหม่", "qemu_bridge": "สะพาน QEMU"},
-    "vi": {"language_saved": "Đã đổi ngôn ngữ sang: {language}", "new_chat": "Cuộc trò chuyện mới", "history": "Lịch sử", "export": "Xuất trò chuyện", "wallpaper": "Thêm hình nền", "web_off": "Web: tắt", "web_on": "Web: bật", "input_hint": "Nhập tin nhắn. Enter gửi, Shift+Enter xuống dòng.", "qemu_bridge": "Cầu QEMU"},
-    "id": {"language_saved": "Bahasa diubah ke: {language}", "new_chat": "Chat baru", "history": "Riwayat", "export": "Ekspor chat", "wallpaper": "Tambah wallpaper", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Ketik pesan. Enter mengirim, Shift+Enter menambah baris.", "qemu_bridge": "Jembatan QEMU"},
-    "ms": {"language_saved": "Bahasa ditukar kepada: {language}", "new_chat": "Sembang baharu", "history": "Sejarah", "export": "Eksport sembang", "wallpaper": "Tambah kertas dinding", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Taip mesej. Enter menghantar, Shift+Enter baris baharu.", "qemu_bridge": "Jambatan QEMU"},
-    "hi": {"language_saved": "भाषा बदली गई: {language}", "new_chat": "नई चैट", "history": "इतिहास", "export": "चैट निर्यात करें", "wallpaper": "वॉलपेपर जोड़ें", "web_off": "वेब: बंद", "web_on": "वेब: चालू", "input_hint": "संदेश लिखें। Enter भेजता है, Shift+Enter नई पंक्ति जोड़ता है.", "qemu_bridge": "QEMU ब्रिज"},
+    "tr": {"language_saved": "Dil değiştirildi: {language}", "new_chat": "Yeni sohbet", "history": "Geçmiş", "export": "Sohbeti dışa aktar", "wallpaper": "Duvar kâğıdı ekle", "web_off": "Web: kapalı", "web_on": "Web: açık", "input_hint": "Mesaj yazın. Enter gönderir, Shift+Enter satır ekler.", "qemu_bridge": "VirtualWorld"},
+    "pl": {"language_saved": "Zmieniono język na: {language}", "new_chat": "Nowy czat", "history": "Historia", "export": "Eksportuj czat", "wallpaper": "Dodaj tło", "web_off": "Sieć: wył.", "web_on": "Sieć: wł.", "input_hint": "Wpisz wiadomość. Enter wysyła, Shift+Enter dodaje linię.", "qemu_bridge": "VirtualWorld"},
+    "cs": {"language_saved": "Jazyk změněn na: {language}", "new_chat": "Nový chat", "history": "Historie", "export": "Exportovat chat", "wallpaper": "Přidat pozadí", "web_off": "Web: vyp.", "web_on": "Web: zap.", "input_hint": "Napište zprávu. Enter odešle, Shift+Enter vloží řádek.", "qemu_bridge": "VirtualWorld"},
+    "uk": {"language_saved": "Мову змінено на: {language}", "new_chat": "Новий чат", "history": "Історія", "export": "Експорт чату", "wallpaper": "Додати фон", "web_off": "Веб: вимк.", "web_on": "Веб: увімк.", "input_hint": "Введіть повідомлення. Enter надсилає, Shift+Enter додає рядок.", "qemu_bridge": "VirtualWorld"},
+    "el": {"language_saved": "Η γλώσσα άλλαξε σε: {language}", "new_chat": "Νέα συνομιλία", "history": "Ιστορικό", "export": "Εξαγωγή συνομιλίας", "wallpaper": "Προσθήκη φόντου", "web_off": "Web: ανενεργό", "web_on": "Web: ενεργό", "input_hint": "Πληκτρολογήστε μήνυμα. Enter για αποστολή, Shift+Enter για νέα γραμμή.", "qemu_bridge": "VirtualWorld"},
+    "ar": {"language_saved": "تم تغيير اللغة إلى: {language}", "new_chat": "محادثة جديدة", "history": "السجل", "export": "تصدير المحادثة", "wallpaper": "إضافة خلفية", "web_off": "الويب: إيقاف", "web_on": "الويب: تشغيل", "input_hint": "اكتب رسالة. Enter للإرسال و Shift+Enter لسطر جديد.", "qemu_bridge": "VirtualWorld"},
+    "mn": {"language_saved": "Хэл солигдлоо: {language}", "new_chat": "Шинэ чат", "history": "Түүх", "export": "Чатыг экспортлох", "wallpaper": "Дэвсгэр нэмэх", "web_off": "Вэб: хаалттай", "web_on": "Вэб: нээлттэй", "input_hint": "Зурвас бичнэ үү. Enter илгээнэ, Shift+Enter мөр нэмнэ.", "qemu_bridge": "VirtualWorld"},
+    "th": {"language_saved": "เปลี่ยนภาษาเป็น: {language}", "new_chat": "แชตใหม่", "history": "ประวัติ", "export": "ส่งออกแชต", "wallpaper": "เพิ่มวอลเปเปอร์", "web_off": "เว็บ: ปิด", "web_on": "เว็บ: เปิด", "input_hint": "พิมพ์ข้อความ Enter เพื่อส่ง Shift+Enter ขึ้นบรรทัดใหม่", "qemu_bridge": "VirtualWorld"},
+    "vi": {"language_saved": "Đã đổi ngôn ngữ sang: {language}", "new_chat": "Cuộc trò chuyện mới", "history": "Lịch sử", "export": "Xuất trò chuyện", "wallpaper": "Thêm hình nền", "web_off": "Web: tắt", "web_on": "Web: bật", "input_hint": "Nhập tin nhắn. Enter gửi, Shift+Enter xuống dòng.", "qemu_bridge": "VirtualWorld"},
+    "id": {"language_saved": "Bahasa diubah ke: {language}", "new_chat": "Chat baru", "history": "Riwayat", "export": "Ekspor chat", "wallpaper": "Tambah wallpaper", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Ketik pesan. Enter mengirim, Shift+Enter menambah baris.", "qemu_bridge": "VirtualWorld"},
+    "ms": {"language_saved": "Bahasa ditukar kepada: {language}", "new_chat": "Sembang baharu", "history": "Sejarah", "export": "Eksport sembang", "wallpaper": "Tambah kertas dinding", "web_off": "Web: mati", "web_on": "Web: hidup", "input_hint": "Taip mesej. Enter menghantar, Shift+Enter baris baharu.", "qemu_bridge": "VirtualWorld"},
+    "hi": {"language_saved": "भाषा बदली गई: {language}", "new_chat": "नई चैट", "history": "इतिहास", "export": "चैट निर्यात करें", "wallpaper": "वॉलपेपर जोड़ें", "web_off": "वेब: बंद", "web_on": "वेब: चालू", "input_hint": "संदेश लिखें। Enter भेजता है, Shift+Enter नई पंक्ति जोड़ता है.", "qemu_bridge": "VirtualWorld"},
 })
 for _code, _values in LOCALAI_EXTRA_CHAT_OVERRIDES.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
@@ -6631,15 +6930,60 @@ class LocalAIPluginHost:
         })
 
 
+def find_virtualworld_launcher():
+    app_dir = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+    bundle_dir = Path(getattr(sys, "_MEIPASS", app_dir))
+    system_name = platform.system()
+
+    if system_name == "Darwin":
+        names = ("VirtualWorld.app", "VirtualWorld")
+    elif system_name == "Windows":
+        names = ("VirtualWorld.exe", "VirtualWorld")
+    else:
+        names = ("VirtualWorld", "virtualworld")
+
+    search_roots = [
+        app_dir,
+        app_dir.parent,
+        bundle_dir,
+        bundle_dir.parent,
+        Path(__file__).resolve().parent,
+        Path(__file__).resolve().parent / "dist",
+        Path(__file__).resolve().parent / "build" / "virtualworld",
+    ]
+    for root in search_roots:
+        for name in names:
+            candidate = root / name
+            if candidate.exists():
+                return candidate
+
+    found = shutil.which("VirtualWorld") or shutil.which("virtualworld")
+    return Path(found) if found else None
+
+
+def launch_virtualworld():
+    launcher = find_virtualworld_launcher()
+    if not launcher:
+        raise FileNotFoundError("VirtualWorld executable was not found next to this app.")
+    if platform.system() == "Darwin" and launcher.suffix == ".app":
+        subprocess.Popen(["open", str(launcher)])
+    else:
+        subprocess.Popen([str(launcher)])
+
+
 def load_localai_plugins():
     host = LocalAIPluginHost()
-    for module_name in ("plugins.qemu_bridge.plugin",):
+    def open_virtualworld(_app=None):
         try:
-            module = importlib.import_module(module_name)
-            plugin = module.load_plugin() if hasattr(module, "load_plugin") else module.QEMUBridgePlugin()
-            plugin.register(host)
+            launch_virtualworld()
         except Exception as exc:
             log_error(exc)
+            try:
+                from tkinter import messagebox
+                messagebox.showerror("LocalAI", str(exc))
+            except Exception:
+                pass
+    host.register_gui_action("virtualworld", "qemu_bridge", open_virtualworld)
     return host
 
 
@@ -7817,7 +8161,6 @@ def run_chat_gui(config, web_answer_func=None):
 
                 items = [
                     (self.ct("appearance"), self.show_theme_picker),
-                    (self.ct("activation_title"), self.show_activation_settings),
                     (self.ct("model_title"), self.show_model_picker),
                     (self.ct("provider_title"), self.show_provider_settings),
                     (self.ct("language_title"), self.show_language_picker),
@@ -7983,7 +8326,7 @@ def run_chat_gui(config, web_answer_func=None):
                 supported_providers = get_supported_providers(self.config_data)
                 current_provider = normalize_provider(self.config_data.get("provider", "ollama"))
                 if current_provider not in supported_providers:
-                    current_provider = "ollama"
+                    current_provider = supported_providers[0] if supported_providers else "ollama"
                 provider_var = tk.StringVar(value=current_provider)
                 tk.Label(win, text=self.ct("provider_title"), bg=self.colors["window"], fg=self.colors["text"], font=(get_platform_font(), 16, "bold")).pack(anchor="w", padx=18, pady=(18, 10))
                 body = tk.Frame(win, bg=self.colors["window"])
@@ -8015,6 +8358,9 @@ def run_chat_gui(config, web_answer_func=None):
 
                 if "lm_studio" in supported_providers:
                     add_entry("lmstudio_base_url", self.ct("lmstudio_base_url"), self.config_data.get("lmstudio_base_url", "http://localhost:1234/v1"))
+                if "llama_cpp" in supported_providers:
+                    add_entry("llamacpp_binary", self.ct("llamacpp_binary"), self.config_data.get("llamacpp_binary", ""))
+                    add_entry("llamacpp_model", self.ct("llamacpp_model"), self.config_data.get("llamacpp_model", ""))
                 if "openai_compatible" in supported_providers:
                     add_entry("api_base_url", self.ct("api_base_url"), self.config_data.get("api_base_url", ""))
                     add_entry("api_key", self.ct("api_key"), self.config_data.get("api_key", ""), show="*")

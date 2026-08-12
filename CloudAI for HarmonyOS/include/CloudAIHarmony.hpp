@@ -10,7 +10,7 @@
 namespace cloudai {
 
 constexpr const char* kAppName = "CloudAI";
-constexpr const char* kAppVersion = "v1.0.0";
+constexpr const char* kAppVersion = "1.0";
 constexpr const char* kMask = "********";
 
 struct Message {

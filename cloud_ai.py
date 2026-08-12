@@ -17,11 +17,12 @@ from xml.etree import ElementTree
 
 import requests
 
-APP_VERSION = "v1.0.0"
+APP_VERSION = "1.0"
 LOCALAI_APP_NAME = "LocalAI"
 APP_NAME = "CloudAI"
 CLOUDAI_APP_NAME = "CloudAI"
 MASK = "********"
+SECRET_PREFIX = "v1:"
 
 
 def version_tuple(value):
@@ -238,6 +239,7 @@ CLOUD_CONFIG_DIR = os.path.join(APP_DATA_DIR, "config")
 CLOUD_CONFIG_FILE = os.path.join(CLOUD_CONFIG_DIR, "cloudai_config.json")
 CLOUD_SECRET_FILE = os.path.join(CLOUD_CONFIG_DIR, "cloudai_secrets.json")
 CLOUD_CHAT_DIR = os.path.join(APP_DATA_DIR, "cloud_chats")
+CLOUD_MIGRATION_MARKER = os.path.join(CLOUD_CONFIG_DIR, ".legacy_migrated")
 LEGACY_CLOUD_CONFIG_DIR = os.path.join(LOCALAI_DATA_DIR, "config")
 LEGACY_CLOUD_CONFIG_FILE = os.path.join(LEGACY_CLOUD_CONFIG_DIR, "cloudai_config.json")
 LEGACY_CLOUD_SECRET_FILE = os.path.join(LEGACY_CLOUD_CONFIG_DIR, "cloudai_secrets.json")
@@ -394,8 +396,8 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "自动",
         "cloud_theme_saved": "外观设置已保存。",
         "cloud_untitled_chat": "未命名对话",
-        "cloud_qemu_bridge": "QEMU 转换",
-        "cloud_qemu_title": "QEMU / UTM 转换",
+        "cloud_qemu_bridge": "VirtualWorld",
+        "cloud_qemu_title": "VirtualWorld QEMU / UTM",
         "cloud_qemu_input": "QEMU 命令、UTM 包路径或 plist 内容",
         "cloud_qemu_import": "导入文件/包",
         "cloud_qemu_target_platform": "目标平台",
@@ -470,8 +472,8 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "自動",
         "cloud_theme_saved": "外觀設定已儲存。",
         "cloud_untitled_chat": "未命名對話",
-        "cloud_qemu_bridge": "QEMU 轉換",
-        "cloud_qemu_title": "QEMU / UTM 轉換",
+        "cloud_qemu_bridge": "VirtualWorld",
+        "cloud_qemu_title": "VirtualWorld QEMU / UTM",
         "cloud_qemu_input": "QEMU 指令、UTM 套件路徑或 plist 內容",
         "cloud_qemu_import": "匯入檔案/套件",
         "cloud_qemu_target_platform": "目標平台",
@@ -546,8 +548,8 @@ CLOUD_TEXT = {
         "cloud_theme_auto": "Auto",
         "cloud_theme_saved": "Appearance settings saved.",
         "cloud_untitled_chat": "Untitled Chat",
-        "cloud_qemu_bridge": "QEMU Bridge",
-        "cloud_qemu_title": "QEMU / UTM Bridge",
+        "cloud_qemu_bridge": "VirtualWorld",
+        "cloud_qemu_title": "VirtualWorld QEMU / UTM",
         "cloud_qemu_input": "QEMU command, UTM package path, or plist content",
         "cloud_qemu_import": "Import File/Package",
         "cloud_qemu_target_platform": "Target platform",
@@ -631,31 +633,31 @@ for _code, _values in ADDITIONAL_CHAT_TEXT.items():
     CHAT_GUI_TEXT.setdefault(_code, CHAT_GUI_TEXT["en_us"].copy()).update(_values)
 
 CLOUDAI_EXTRA_TEXT = {
-    "ja": {"cloud_settings": "設定", "cloud_history": "履歴", "cloud_export": "チャットを書き出す", "cloud_wallpaper": "壁紙を変更", "cloud_import_file": "ファイルを読み込む", "cloud_theme": "外観", "cloud_qemu_bridge": "QEMU 変換", "cloud_qemu_title": "QEMU / UTM 変換", "cloud_qemu_program": "プログラムで変換", "cloud_qemu_ai": "AI で作成", "cloud_qemu_save": "結果を保存", "cloud_qemu_copy": "結果をコピー", "cloud_qemu_warnings": "互換性の警告", "cloud_qemu_no_warnings": "互換性の警告はありません。", "cloud_language_saved": "言語を変更しました：{language}"},
-    "fr": {"cloud_settings": "Réglages", "cloud_history": "Historique", "cloud_export": "Exporter le chat", "cloud_wallpaper": "Changer le fond", "cloud_import_file": "Importer un fichier", "cloud_theme": "Apparence", "cloud_qemu_bridge": "Pont QEMU", "cloud_qemu_title": "Pont QEMU / UTM", "cloud_qemu_program": "Conversion par programme", "cloud_qemu_ai": "Écrire avec l'IA", "cloud_qemu_save": "Enregistrer le résultat", "cloud_qemu_copy": "Copier le résultat", "cloud_qemu_warnings": "Avertissements", "cloud_qemu_no_warnings": "Aucun avertissement.", "cloud_language_saved": "Langue changée : {language}"},
-    "de": {"cloud_settings": "Einstellungen", "cloud_history": "Verlauf", "cloud_export": "Chat exportieren", "cloud_wallpaper": "Hintergrund ändern", "cloud_import_file": "Datei importieren", "cloud_theme": "Darstellung", "cloud_qemu_bridge": "QEMU-Brücke", "cloud_qemu_title": "QEMU / UTM-Brücke", "cloud_qemu_program": "Per Programm konvertieren", "cloud_qemu_ai": "Mit KI schreiben", "cloud_qemu_save": "Ergebnis speichern", "cloud_qemu_copy": "Ergebnis kopieren", "cloud_qemu_warnings": "Warnungen", "cloud_qemu_no_warnings": "Keine Warnungen.", "cloud_language_saved": "Sprache geändert zu: {language}"},
-    "ko": {"cloud_welcome": "CloudAI에 오신 것을 환영합니다", "cloud_next": "다음", "cloud_send": "보내기", "cloud_settings": "설정", "cloud_history": "기록", "cloud_export": "대화 내보내기", "cloud_wallpaper": "배경 변경", "cloud_import_file": "파일 가져오기", "cloud_theme": "화면 모드", "cloud_qemu_bridge": "QEMU 변환", "cloud_qemu_title": "QEMU / UTM 변환", "cloud_qemu_program": "프로그램 변환", "cloud_qemu_ai": "AI 작성", "cloud_qemu_save": "결과 저장", "cloud_qemu_copy": "결과 복사", "cloud_qemu_warnings": "호환성 경고", "cloud_qemu_no_warnings": "호환성 경고가 없습니다.", "cloud_language_saved": "언어가 변경되었습니다: {language}"},
-    "es": {"cloud_welcome": "Bienvenido a CloudAI", "cloud_next": "Siguiente", "cloud_send": "Enviar", "cloud_settings": "Configuración", "cloud_history": "Historial", "cloud_export": "Exportar chat", "cloud_wallpaper": "Cambiar fondo", "cloud_import_file": "Importar archivo", "cloud_theme": "Apariencia", "cloud_qemu_bridge": "Puente QEMU", "cloud_qemu_title": "Puente QEMU / UTM", "cloud_qemu_program": "Conversión automática", "cloud_qemu_ai": "Escribir con IA", "cloud_qemu_save": "Guardar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Advertencias", "cloud_qemu_no_warnings": "Sin advertencias.", "cloud_language_saved": "Idioma cambiado a: {language}"},
-    "it": {"cloud_welcome": "Benvenuto in CloudAI", "cloud_next": "Avanti", "cloud_send": "Invia", "cloud_settings": "Impostazioni", "cloud_history": "Cronologia", "cloud_export": "Esporta chat", "cloud_wallpaper": "Cambia sfondo", "cloud_import_file": "Importa file", "cloud_theme": "Aspetto", "cloud_qemu_bridge": "Bridge QEMU", "cloud_qemu_title": "Bridge QEMU / UTM", "cloud_qemu_program": "Conversione programma", "cloud_qemu_ai": "Scrivi con IA", "cloud_qemu_save": "Salva risultato", "cloud_qemu_copy": "Copia risultato", "cloud_qemu_warnings": "Avvisi", "cloud_qemu_no_warnings": "Nessun avviso.", "cloud_language_saved": "Lingua cambiata in: {language}"},
-    "pt": {"cloud_welcome": "Bem-vindo ao CloudAI", "cloud_next": "Avançar", "cloud_send": "Enviar", "cloud_settings": "Configurações", "cloud_history": "Histórico", "cloud_export": "Exportar conversa", "cloud_wallpaper": "Alterar papel de parede", "cloud_import_file": "Importar arquivo", "cloud_theme": "Aparência", "cloud_qemu_bridge": "Ponte QEMU", "cloud_qemu_title": "Ponte QEMU / UTM", "cloud_qemu_program": "Converter pelo programa", "cloud_qemu_ai": "Escrever com IA", "cloud_qemu_save": "Salvar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Avisos", "cloud_qemu_no_warnings": "Sem avisos.", "cloud_language_saved": "Idioma alterado para: {language}"},
-    "ru": {"cloud_welcome": "Добро пожаловать в CloudAI", "cloud_next": "Далее", "cloud_send": "Отправить", "cloud_settings": "Настройки", "cloud_history": "История", "cloud_export": "Экспорт чата", "cloud_wallpaper": "Сменить фон", "cloud_import_file": "Импорт файла", "cloud_theme": "Оформление", "cloud_qemu_bridge": "Мост QEMU", "cloud_qemu_title": "Мост QEMU / UTM", "cloud_qemu_program": "Преобразовать программой", "cloud_qemu_ai": "Написать с ИИ", "cloud_qemu_save": "Сохранить результат", "cloud_qemu_copy": "Копировать результат", "cloud_qemu_warnings": "Предупреждения", "cloud_qemu_no_warnings": "Предупреждений нет.", "cloud_language_saved": "Язык изменён на: {language}"},
-    "nl": {"cloud_welcome": "Welkom bij CloudAI", "cloud_next": "Volgende", "cloud_send": "Verzenden", "cloud_settings": "Instellingen", "cloud_history": "Geschiedenis", "cloud_export": "Chat exporteren", "cloud_wallpaper": "Achtergrond wijzigen", "cloud_import_file": "Bestand importeren", "cloud_theme": "Weergave", "cloud_qemu_bridge": "QEMU-brug", "cloud_qemu_title": "QEMU / UTM-brug", "cloud_qemu_program": "Programma converteren", "cloud_qemu_ai": "Schrijven met AI", "cloud_qemu_save": "Resultaat opslaan", "cloud_qemu_copy": "Resultaat kopiëren", "cloud_qemu_warnings": "Waarschuwingen", "cloud_qemu_no_warnings": "Geen waarschuwingen.", "cloud_language_saved": "Taal gewijzigd naar: {language}"},
-    "sv": {"cloud_welcome": "Välkommen till CloudAI", "cloud_next": "Nästa", "cloud_send": "Skicka", "cloud_settings": "Inställningar", "cloud_history": "Historik", "cloud_export": "Exportera chatt", "cloud_wallpaper": "Byt bakgrund", "cloud_import_file": "Importera fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "QEMU-brygga", "cloud_qemu_title": "QEMU / UTM-brygga", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Spara resultat", "cloud_qemu_copy": "Kopiera resultat", "cloud_qemu_warnings": "Varningar", "cloud_qemu_no_warnings": "Inga varningar.", "cloud_language_saved": "Språk ändrat till: {language}"},
-    "da": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Næste", "cloud_send": "Send", "cloud_settings": "Indstillinger", "cloud_history": "Historik", "cloud_export": "Eksportér chat", "cloud_wallpaper": "Skift baggrund", "cloud_import_file": "Importér fil", "cloud_theme": "Udseende", "cloud_qemu_bridge": "QEMU-bro", "cloud_qemu_title": "QEMU / UTM-bro", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Gem resultat", "cloud_qemu_copy": "Kopiér resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Sprog ændret til: {language}"},
-    "fi": {"cloud_welcome": "Tervetuloa CloudAI:hin", "cloud_next": "Seuraava", "cloud_send": "Lähetä", "cloud_settings": "Asetukset", "cloud_history": "Historia", "cloud_export": "Vie keskustelu", "cloud_wallpaper": "Vaihda taustakuva", "cloud_import_file": "Tuo tiedosto", "cloud_theme": "Ulkoasu", "cloud_qemu_bridge": "QEMU-silta", "cloud_qemu_title": "QEMU / UTM-silta", "cloud_qemu_program": "Ohjelmamuunnos", "cloud_qemu_ai": "Kirjoita AI:lla", "cloud_qemu_save": "Tallenna tulos", "cloud_qemu_copy": "Kopioi tulos", "cloud_qemu_warnings": "Varoitukset", "cloud_qemu_no_warnings": "Ei varoituksia.", "cloud_language_saved": "Kieli vaihdettu: {language}"},
-    "no": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Neste", "cloud_send": "Send", "cloud_settings": "Innstillinger", "cloud_history": "Historikk", "cloud_export": "Eksporter chat", "cloud_wallpaper": "Bytt bakgrunn", "cloud_import_file": "Importer fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "QEMU-bro", "cloud_qemu_title": "QEMU / UTM-bro", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Lagre resultat", "cloud_qemu_copy": "Kopier resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Språk endret til: {language}"},
-    "tr": {"cloud_welcome": "CloudAI'ye hoş geldiniz", "cloud_next": "İleri", "cloud_send": "Gönder", "cloud_settings": "Ayarlar", "cloud_history": "Geçmiş", "cloud_export": "Sohbeti dışa aktar", "cloud_wallpaper": "Duvar kâğıdını değiştir", "cloud_import_file": "Dosya içe aktar", "cloud_theme": "Görünüm", "cloud_qemu_bridge": "QEMU Köprüsü", "cloud_qemu_title": "QEMU / UTM Köprüsü", "cloud_qemu_program": "Programla dönüştür", "cloud_qemu_ai": "AI ile yaz", "cloud_qemu_save": "Sonucu kaydet", "cloud_qemu_copy": "Sonucu kopyala", "cloud_qemu_warnings": "Uyarılar", "cloud_qemu_no_warnings": "Uyarı yok.", "cloud_language_saved": "Dil değiştirildi: {language}"},
-    "pl": {"cloud_welcome": "Witamy w CloudAI", "cloud_next": "Dalej", "cloud_send": "Wyślij", "cloud_settings": "Ustawienia", "cloud_history": "Historia", "cloud_export": "Eksportuj czat", "cloud_wallpaper": "Zmień tło", "cloud_import_file": "Importuj plik", "cloud_theme": "Wygląd", "cloud_qemu_bridge": "Most QEMU", "cloud_qemu_title": "Most QEMU / UTM", "cloud_qemu_program": "Konwersja programu", "cloud_qemu_ai": "Napisz z AI", "cloud_qemu_save": "Zapisz wynik", "cloud_qemu_copy": "Kopiuj wynik", "cloud_qemu_warnings": "Ostrzeżenia", "cloud_qemu_no_warnings": "Brak ostrzeżeń.", "cloud_language_saved": "Zmieniono język na: {language}"},
-    "cs": {"cloud_welcome": "Vítejte v CloudAI", "cloud_next": "Další", "cloud_send": "Odeslat", "cloud_settings": "Nastavení", "cloud_history": "Historie", "cloud_export": "Exportovat chat", "cloud_wallpaper": "Změnit pozadí", "cloud_import_file": "Importovat soubor", "cloud_theme": "Vzhled", "cloud_qemu_bridge": "Most QEMU", "cloud_qemu_title": "Most QEMU / UTM", "cloud_qemu_program": "Programový převod", "cloud_qemu_ai": "Psát pomocí AI", "cloud_qemu_save": "Uložit výsledek", "cloud_qemu_copy": "Kopírovat výsledek", "cloud_qemu_warnings": "Varování", "cloud_qemu_no_warnings": "Žádná varování.", "cloud_language_saved": "Jazyk změněn na: {language}"},
-    "uk": {"cloud_welcome": "Ласкаво просимо до CloudAI", "cloud_next": "Далі", "cloud_send": "Надіслати", "cloud_settings": "Налаштування", "cloud_history": "Історія", "cloud_export": "Експорт чату", "cloud_wallpaper": "Змінити фон", "cloud_import_file": "Імпорт файлу", "cloud_theme": "Вигляд", "cloud_qemu_bridge": "Міст QEMU", "cloud_qemu_title": "Міст QEMU / UTM", "cloud_qemu_program": "Програмне перетворення", "cloud_qemu_ai": "Написати з ШІ", "cloud_qemu_save": "Зберегти результат", "cloud_qemu_copy": "Копіювати результат", "cloud_qemu_warnings": "Попередження", "cloud_qemu_no_warnings": "Попереджень немає.", "cloud_language_saved": "Мову змінено на: {language}"},
-    "el": {"cloud_welcome": "Καλώς ήρθατε στο CloudAI", "cloud_next": "Επόμενο", "cloud_send": "Αποστολή", "cloud_settings": "Ρυθμίσεις", "cloud_history": "Ιστορικό", "cloud_export": "Εξαγωγή συνομιλίας", "cloud_wallpaper": "Αλλαγή φόντου", "cloud_import_file": "Εισαγωγή αρχείου", "cloud_theme": "Εμφάνιση", "cloud_qemu_bridge": "Γέφυρα QEMU", "cloud_qemu_title": "Γέφυρα QEMU / UTM", "cloud_qemu_program": "Μετατροπή προγράμματος", "cloud_qemu_ai": "Σύνταξη με AI", "cloud_qemu_save": "Αποθήκευση αποτελέσματος", "cloud_qemu_copy": "Αντιγραφή αποτελέσματος", "cloud_qemu_warnings": "Προειδοποιήσεις", "cloud_qemu_no_warnings": "Δεν υπάρχουν προειδοποιήσεις.", "cloud_language_saved": "Η γλώσσα άλλαξε σε: {language}"},
-    "ar": {"cloud_welcome": "مرحبًا بك في CloudAI", "cloud_next": "التالي", "cloud_send": "إرسال", "cloud_settings": "الإعدادات", "cloud_history": "السجل", "cloud_export": "تصدير المحادثة", "cloud_wallpaper": "تغيير الخلفية", "cloud_import_file": "استيراد ملف", "cloud_theme": "المظهر", "cloud_qemu_bridge": "جسر QEMU", "cloud_qemu_title": "جسر QEMU / UTM", "cloud_qemu_program": "تحويل بالبرنامج", "cloud_qemu_ai": "كتابة بالذكاء الاصطناعي", "cloud_qemu_save": "حفظ النتيجة", "cloud_qemu_copy": "نسخ النتيجة", "cloud_qemu_warnings": "تحذيرات", "cloud_qemu_no_warnings": "لا توجد تحذيرات.", "cloud_language_saved": "تم تغيير اللغة إلى: {language}"},
-    "mn": {"cloud_welcome": "CloudAI-д тавтай морил", "cloud_next": "Дараах", "cloud_send": "Илгээх", "cloud_settings": "Тохиргоо", "cloud_history": "Түүх", "cloud_export": "Чат экспортлох", "cloud_wallpaper": "Дэвсгэр солих", "cloud_import_file": "Файл импортлох", "cloud_theme": "Харагдах байдал", "cloud_qemu_bridge": "QEMU гүүр", "cloud_qemu_title": "QEMU / UTM гүүр", "cloud_qemu_program": "Программаар хөрвүүлэх", "cloud_qemu_ai": "AI-аар бичих", "cloud_qemu_save": "Үр дүн хадгалах", "cloud_qemu_copy": "Үр дүн хуулах", "cloud_qemu_warnings": "Анхааруулга", "cloud_qemu_no_warnings": "Анхааруулга байхгүй.", "cloud_language_saved": "Хэл солигдлоо: {language}"},
-    "th": {"cloud_welcome": "ยินดีต้อนรับสู่ CloudAI", "cloud_next": "ถัดไป", "cloud_send": "ส่ง", "cloud_settings": "การตั้งค่า", "cloud_history": "ประวัติ", "cloud_export": "ส่งออกแชต", "cloud_wallpaper": "เปลี่ยนวอลเปเปอร์", "cloud_import_file": "นำเข้าไฟล์", "cloud_theme": "รูปลักษณ์", "cloud_qemu_bridge": "สะพาน QEMU", "cloud_qemu_title": "สะพาน QEMU / UTM", "cloud_qemu_program": "แปลงด้วยโปรแกรม", "cloud_qemu_ai": "เขียนด้วย AI", "cloud_qemu_save": "บันทึกผลลัพธ์", "cloud_qemu_copy": "คัดลอกผลลัพธ์", "cloud_qemu_warnings": "คำเตือน", "cloud_qemu_no_warnings": "ไม่มีคำเตือน", "cloud_language_saved": "เปลี่ยนภาษาเป็น: {language}"},
-    "vi": {"cloud_welcome": "Chào mừng đến với CloudAI", "cloud_next": "Tiếp theo", "cloud_send": "Gửi", "cloud_settings": "Cài đặt", "cloud_history": "Lịch sử", "cloud_export": "Xuất trò chuyện", "cloud_wallpaper": "Đổi hình nền", "cloud_import_file": "Nhập tệp", "cloud_theme": "Giao diện", "cloud_qemu_bridge": "Cầu QEMU", "cloud_qemu_title": "Cầu QEMU / UTM", "cloud_qemu_program": "Chuyển đổi bằng chương trình", "cloud_qemu_ai": "Viết bằng AI", "cloud_qemu_save": "Lưu kết quả", "cloud_qemu_copy": "Sao chép kết quả", "cloud_qemu_warnings": "Cảnh báo", "cloud_qemu_no_warnings": "Không có cảnh báo.", "cloud_language_saved": "Đã đổi ngôn ngữ sang: {language}"},
-    "id": {"cloud_welcome": "Selamat datang di CloudAI", "cloud_next": "Berikutnya", "cloud_send": "Kirim", "cloud_settings": "Pengaturan", "cloud_history": "Riwayat", "cloud_export": "Ekspor chat", "cloud_wallpaper": "Ganti wallpaper", "cloud_import_file": "Impor file", "cloud_theme": "Tampilan", "cloud_qemu_bridge": "Jembatan QEMU", "cloud_qemu_title": "Jembatan QEMU / UTM", "cloud_qemu_program": "Konversi program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Peringatan", "cloud_qemu_no_warnings": "Tidak ada peringatan.", "cloud_language_saved": "Bahasa diubah ke: {language}"},
-    "ms": {"cloud_welcome": "Selamat datang ke CloudAI", "cloud_next": "Seterusnya", "cloud_send": "Hantar", "cloud_settings": "Tetapan", "cloud_history": "Sejarah", "cloud_export": "Eksport sembang", "cloud_wallpaper": "Tukar kertas dinding", "cloud_import_file": "Import fail", "cloud_theme": "Penampilan", "cloud_qemu_bridge": "Jambatan QEMU", "cloud_qemu_title": "Jambatan QEMU / UTM", "cloud_qemu_program": "Tukar dengan program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Amaran", "cloud_qemu_no_warnings": "Tiada amaran.", "cloud_language_saved": "Bahasa ditukar kepada: {language}"},
-    "hi": {"cloud_welcome": "CloudAI में आपका स्वागत है", "cloud_next": "अगला", "cloud_send": "भेजें", "cloud_settings": "सेटिंग्स", "cloud_history": "इतिहास", "cloud_export": "चैट निर्यात करें", "cloud_wallpaper": "वॉलपेपर बदलें", "cloud_import_file": "फ़ाइल आयात करें", "cloud_theme": "दिखावट", "cloud_qemu_bridge": "QEMU ब्रिज", "cloud_qemu_title": "QEMU / UTM ब्रिज", "cloud_qemu_program": "प्रोग्राम से बदलें", "cloud_qemu_ai": "AI से लिखें", "cloud_qemu_save": "परिणाम सहेजें", "cloud_qemu_copy": "परिणाम कॉपी करें", "cloud_qemu_warnings": "चेतावनियाँ", "cloud_qemu_no_warnings": "कोई चेतावनी नहीं.", "cloud_language_saved": "भाषा बदली गई: {language}"},
+    "ja": {"cloud_settings": "設定", "cloud_history": "履歴", "cloud_export": "チャットを書き出す", "cloud_wallpaper": "壁紙を変更", "cloud_import_file": "ファイルを読み込む", "cloud_theme": "外観", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "プログラムで変換", "cloud_qemu_ai": "AI で作成", "cloud_qemu_save": "結果を保存", "cloud_qemu_copy": "結果をコピー", "cloud_qemu_warnings": "互換性の警告", "cloud_qemu_no_warnings": "互換性の警告はありません。", "cloud_language_saved": "言語を変更しました：{language}"},
+    "fr": {"cloud_settings": "Réglages", "cloud_history": "Historique", "cloud_export": "Exporter le chat", "cloud_wallpaper": "Changer le fond", "cloud_import_file": "Importer un fichier", "cloud_theme": "Apparence", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Conversion par programme", "cloud_qemu_ai": "Écrire avec l'IA", "cloud_qemu_save": "Enregistrer le résultat", "cloud_qemu_copy": "Copier le résultat", "cloud_qemu_warnings": "Avertissements", "cloud_qemu_no_warnings": "Aucun avertissement.", "cloud_language_saved": "Langue changée : {language}"},
+    "de": {"cloud_settings": "Einstellungen", "cloud_history": "Verlauf", "cloud_export": "Chat exportieren", "cloud_wallpaper": "Hintergrund ändern", "cloud_import_file": "Datei importieren", "cloud_theme": "Darstellung", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Per Programm konvertieren", "cloud_qemu_ai": "Mit KI schreiben", "cloud_qemu_save": "Ergebnis speichern", "cloud_qemu_copy": "Ergebnis kopieren", "cloud_qemu_warnings": "Warnungen", "cloud_qemu_no_warnings": "Keine Warnungen.", "cloud_language_saved": "Sprache geändert zu: {language}"},
+    "ko": {"cloud_welcome": "CloudAI에 오신 것을 환영합니다", "cloud_next": "다음", "cloud_send": "보내기", "cloud_settings": "설정", "cloud_history": "기록", "cloud_export": "대화 내보내기", "cloud_wallpaper": "배경 변경", "cloud_import_file": "파일 가져오기", "cloud_theme": "화면 모드", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "프로그램 변환", "cloud_qemu_ai": "AI 작성", "cloud_qemu_save": "결과 저장", "cloud_qemu_copy": "결과 복사", "cloud_qemu_warnings": "호환성 경고", "cloud_qemu_no_warnings": "호환성 경고가 없습니다.", "cloud_language_saved": "언어가 변경되었습니다: {language}"},
+    "es": {"cloud_welcome": "Bienvenido a CloudAI", "cloud_next": "Siguiente", "cloud_send": "Enviar", "cloud_settings": "Configuración", "cloud_history": "Historial", "cloud_export": "Exportar chat", "cloud_wallpaper": "Cambiar fondo", "cloud_import_file": "Importar archivo", "cloud_theme": "Apariencia", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Conversión automática", "cloud_qemu_ai": "Escribir con IA", "cloud_qemu_save": "Guardar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Advertencias", "cloud_qemu_no_warnings": "Sin advertencias.", "cloud_language_saved": "Idioma cambiado a: {language}"},
+    "it": {"cloud_welcome": "Benvenuto in CloudAI", "cloud_next": "Avanti", "cloud_send": "Invia", "cloud_settings": "Impostazioni", "cloud_history": "Cronologia", "cloud_export": "Esporta chat", "cloud_wallpaper": "Cambia sfondo", "cloud_import_file": "Importa file", "cloud_theme": "Aspetto", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Conversione programma", "cloud_qemu_ai": "Scrivi con IA", "cloud_qemu_save": "Salva risultato", "cloud_qemu_copy": "Copia risultato", "cloud_qemu_warnings": "Avvisi", "cloud_qemu_no_warnings": "Nessun avviso.", "cloud_language_saved": "Lingua cambiata in: {language}"},
+    "pt": {"cloud_welcome": "Bem-vindo ao CloudAI", "cloud_next": "Avançar", "cloud_send": "Enviar", "cloud_settings": "Configurações", "cloud_history": "Histórico", "cloud_export": "Exportar conversa", "cloud_wallpaper": "Alterar papel de parede", "cloud_import_file": "Importar arquivo", "cloud_theme": "Aparência", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Converter pelo programa", "cloud_qemu_ai": "Escrever com IA", "cloud_qemu_save": "Salvar resultado", "cloud_qemu_copy": "Copiar resultado", "cloud_qemu_warnings": "Avisos", "cloud_qemu_no_warnings": "Sem avisos.", "cloud_language_saved": "Idioma alterado para: {language}"},
+    "ru": {"cloud_welcome": "Добро пожаловать в CloudAI", "cloud_next": "Далее", "cloud_send": "Отправить", "cloud_settings": "Настройки", "cloud_history": "История", "cloud_export": "Экспорт чата", "cloud_wallpaper": "Сменить фон", "cloud_import_file": "Импорт файла", "cloud_theme": "Оформление", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Преобразовать программой", "cloud_qemu_ai": "Написать с ИИ", "cloud_qemu_save": "Сохранить результат", "cloud_qemu_copy": "Копировать результат", "cloud_qemu_warnings": "Предупреждения", "cloud_qemu_no_warnings": "Предупреждений нет.", "cloud_language_saved": "Язык изменён на: {language}"},
+    "nl": {"cloud_welcome": "Welkom bij CloudAI", "cloud_next": "Volgende", "cloud_send": "Verzenden", "cloud_settings": "Instellingen", "cloud_history": "Geschiedenis", "cloud_export": "Chat exporteren", "cloud_wallpaper": "Achtergrond wijzigen", "cloud_import_file": "Bestand importeren", "cloud_theme": "Weergave", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programma converteren", "cloud_qemu_ai": "Schrijven met AI", "cloud_qemu_save": "Resultaat opslaan", "cloud_qemu_copy": "Resultaat kopiëren", "cloud_qemu_warnings": "Waarschuwingen", "cloud_qemu_no_warnings": "Geen waarschuwingen.", "cloud_language_saved": "Taal gewijzigd naar: {language}"},
+    "sv": {"cloud_welcome": "Välkommen till CloudAI", "cloud_next": "Nästa", "cloud_send": "Skicka", "cloud_settings": "Inställningar", "cloud_history": "Historik", "cloud_export": "Exportera chatt", "cloud_wallpaper": "Byt bakgrund", "cloud_import_file": "Importera fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Spara resultat", "cloud_qemu_copy": "Kopiera resultat", "cloud_qemu_warnings": "Varningar", "cloud_qemu_no_warnings": "Inga varningar.", "cloud_language_saved": "Språk ändrat till: {language}"},
+    "da": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Næste", "cloud_send": "Send", "cloud_settings": "Indstillinger", "cloud_history": "Historik", "cloud_export": "Eksportér chat", "cloud_wallpaper": "Skift baggrund", "cloud_import_file": "Importér fil", "cloud_theme": "Udseende", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Gem resultat", "cloud_qemu_copy": "Kopiér resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Sprog ændret til: {language}"},
+    "fi": {"cloud_welcome": "Tervetuloa CloudAI:hin", "cloud_next": "Seuraava", "cloud_send": "Lähetä", "cloud_settings": "Asetukset", "cloud_history": "Historia", "cloud_export": "Vie keskustelu", "cloud_wallpaper": "Vaihda taustakuva", "cloud_import_file": "Tuo tiedosto", "cloud_theme": "Ulkoasu", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Ohjelmamuunnos", "cloud_qemu_ai": "Kirjoita AI:lla", "cloud_qemu_save": "Tallenna tulos", "cloud_qemu_copy": "Kopioi tulos", "cloud_qemu_warnings": "Varoitukset", "cloud_qemu_no_warnings": "Ei varoituksia.", "cloud_language_saved": "Kieli vaihdettu: {language}"},
+    "no": {"cloud_welcome": "Velkommen til CloudAI", "cloud_next": "Neste", "cloud_send": "Send", "cloud_settings": "Innstillinger", "cloud_history": "Historikk", "cloud_export": "Eksporter chat", "cloud_wallpaper": "Bytt bakgrunn", "cloud_import_file": "Importer fil", "cloud_theme": "Utseende", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programkonvertering", "cloud_qemu_ai": "Skriv med AI", "cloud_qemu_save": "Lagre resultat", "cloud_qemu_copy": "Kopier resultat", "cloud_qemu_warnings": "Advarsler", "cloud_qemu_no_warnings": "Ingen advarsler.", "cloud_language_saved": "Språk endret til: {language}"},
+    "tr": {"cloud_welcome": "CloudAI'ye hoş geldiniz", "cloud_next": "İleri", "cloud_send": "Gönder", "cloud_settings": "Ayarlar", "cloud_history": "Geçmiş", "cloud_export": "Sohbeti dışa aktar", "cloud_wallpaper": "Duvar kâğıdını değiştir", "cloud_import_file": "Dosya içe aktar", "cloud_theme": "Görünüm", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programla dönüştür", "cloud_qemu_ai": "AI ile yaz", "cloud_qemu_save": "Sonucu kaydet", "cloud_qemu_copy": "Sonucu kopyala", "cloud_qemu_warnings": "Uyarılar", "cloud_qemu_no_warnings": "Uyarı yok.", "cloud_language_saved": "Dil değiştirildi: {language}"},
+    "pl": {"cloud_welcome": "Witamy w CloudAI", "cloud_next": "Dalej", "cloud_send": "Wyślij", "cloud_settings": "Ustawienia", "cloud_history": "Historia", "cloud_export": "Eksportuj czat", "cloud_wallpaper": "Zmień tło", "cloud_import_file": "Importuj plik", "cloud_theme": "Wygląd", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Konwersja programu", "cloud_qemu_ai": "Napisz z AI", "cloud_qemu_save": "Zapisz wynik", "cloud_qemu_copy": "Kopiuj wynik", "cloud_qemu_warnings": "Ostrzeżenia", "cloud_qemu_no_warnings": "Brak ostrzeżeń.", "cloud_language_saved": "Zmieniono język na: {language}"},
+    "cs": {"cloud_welcome": "Vítejte v CloudAI", "cloud_next": "Další", "cloud_send": "Odeslat", "cloud_settings": "Nastavení", "cloud_history": "Historie", "cloud_export": "Exportovat chat", "cloud_wallpaper": "Změnit pozadí", "cloud_import_file": "Importovat soubor", "cloud_theme": "Vzhled", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Programový převod", "cloud_qemu_ai": "Psát pomocí AI", "cloud_qemu_save": "Uložit výsledek", "cloud_qemu_copy": "Kopírovat výsledek", "cloud_qemu_warnings": "Varování", "cloud_qemu_no_warnings": "Žádná varování.", "cloud_language_saved": "Jazyk změněn na: {language}"},
+    "uk": {"cloud_welcome": "Ласкаво просимо до CloudAI", "cloud_next": "Далі", "cloud_send": "Надіслати", "cloud_settings": "Налаштування", "cloud_history": "Історія", "cloud_export": "Експорт чату", "cloud_wallpaper": "Змінити фон", "cloud_import_file": "Імпорт файлу", "cloud_theme": "Вигляд", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Програмне перетворення", "cloud_qemu_ai": "Написати з ШІ", "cloud_qemu_save": "Зберегти результат", "cloud_qemu_copy": "Копіювати результат", "cloud_qemu_warnings": "Попередження", "cloud_qemu_no_warnings": "Попереджень немає.", "cloud_language_saved": "Мову змінено на: {language}"},
+    "el": {"cloud_welcome": "Καλώς ήρθατε στο CloudAI", "cloud_next": "Επόμενο", "cloud_send": "Αποστολή", "cloud_settings": "Ρυθμίσεις", "cloud_history": "Ιστορικό", "cloud_export": "Εξαγωγή συνομιλίας", "cloud_wallpaper": "Αλλαγή φόντου", "cloud_import_file": "Εισαγωγή αρχείου", "cloud_theme": "Εμφάνιση", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Μετατροπή προγράμματος", "cloud_qemu_ai": "Σύνταξη με AI", "cloud_qemu_save": "Αποθήκευση αποτελέσματος", "cloud_qemu_copy": "Αντιγραφή αποτελέσματος", "cloud_qemu_warnings": "Προειδοποιήσεις", "cloud_qemu_no_warnings": "Δεν υπάρχουν προειδοποιήσεις.", "cloud_language_saved": "Η γλώσσα άλλαξε σε: {language}"},
+    "ar": {"cloud_welcome": "مرحبًا بك في CloudAI", "cloud_next": "التالي", "cloud_send": "إرسال", "cloud_settings": "الإعدادات", "cloud_history": "السجل", "cloud_export": "تصدير المحادثة", "cloud_wallpaper": "تغيير الخلفية", "cloud_import_file": "استيراد ملف", "cloud_theme": "المظهر", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "تحويل بالبرنامج", "cloud_qemu_ai": "كتابة بالذكاء الاصطناعي", "cloud_qemu_save": "حفظ النتيجة", "cloud_qemu_copy": "نسخ النتيجة", "cloud_qemu_warnings": "تحذيرات", "cloud_qemu_no_warnings": "لا توجد تحذيرات.", "cloud_language_saved": "تم تغيير اللغة إلى: {language}"},
+    "mn": {"cloud_welcome": "CloudAI-д тавтай морил", "cloud_next": "Дараах", "cloud_send": "Илгээх", "cloud_settings": "Тохиргоо", "cloud_history": "Түүх", "cloud_export": "Чат экспортлох", "cloud_wallpaper": "Дэвсгэр солих", "cloud_import_file": "Файл импортлох", "cloud_theme": "Харагдах байдал", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Программаар хөрвүүлэх", "cloud_qemu_ai": "AI-аар бичих", "cloud_qemu_save": "Үр дүн хадгалах", "cloud_qemu_copy": "Үр дүн хуулах", "cloud_qemu_warnings": "Анхааруулга", "cloud_qemu_no_warnings": "Анхааруулга байхгүй.", "cloud_language_saved": "Хэл солигдлоо: {language}"},
+    "th": {"cloud_welcome": "ยินดีต้อนรับสู่ CloudAI", "cloud_next": "ถัดไป", "cloud_send": "ส่ง", "cloud_settings": "การตั้งค่า", "cloud_history": "ประวัติ", "cloud_export": "ส่งออกแชต", "cloud_wallpaper": "เปลี่ยนวอลเปเปอร์", "cloud_import_file": "นำเข้าไฟล์", "cloud_theme": "รูปลักษณ์", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "แปลงด้วยโปรแกรม", "cloud_qemu_ai": "เขียนด้วย AI", "cloud_qemu_save": "บันทึกผลลัพธ์", "cloud_qemu_copy": "คัดลอกผลลัพธ์", "cloud_qemu_warnings": "คำเตือน", "cloud_qemu_no_warnings": "ไม่มีคำเตือน", "cloud_language_saved": "เปลี่ยนภาษาเป็น: {language}"},
+    "vi": {"cloud_welcome": "Chào mừng đến với CloudAI", "cloud_next": "Tiếp theo", "cloud_send": "Gửi", "cloud_settings": "Cài đặt", "cloud_history": "Lịch sử", "cloud_export": "Xuất trò chuyện", "cloud_wallpaper": "Đổi hình nền", "cloud_import_file": "Nhập tệp", "cloud_theme": "Giao diện", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Chuyển đổi bằng chương trình", "cloud_qemu_ai": "Viết bằng AI", "cloud_qemu_save": "Lưu kết quả", "cloud_qemu_copy": "Sao chép kết quả", "cloud_qemu_warnings": "Cảnh báo", "cloud_qemu_no_warnings": "Không có cảnh báo.", "cloud_language_saved": "Đã đổi ngôn ngữ sang: {language}"},
+    "id": {"cloud_welcome": "Selamat datang di CloudAI", "cloud_next": "Berikutnya", "cloud_send": "Kirim", "cloud_settings": "Pengaturan", "cloud_history": "Riwayat", "cloud_export": "Ekspor chat", "cloud_wallpaper": "Ganti wallpaper", "cloud_import_file": "Impor file", "cloud_theme": "Tampilan", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Konversi program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Peringatan", "cloud_qemu_no_warnings": "Tidak ada peringatan.", "cloud_language_saved": "Bahasa diubah ke: {language}"},
+    "ms": {"cloud_welcome": "Selamat datang ke CloudAI", "cloud_next": "Seterusnya", "cloud_send": "Hantar", "cloud_settings": "Tetapan", "cloud_history": "Sejarah", "cloud_export": "Eksport sembang", "cloud_wallpaper": "Tukar kertas dinding", "cloud_import_file": "Import fail", "cloud_theme": "Penampilan", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "Tukar dengan program", "cloud_qemu_ai": "Tulis dengan AI", "cloud_qemu_save": "Simpan hasil", "cloud_qemu_copy": "Salin hasil", "cloud_qemu_warnings": "Amaran", "cloud_qemu_no_warnings": "Tiada amaran.", "cloud_language_saved": "Bahasa ditukar kepada: {language}"},
+    "hi": {"cloud_welcome": "CloudAI में आपका स्वागत है", "cloud_next": "अगला", "cloud_send": "भेजें", "cloud_settings": "सेटिंग्स", "cloud_history": "इतिहास", "cloud_export": "चैट निर्यात करें", "cloud_wallpaper": "वॉलपेपर बदलें", "cloud_import_file": "फ़ाइल आयात करें", "cloud_theme": "दिखावट", "cloud_qemu_bridge": "VirtualWorld", "cloud_qemu_title": "VirtualWorld QEMU / UTM", "cloud_qemu_program": "प्रोग्राम से बदलें", "cloud_qemu_ai": "AI से लिखें", "cloud_qemu_save": "परिणाम सहेजें", "cloud_qemu_copy": "परिणाम कॉपी करें", "cloud_qemu_warnings": "चेतावनियाँ", "cloud_qemu_no_warnings": "कोई चेतावनी नहीं.", "cloud_language_saved": "भाषा बदली गई: {language}"},
 }
 for _code, _values in CLOUDAI_EXTRA_TEXT.items():
     CLOUD_TEXT.setdefault(_code, CLOUD_TEXT["en_us"].copy()).update(_values)
@@ -706,14 +708,31 @@ def ensure_app_dirs():
 
 
 def migrate_legacy_cloud_data():
-    for source, target in (
-        (LEGACY_CLOUD_CONFIG_FILE, CLOUD_CONFIG_FILE),
-        (LEGACY_CLOUD_SECRET_FILE, CLOUD_SECRET_FILE),
-    ):
+    legacy_seen = any(os.path.exists(path) for path in (LEGACY_CLOUD_CONFIG_FILE, LEGACY_CLOUD_SECRET_FILE, LEGACY_CLOUD_CHAT_DIR))
+    for source, target in ((LEGACY_CLOUD_CONFIG_FILE, CLOUD_CONFIG_FILE),):
         try:
             if os.path.exists(source) and not os.path.exists(target):
                 os.makedirs(os.path.dirname(target), exist_ok=True)
                 shutil.copy2(source, target)
+        except Exception:
+            pass
+    if not os.path.exists(CLOUD_MIGRATION_MARKER):
+        try:
+            current = read_json_dict(CLOUD_SECRET_FILE)
+            legacy = read_json_dict(LEGACY_CLOUD_SECRET_FILE)
+            legacy_config = read_json_dict(LEGACY_CLOUD_CONFIG_FILE)
+            changed = False
+            for provider in CLOUD_PROVIDERS:
+                if raw_secret_is_usable(current.get(provider, "")):
+                    continue
+                recovered = decode_secret(legacy.get(provider, "")) or recover_provider_key_from_config(legacy_config, provider)
+                if recovered:
+                    current[provider] = encode_secret(recovered)
+                    changed = True
+            if changed:
+                os.makedirs(os.path.dirname(CLOUD_SECRET_FILE), exist_ok=True)
+                with open(CLOUD_SECRET_FILE, "w", encoding="utf-8") as handle:
+                    json.dump(current, handle, ensure_ascii=False, indent=2)
         except Exception:
             pass
     try:
@@ -729,6 +748,13 @@ def migrate_legacy_cloud_data():
                             shutil.copy2(source, target)
     except Exception:
         pass
+    if legacy_seen:
+        try:
+            os.makedirs(os.path.dirname(CLOUD_MIGRATION_MARKER), exist_ok=True)
+            with open(CLOUD_MIGRATION_MARKER, "w", encoding="utf-8") as handle:
+                handle.write(datetime.now().isoformat())
+        except Exception:
+            pass
 
 
 def load_config():
@@ -786,37 +812,106 @@ def mask_key(value):
     return MASK if value else ""
 
 
+def is_masked_key(value):
+    text = str(value or "").strip()
+    return text == MASK or (text and set(text) == {"*"})
+
+
+def looks_like_plain_secret(value):
+    text = str(value or "").strip()
+    if not text or is_masked_key(text):
+        return False
+    if len(text) < 12 or any(ch.isspace() for ch in text):
+        return False
+    if text.startswith(("{", "[")) or text.lower() in {"none", "null", "undefined"}:
+        return False
+    return True
+
+
+def decode_secret_payload(value, salt):
+    raw = base64.urlsafe_b64decode(value.encode("ascii"))
+    plain = bytes(byte ^ salt[index % len(salt)] for index, byte in enumerate(raw))
+    text = plain.decode("utf-8")
+    if not text or any((ord(ch) < 32 and ch not in "\r\n\t") for ch in text):
+        return ""
+    return text
+
+
 def encode_secret(value):
     if not value:
         return ""
     raw = value.encode("utf-8")
     salt = platform.node().encode("utf-8") or b"cloudai"
     mixed = bytes(byte ^ salt[index % len(salt)] for index, byte in enumerate(raw))
-    return base64.urlsafe_b64encode(mixed).decode("ascii")
+    return SECRET_PREFIX + base64.urlsafe_b64encode(mixed).decode("ascii")
 
 
 def decode_secret(value):
-    if not value:
+    value = str(value or "").strip()
+    if not value or is_masked_key(value):
         return ""
+    salt = platform.node().encode("utf-8") or b"cloudai"
     try:
-        raw = base64.urlsafe_b64decode(value.encode("ascii"))
-        salt = platform.node().encode("utf-8") or b"cloudai"
-        plain = bytes(byte ^ salt[index % len(salt)] for index, byte in enumerate(raw))
-        return plain.decode("utf-8")
+        if value.startswith(SECRET_PREFIX):
+            return decode_secret_payload(value[len(SECRET_PREFIX):], salt)
+        decoded = decode_secret_payload(value, salt)
+        if decoded:
+            return decoded
     except Exception:
-        return ""
+        pass
+    return value if looks_like_plain_secret(value) else ""
+
+
+def read_json_dict(path):
+    if not os.path.exists(path):
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            data = json.load(handle)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def recover_provider_key_from_config(config_data, provider):
+    providers = config_data.get("providers", {}) if isinstance(config_data, dict) else {}
+    item = providers.get(provider, {}) if isinstance(providers, dict) else {}
+    raw = item.get("api_key", "") if isinstance(item, dict) else ""
+    return decode_secret(raw)
+
+
+def raw_secret_is_usable(secret_value):
+    return bool(decode_secret(secret_value))
+
+
+def normalize_secret_store(data):
+    changed = False
+    normalised = {}
+    for provider, raw in (data or {}).items():
+        if provider not in CLOUD_PROVIDERS:
+            continue
+        key = decode_secret(raw)
+        if not key:
+            changed = True
+            continue
+        encoded = encode_secret(key)
+        normalised[provider] = encoded
+        if raw != encoded:
+            changed = True
+    return normalised, changed
 
 
 def load_secret_store():
     ensure_cloud_dirs()
-    if not os.path.exists(CLOUD_SECRET_FILE):
-        return {}
-    try:
-        with open(CLOUD_SECRET_FILE, "r", encoding="utf-8") as handle:
-            data = json.load(handle)
-            return data if isinstance(data, dict) else {}
-    except Exception:
-        return {}
+    data = read_json_dict(CLOUD_SECRET_FILE)
+    normalised, changed = normalize_secret_store(data)
+    if changed:
+        try:
+            with open(CLOUD_SECRET_FILE, "w", encoding="utf-8") as handle:
+                json.dump(normalised, handle, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+    return normalised
 
 
 def save_secret_store(data):
@@ -832,9 +927,10 @@ def get_api_key(provider):
 
 def set_api_key(provider, api_key):
     secrets = load_secret_store()
-    if api_key:
+    api_key = str(api_key or "").strip()
+    if api_key and not is_masked_key(api_key):
         secrets[provider] = encode_secret(api_key)
-    else:
+    elif not api_key:
         secrets.pop(provider, None)
     save_secret_store(secrets)
 
@@ -2076,210 +2172,44 @@ def run_cloudai_gui():
             listbox.bind("<Return>", open_selected)
             self.styled_button(win, self.t("cloud_open_history"), open_selected, True).pack(anchor="e", padx=18, pady=(0, 16))
 
+        def find_virtualworld_launcher(self):
+            app_dir = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
+            bundle_dir = Path(getattr(sys, "_MEIPASS", app_dir))
+            if platform.system() == "Darwin":
+                names = ("VirtualWorld.app", "VirtualWorld")
+            elif platform.system() == "Windows":
+                names = ("VirtualWorld.exe", "VirtualWorld")
+            else:
+                names = ("VirtualWorld", "virtualworld")
+            roots = (
+                app_dir,
+                app_dir.parent,
+                bundle_dir,
+                bundle_dir.parent,
+                Path(__file__).resolve().parent,
+                Path(__file__).resolve().parent / "dist",
+                Path(__file__).resolve().parent / "build" / "virtualworld",
+            )
+            for root in roots:
+                for name in names:
+                    candidate = root / name
+                    if candidate.exists():
+                        return candidate
+            found = shutil.which("VirtualWorld") or shutil.which("virtualworld")
+            return Path(found) if found else None
+
         def show_qemu_bridge(self):
             try:
-                from plugins.qemu_bridge.ai_modify import build_ai_prompt, extract_candidate, modify_with_ai_or_rules
-                from plugins.qemu_bridge.models import TargetPlatform
-                from plugins.qemu_bridge.plugin import load_imported_source, program_convert_result, save_result_dialog, save_utm_payload
+                launcher = self.find_virtualworld_launcher()
+                if not launcher:
+                    raise FileNotFoundError("VirtualWorld executable was not found next to CloudAI.")
+                if platform.system() == "Darwin" and launcher.suffix == ".app":
+                    subprocess.Popen(["open", str(launcher)])
+                else:
+                    subprocess.Popen([str(launcher)])
             except Exception as exc:
                 log_cloud_error(exc)
                 messagebox.showerror(APP_NAME, self.t("cloud_qemu_error", error=exc))
-                return
-
-            win = tk.Toplevel(self)
-            win.title(self.t("cloud_qemu_title"))
-            win.geometry("860x760")
-            win.configure(bg=self.colors["window"])
-            apply_window_icon(win, self.local_config.get("theme", "auto"))
-
-            body = tk.Frame(win, bg=self.colors["window"], padx=18, pady=16)
-            body.pack(fill="both", expand=True)
-            tk.Label(body, text=self.t("cloud_qemu_title"), bg=self.colors["window"], fg=self.colors["text"],
-                     font=(get_platform_font(), 17, "bold")).pack(anchor="w")
-            tk.Label(body, text=self.t("cloud_qemu_guide"), bg=self.colors["window"], fg=self.colors["muted"],
-                     font=(get_platform_font(), 10), wraplength=800, justify="left").pack(anchor="w", pady=(8, 4))
-            tk.Label(body, text=self.t("cloud_qemu_input"), bg=self.colors["window"], fg=self.colors["muted"],
-                     font=(get_platform_font(), 10)).pack(anchor="w", pady=(14, 4))
-            input_box = tk.Text(body, height=7, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
-                                insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
-                                highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
-                                font=(get_platform_font(), 11))
-            input_box.pack(fill="x")
-
-            controls = tk.Frame(body, bg=self.colors["window"])
-            controls.pack(fill="x", pady=12)
-            tk.Label(controls, text=self.t("cloud_qemu_target_platform"), bg=self.colors["window"],
-                     fg=self.colors["text"], font=(get_platform_font(), 11)).pack(side="left")
-            target_platform_var = tk.StringVar(value=TargetPlatform.MACOS.value)
-            ttk.Combobox(controls, textvariable=target_platform_var, values=[item.value for item in TargetPlatform],
-                         state="readonly", width=14).pack(side="left", padx=10)
-            tk.Label(controls, text=self.t("cloud_qemu_target_format"), bg=self.colors["window"],
-                     fg=self.colors["text"], font=(get_platform_font(), 11)).pack(side="left", padx=(18, 0))
-            target_format_var = tk.StringVar(value="QEMU")
-            ttk.Combobox(controls, textvariable=target_format_var, values=["QEMU", "UTM"],
-                         state="readonly", width=10).pack(side="left", padx=10)
-            check_var = tk.BooleanVar(value=True)
-            tk.Checkbutton(controls, text=self.t("cloud_qemu_check"), variable=check_var,
-                           bg=self.colors["window"], fg=self.colors["text"], activebackground=self.colors["window"],
-                           activeforeground=self.colors["text"], selectcolor=self.colors["surface"]).pack(side="left", padx=(18, 0))
-
-            tk.Label(body, text=self.t("cloud_qemu_instruction"), bg=self.colors["window"], fg=self.colors["muted"],
-                     font=(get_platform_font(), 10)).pack(anchor="w", pady=(0, 4))
-            instruction_box = tk.Text(body, height=3, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
-                                      insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
-                                      highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
-                                      font=(get_platform_font(), 11))
-            instruction_box.pack(fill="x")
-
-            tk.Label(body, text=self.t("cloud_qemu_result"), bg=self.colors["window"], fg=self.colors["text"],
-                     font=(get_platform_font(), 12, "bold")).pack(anchor="w", pady=(6, 4))
-            result_box = tk.Text(body, height=10, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
-                                 insertbackground=self.colors["text"], relief="flat", highlightthickness=1,
-                                 highlightbackground=self.colors["border"], highlightcolor=self.colors["border"],
-                                 font=(get_platform_font(), 11))
-            result_box.pack(fill="both", expand=True)
-
-            tk.Label(body, text=self.t("cloud_qemu_warnings"), bg=self.colors["window"], fg=self.colors["text"],
-                     font=(get_platform_font(), 12, "bold")).pack(anchor="w", pady=(10, 4))
-            warning_box = tk.Text(body, height=5, wrap="word", bg=self.colors["surface"], fg=self.colors["text"],
-                                  relief="flat", highlightthickness=1, highlightbackground=self.colors["border"],
-                                  highlightcolor=self.colors["border"], font=(get_platform_font(), 10))
-            warning_box.pack(fill="x")
-
-            current_output = {"text": "", "target_format": "qemu", "payload": None}
-
-            def set_text(widget, value, disabled=False):
-                widget.configure(state="normal")
-                widget.delete("1.0", "end")
-                widget.insert("1.0", value)
-                if disabled:
-                    widget.configure(state="disabled")
-
-            def show_payload(payload, target_format):
-                current_output["text"] = payload.command
-                current_output["target_format"] = target_format
-                current_output["payload"] = payload
-                set_text(result_box, payload.command)
-                if payload.issues:
-                    issues = "\n".join(f"[{item.level}] {item.code}: {item.message}" for item in payload.issues)
-                    set_text(warning_box, issues)
-                else:
-                    set_text(warning_box, self.t("cloud_qemu_no_warnings"))
-
-            def source_text():
-                return input_box.get("1.0", "end-1c").strip()
-
-            def instruction_text():
-                return instruction_box.get("1.0", "end-1c").strip()
-
-            def choose_file():
-                path = filedialog.askdirectory(title=self.t("cloud_qemu_import"), mustexist=True)
-                if not path:
-                    path = filedialog.askopenfilename(
-                        title=self.t("cloud_qemu_import"),
-                        filetypes=[
-                            ("Supported", "*.utm *.plist *.sh *.cmd *.txt"),
-                            ("UTM Package", "*.utm"),
-                            ("Property List", "*.plist"),
-                            ("QEMU Script", "*.sh *.cmd"),
-                            ("All files", "*.*"),
-                        ],
-                    )
-                if path:
-                    input_box.delete("1.0", "end")
-                    input_box.insert("1.0", load_imported_source(path))
-
-            def program_convert():
-                source = source_text()
-                if not source:
-                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_empty"))
-                    return
-                try:
-                    payload = program_convert_result(source, target_format_var.get(), target_platform_var.get())
-                    show_payload(payload, target_format_var.get().lower())
-                except Exception as exc:
-                    set_text(result_box, "")
-                    set_text(warning_box, self.t("cloud_qemu_error", error=exc))
-
-            def ai_write():
-                source = source_text()
-                if not source:
-                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_empty"))
-                    return
-                provider, _base_url, _model, key = active_provider_config(self.cloud_config)
-                if not key:
-                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_ai_no_key"))
-                    return
-                target_format = target_format_var.get().lower()
-                prompt = build_ai_prompt(source, target_format, instruction_text())
-                set_text(warning_box, self.t("cloud_thinking"))
-
-                def worker():
-                    try:
-                        ai_text = ask_cloudai([{"role": "user", "content": prompt}], self.cloud_config, [])
-                        if check_var.get():
-                            payload = modify_with_ai_or_rules(source, target_format, instruction_text(), ai_text)
-                            win.after(0, lambda: show_payload(payload, target_format))
-                        else:
-                            candidate = extract_candidate(ai_text) or ai_text
-                            current_output["text"] = candidate
-                            current_output["target_format"] = target_format
-                            current_output["payload"] = None
-                            win.after(0, lambda: (set_text(result_box, candidate), set_text(warning_box, self.t("cloud_qemu_no_warnings"))))
-                    except Exception as exc:
-                        log_cloud_error(exc)
-                        win.after(0, lambda: set_text(warning_box, self.t("cloud_qemu_error", error=exc)))
-
-                threading.Thread(target=worker, daemon=True).start()
-
-            def copy_result():
-                value = result_box.get("1.0", "end-1c").strip()
-                if value:
-                    win.clipboard_clear()
-                    win.clipboard_append(value)
-                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_copied"))
-
-            def save_raw_result():
-                value = result_box.get("1.0", "end-1c").strip()
-                if not value:
-                    return
-                target_format = current_output.get("target_format", "qemu")
-                payload = current_output.get("payload")
-                if payload is not None:
-                    try:
-                        saved = save_result_dialog(payload, target_format, lambda key, **kwargs: self.t("cloud_qemu_save") if key == "save_as" else key, filedialog)
-                        if saved:
-                            messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=saved))
-                        return
-                    except Exception:
-                        pass
-                if target_format == "utm":
-                    path = filedialog.asksaveasfilename(
-                        title=self.t("cloud_qemu_save"),
-                        defaultextension=".utm",
-                        filetypes=[("UTM Package", "*.utm"), ("All files", "*.*")],
-                    )
-                    if path:
-                        from types import SimpleNamespace
-
-                        save_utm_payload(SimpleNamespace(command=value, config=None), Path(path))
-                        messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=path))
-                    return
-                extension = ".sh"
-                path = filedialog.asksaveasfilename(title=self.t("cloud_qemu_save"), defaultextension=extension,
-                                                    filetypes=[("QEMU/UTM Result", f"*{extension}"), ("All files", "*.*")])
-                if path:
-                    with open(path, "w", encoding="utf-8") as handle:
-                        handle.write(value.rstrip() + "\n")
-                    messagebox.showinfo(APP_NAME, self.t("cloud_qemu_saved", path=path))
-
-            actions = tk.Frame(body, bg=self.colors["window"])
-            actions.pack(fill="x", pady=(12, 0))
-            self.styled_button(actions, self.t("cloud_qemu_import"), choose_file).pack(side="left", padx=(0, 8))
-            self.styled_button(actions, self.t("cloud_qemu_program"), program_convert, True).pack(side="left", padx=8)
-            self.styled_button(actions, self.t("cloud_qemu_ai"), ai_write, True).pack(side="left", padx=8)
-            self.styled_button(actions, self.t("cloud_qemu_save"), save_raw_result).pack(side="right", padx=(8, 0))
-            self.styled_button(actions, self.t("cloud_qemu_copy"), copy_result).pack(side="right")
 
         def schedule_send_button_update(self, _event=None):
             if self.send_update_job:

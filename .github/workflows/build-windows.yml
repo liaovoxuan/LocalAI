@@ -34,11 +34,22 @@ jobs:
       - name: Build CloudAI exe
         run: pyinstaller --clean --noconfirm CloudAI.spec
 
+      - name: Build VirtualWorld
+        run: |
+          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/virtualworld --config Release
+          if (Test-Path "build/virtualworld/Release/VirtualWorld.exe") {
+            Copy-Item "build/virtualworld/Release/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force
+          } else {
+            Copy-Item "build/virtualworld/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force
+          }
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LocalAI-Windows-x64-0.8 Beta
+          name: LocalAI-Windows-x64-1.0
           path: |
             dist/LocalAI.exe
             dist/LocalAI_SE.exe
             dist/CloudAI.exe
+            dist/VirtualWorld.exe

@@ -17,7 +17,7 @@
 namespace fs = std::filesystem;
 
 static const std::string APP_NAME = "CloudAI";
-static const std::string APP_VERSION = "v1.0.0";
+static const std::string APP_VERSION = "1.0";
 static const std::string LOCALAI_APP_NAME = "LocalAI";
 static const std::string MASK = "********";
 static const std::string MODERATION_BLOCK_MESSAGE = "这个话题不合适，换一个聊聊吧！";

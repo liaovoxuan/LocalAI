@@ -35,7 +35,7 @@ get_cpu_info = None
 _CPUINFO_LOADED = False
 
 
-APP_VERSION = "0.8 Beta"
+APP_VERSION = "1.0"
 APP_VERSION_LABEL = f"{APP_VERSION} SE"
 
 OLLAMA_GENERATE_URL = "http://localhost:11434/api/generate"
@@ -284,6 +284,9 @@ DEFAULT_CONFIG = {
     "openai_model": "",
     "api_key": "",
     "api_base_url": "",
+    "llamacpp_binary": "",
+    "llamacpp_model": "",
+    "llamacpp_model_dir": "",
     "provider": "ollama",
     "first_run_done": False,
     "first_welcome_done": False,
@@ -298,7 +301,7 @@ DEFAULT_CONFIG = {
 }
 
 APP_EDITION = "se"
-SUPPORTED_PROVIDERS = ('ollama',)
+SUPPORTED_PROVIDERS = ('ollama', 'llama_cpp')
 WEB_FEATURES = {
     "basic_web_search": True,
     "auto_source_limit": 2,
@@ -1635,9 +1638,32 @@ def first_welcome(config):
 
     config["language"] = language
     print(tr(config, "language_changed", name=LANGUAGE_OPTIONS[language]["name"]))
+    config = choose_startup_provider(config)
     config["first_welcome_done"] = True
     save_config(config)
     return config
+
+
+def choose_startup_provider(config):
+    providers = ("llama_cpp",) if runtime_prefers_llamacpp_only() else SUPPORTED_PROVIDERS
+    current = normalize_provider(config.get("provider", providers[0]))
+    if current not in providers:
+        current = providers[0]
+    if len(providers) == 1:
+        config["provider"] = providers[0]
+        print(f"模型提供商 / Provider: {provider_display_name(providers[0])}")
+        return normalize_provider_config(config)
+
+    print("\n模型提供商 / Model Provider")
+    for i, provider in enumerate(providers, 1):
+        marker = "*" if provider == current else " "
+        print(f"{i}. [{marker}] {provider_display_name(provider)}")
+    choice = input("请选择模型提供商，直接回车使用默认值 / Choose provider, Enter for default: ").strip()
+    if choice.isdigit() and 1 <= int(choice) <= len(providers):
+        config["provider"] = providers[int(choice) - 1]
+    else:
+        config["provider"] = current
+    return normalize_provider_config(config)
 
 
 def choose_language(config):
@@ -2532,7 +2558,44 @@ def is_valid_model_name(name):
     return True
 
 
+def llamacpp_model_family(base_model):
+    bundled = find_llamacpp_model({}, "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf")
+    if bundled:
+        return bundled
+    name = (base_model or "").lower()
+    if "14b" in name:
+        return "Qwen2.5-14B-Instruct-Q4_K_M.gguf"
+    if "3b" in name:
+        return "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    if "0.8b" in name or "0_5b" in name:
+        return "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    return "Qwen2.5-7B-Instruct-Q4_K_M.gguf"
+
+
 def choose_model(config, recommendation):
+    cfg = normalize_provider_config(config)
+    if cfg.get("provider") == "llama_cpp":
+        default = cfg.get("llamacpp_model") or llamacpp_model_family((recommendation or {}).get("model"))
+        choice = input(f"请输入 llama.cpp GGUF 模型路径，直接回车使用推荐值 / GGUF model path [{default}]: ").strip()
+        model = choice or default
+        if not os.path.isfile(os.path.expanduser(model)) and os.path.basename(model) in LLAMACPP_MODEL_URLS:
+            should_download = input("未找到本地 GGUF，是否下载推荐模型？(Y/N): ").strip().lower()
+            if should_download == "y":
+                def progress(done, total):
+                    if total:
+                        print(f"\rllama.cpp {done * 100 // total}%", end="", flush=True)
+                    else:
+                        print(f"\rllama.cpp {done // (1024 * 1024)} MB", end="", flush=True)
+                try:
+                    model = download_llamacpp_model(model, config, progress)
+                    print()
+                except Exception as exc:
+                    print(f"\nllama.cpp 模型下载失败：{exc}")
+        config["llamacpp_model"] = model
+        config["last_model"] = model
+        save_config(config)
+        return model
+
     models = get_models()
 
     recommended_model = recommendation.get("model")
@@ -2864,6 +2927,9 @@ def ask_ollama(prompt, model, size, image_paths=None):
 def normalize_provider(value):
     provider = str(value or "ollama").strip().lower().replace("-", "_")
     aliases = {
+        "llamacpp": "llama_cpp",
+        "llama.cpp": "llama_cpp",
+        "llama_cpp": "llama_cpp",
         "lmstudio": "lm_studio",
         "lm_studio": "lm_studio",
         "openai_compatible_api": "openai_compatible",
@@ -2881,10 +2947,21 @@ def normalize_provider(value):
 def provider_display_name(provider):
     return {
         "ollama": "Ollama",
+        "llama_cpp": "llama.cpp",
         "lm_studio": "LM Studio",
         "openai_compatible": "OpenAI Compatible API",
         "openai_official": "OpenAI Official API",
     }.get(normalize_provider(provider), "Ollama")
+
+
+def runtime_prefers_llamacpp_only():
+    system = os.environ.get("LOCALAI_TARGET_OS", platform.system()).lower()
+    machine = os.environ.get("LOCALAI_TARGET_ARCH", platform.machine()).lower()
+    release = " ".join(str(v).lower() for v in read_linux_os_release().values())
+    probe = " ".join([system, machine, release, os.environ.get("OS", "").lower()])
+    if system == "windows" and machine in ("arm64", "aarch64"):
+        return True
+    return any(token in probe for token in ("harmony", "openharmony", "ohos", "loongarch", "riscv"))
 
 
 def normalize_provider_config(config):
@@ -2898,11 +2975,14 @@ def normalize_provider_config(config):
         config["api_key"] = config.get("openai_api_key", "")
     if not config.get("openai_model") and config.get("openai_compatible_model"):
         config["openai_model"] = config.get("openai_compatible_model", "")
-    config["provider"] = normalize_provider(config.get("provider", "ollama"))
+    config["provider"] = "llama_cpp" if runtime_prefers_llamacpp_only() else normalize_provider(config.get("provider", "ollama"))
     config.setdefault("api_base_url", "")
     config.setdefault("api_key", "")
     config.setdefault("openai_model", "")
     config.setdefault("lmstudio_base_url", "http://localhost:1234/v1")
+    config.setdefault("llamacpp_binary", "")
+    config.setdefault("llamacpp_model", "")
+    config.setdefault("llamacpp_model_dir", "")
     return config
 
 
@@ -3056,6 +3136,218 @@ def ask_openai_official(messages, model, config, image_paths=None):
     return ask_openai_chat_completions(messages, cfg["openai_model"], cfg, "https://api.openai.com/v1", api_key, image_paths)
 
 
+def llamacpp_binary_candidates(config=None):
+    cfg = config or {}
+    exe = "llama-cli.exe" if os.name == "nt" else "llama-cli"
+    legacy = "main.exe" if os.name == "nt" else "main"
+    candidates = []
+    configured = (cfg.get("llamacpp_binary") or "").strip()
+    if configured:
+        candidates.append(configured)
+    app_root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    bundle_root = getattr(sys, "_MEIPASS", app_root)
+    platform_name = llamacpp_runtime_platform()
+    arch_name = llamacpp_runtime_arch()
+    roots = [app_root, bundle_root, os.getcwd(), os.path.expanduser("~/Downloads/llama.cpp-master")]
+    for root in roots:
+        candidates.extend([
+            os.path.join(root, "runtime", "llama.cpp", platform_name, arch_name, "bin", exe),
+            os.path.join(root, "runtime", "llama.cpp", platform_name, arch_name, exe),
+            os.path.join(root, "runtime", "llama.cpp", "bin", exe),
+            os.path.join(root, "runtime", "llama.cpp", exe),
+            os.path.join(root, "llama.cpp", "build", "bin", exe),
+            os.path.join(root, "build", "bin", exe),
+            os.path.join(root, "build", "bin", "Release", exe),
+            os.path.join(root, "bin", exe),
+            os.path.join(root, legacy),
+        ])
+    for name in (exe, legacy):
+        found = shutil.which(name)
+        if found:
+            candidates.append(found)
+    return candidates
+
+
+def llamacpp_runtime_platform():
+    system = os.environ.get("LOCALAI_TARGET_OS", platform.system()).lower()
+    if system == "darwin":
+        return "macos"
+    if system == "macos":
+        return "macos"
+    if system == "windows":
+        return "windows"
+    if system == "harmonyos":
+        return "harmonyos"
+    release = " ".join(str(v).lower() for v in read_linux_os_release().values())
+    if "harmony" in release or "openharmony" in release or "ohos" in release:
+        return "harmonyos"
+    return "linux"
+
+
+def llamacpp_runtime_arch():
+    machine = os.environ.get("LOCALAI_TARGET_ARCH", platform.machine()).lower()
+    if machine in ("arm64", "aarch64"):
+        return "arm64"
+    if machine in ("amd64", "x86_64"):
+        return "x64"
+    if "riscv" in machine:
+        return "riscv64"
+    if "loongarch" in machine:
+        return "loongarch64"
+    return machine or "unknown"
+
+
+def get_llamacpp_binary_path(config=None):
+    for path in llamacpp_binary_candidates(config):
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return ""
+
+
+def find_llamacpp_model(config=None, preferred=""):
+    cfg = config or {}
+    candidates = []
+    for value in (cfg.get("llamacpp_model"), preferred):
+        if value:
+            candidates.append(os.path.expanduser(str(value)))
+    app_root = os.path.dirname(os.path.abspath(sys.argv[0]))
+    bundle_root = getattr(sys, "_MEIPASS", app_root)
+    search_roots = [
+        cfg.get("llamacpp_model_dir", ""),
+        os.path.join(bundle_root, "runtime", "llama.cpp", "models"),
+        os.path.join(app_root, "runtime", "llama.cpp", "models"),
+        os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "models"),
+        os.path.join(os.getcwd(), "models"),
+        os.path.join(os.getcwd(), "runtime", "llama.cpp", "models"),
+        os.path.expanduser("~/Downloads"),
+        os.path.expanduser("~/Downloads/llama.cpp-master/models"),
+    ]
+    for root in search_roots:
+        root = os.path.expanduser(str(root or ""))
+        if not root or not os.path.isdir(root):
+            continue
+        if preferred:
+            candidates.append(os.path.join(root, preferred))
+        try:
+            for name in os.listdir(root):
+                if name.lower().endswith(".gguf"):
+                    candidates.append(os.path.join(root, name))
+        except Exception:
+            continue
+    for path in candidates:
+        if path and os.path.isfile(path) and path.lower().endswith(".gguf"):
+            return path
+    return ""
+
+
+LLAMACPP_MODEL_URLS = {
+    "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-3B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-7B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-7B-Instruct-GGUF/resolve/main/Qwen2.5-7B-Instruct-Q4_K_M.gguf",
+    "Qwen2.5-14B-Instruct-Q4_K_M.gguf": "https://huggingface.co/bartowski/Qwen2.5-14B-Instruct-GGUF/resolve/main/Qwen2.5-14B-Instruct-Q4_K_M.gguf",
+}
+
+
+def download_llamacpp_model(model_name, config=None, progress=None):
+    cfg = config or {}
+    url = LLAMACPP_MODEL_URLS.get(os.path.basename(model_name), model_name if str(model_name).startswith(("http://", "https://")) else "")
+    if not url:
+        raise ValueError(f"No download URL for {model_name}")
+    model_dir = os.path.expanduser(cfg.get("llamacpp_model_dir") or os.path.join(DATA_DIR, "models", "llama.cpp"))
+    os.makedirs(model_dir, exist_ok=True)
+    target = os.path.join(model_dir, os.path.basename(urlparse(url).path) or os.path.basename(model_name))
+    temp_path = target + ".part"
+    resume = os.path.getsize(temp_path) if os.path.exists(temp_path) else 0
+    headers = {"Range": f"bytes={resume}-"} if resume else {}
+    with requests.get(url, stream=True, timeout=60, headers=headers) as response:
+        response.raise_for_status()
+        mode = "ab" if resume and response.status_code == 206 else "wb"
+        if mode == "wb":
+            resume = 0
+        total = int(response.headers.get("content-length", 0) or 0) + resume
+        done = resume
+        with open(temp_path, mode) as handle:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                handle.write(chunk)
+                done += len(chunk)
+                if progress:
+                    progress(done, total)
+    os.replace(temp_path, target)
+    return target
+
+
+def llamacpp_runtime_options(config=None):
+    cfg = config or {}
+    arch = llamacpp_runtime_arch()
+    max_threads = 4 if arch == "loongarch64" else 8
+    default_ctx = 2048 if arch == "loongarch64" else 4096
+    default_predict = 256 if arch == "loongarch64" else 512
+    threads = max(1, min(psutil.cpu_count(logical=False) or 4, max_threads))
+    ctx = int(cfg.get("llamacpp_context", default_ctx) or default_ctx)
+    predict = int(cfg.get("llamacpp_predict", default_predict) or default_predict)
+    temp = str(cfg.get("llamacpp_temperature", 0.7) or 0.7)
+    options = [
+        "-c", str(ctx),
+        "-t", str(threads),
+        "-n", str(predict),
+        "--temp", temp,
+        "--no-display-prompt",
+        "--no-conversation",
+        "--single-turn",
+        "--simple-io",
+        "--no-warmup",
+        "--no-show-timings",
+    ]
+    return options
+
+
+def clean_llamacpp_output(output, prompt):
+    text = output or ""
+    marker = f"> {prompt}"
+    if marker in text:
+        text = text.split(marker, 1)[1]
+    else:
+        prompt_index = text.rfind(prompt)
+        if prompt_index >= 0:
+            text = text[prompt_index + len(prompt):]
+    if "Exiting..." in text:
+        text = text.split("Exiting...", 1)[0]
+    lines = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped == ">":
+            continue
+        if stripped.startswith("Loading model"):
+            continue
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
+def ask_llama_cpp(messages, model, config, image_paths=None):
+    cfg = normalize_provider_config(config)
+    binary = get_llamacpp_binary_path(cfg)
+    if not binary:
+        raise ValueError("llama.cpp binary not found. Set llamacpp_binary or bundle runtime/llama.cpp/bin/llama-cli.")
+    model_path = find_llamacpp_model(cfg, model)
+    if not model_path:
+        raise ValueError("llama.cpp GGUF model not found. Set llamacpp_model or llamacpp_model_dir.")
+    prompt = messages_to_prompt(messages)
+    process = subprocess.run(
+        [binary, "-m", model_path, "-p", prompt, *llamacpp_runtime_options(cfg)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=240,
+    )
+    if process.returncode != 0:
+        raise RuntimeError((process.stderr or process.stdout or "llama.cpp failed").strip())
+    return clean_llamacpp_output(process.stdout, prompt)
+
+
 def ask_model(messages, model, config):
     cfg = normalize_provider_config(config.copy() if isinstance(config, dict) else {})
     provider = normalize_provider(cfg.get("provider"))
@@ -3064,6 +3356,12 @@ def ask_model(messages, model, config):
     prompt = messages_to_prompt(messages)
     if not content_allowed(prompt):
         return MODERATION_BLOCK_MESSAGE
+    if provider == "llama_cpp":
+        try:
+            return moderated_text(ask_llama_cpp(messages, model, cfg, image_paths))
+        except Exception as exc:
+            log_error(exc)
+            return str(exc)
     if provider == "lm_studio":
         try:
             return moderated_text(ask_lm_studio(messages, model, cfg, image_paths))
@@ -3099,6 +3397,14 @@ def test_provider_connection(provider, config):
         if provider == "ollama":
             response = requests.get(OLLAMA_TAGS_URL, timeout=3)
             return response.status_code == 200, "Ollama OK" if response.status_code == 200 else response.text
+        if provider == "llama_cpp":
+            binary = get_llamacpp_binary_path(cfg)
+            model_path = find_llamacpp_model(cfg, cfg.get("last_model"))
+            if not binary:
+                return False, "llama.cpp binary not found."
+            if not model_path:
+                return False, "llama.cpp GGUF model not found."
+            return True, "llama.cpp OK"
         if provider == "lm_studio":
             url = openai_models_url(cfg.get("lmstudio_base_url") or "http://localhost:1234/v1")
             response = requests.get(url, timeout=5)

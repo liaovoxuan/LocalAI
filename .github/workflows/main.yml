@@ -81,23 +81,41 @@ jobs:
         if: matrix.platform == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk desktop-file-utils fakeroot rpm curl file
+          sudo apt-get install -y python3-tk desktop-file-utils fakeroot rpm curl file cmake qtbase5-dev qttools5-dev-tools libopenblas-dev libvulkan-dev
+
+      - name: Set up Qt for VirtualWorld
+        if: matrix.platform != 'linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.7.3"
+          cache: true
 
       - name: Build Windows apps
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
           PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
+          LOCALAI_TARGET_OS: windows
+          LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
         run: |
+          python scripts/build_llamacpp_runtime.py
+          python scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm LocalAI.spec
           pyinstaller --clean --noconfirm LocalAI_SE.spec
           pyinstaller --clean --noconfirm CloudAI.spec
-          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/virtualworld --config Release
+          New-Item -ItemType Directory -Force dist | Out-Null
+          if (Test-Path "build/virtualworld/Release/VirtualWorld.exe") {
+            Copy-Item "build/virtualworld/Release/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force
+          } else {
+            Copy-Item "build/virtualworld/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force
+          }
           New-Item -ItemType Directory -Force release | Out-Null
           Compress-Archive -Path "dist/LocalAI.exe" -DestinationPath "release/LocalAI-windows-${{ matrix.arch }}.zip" -Force
           Compress-Archive -Path "dist/LocalAI_SE.exe" -DestinationPath "release/LocalAI_SE-windows-${{ matrix.arch }}.zip" -Force
           Compress-Archive -Path "dist/CloudAI.exe" -DestinationPath "release/CloudAI-windows-${{ matrix.arch }}.zip" -Force
-          Compress-Archive -Path "dist/QEMU Bridge.exe" -DestinationPath "release/QEMU_Bridge-windows-${{ matrix.arch }}.zip" -Force
+          Compress-Archive -Path "dist/VirtualWorld.exe" -DestinationPath "release/VirtualWorld-windows-${{ matrix.arch }}.zip" -Force
           Get-ChildItem release -File | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)"
           } | Set-Content release/SHA256SUMS
@@ -107,27 +125,41 @@ jobs:
         env:
           PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
           LOCALAI_APPLE_SILICON_OPTIMIZED: ${{ matrix.arch == 'arm64' && '1' || '0' }}
+          LOCALAI_TARGET_OS: macos
+          LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
         run: |
+          python3 scripts/build_llamacpp_runtime.py
+          python3 scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm LocalAI_macOS.spec
           pyinstaller --clean --noconfirm LocalAI_SE_macOS.spec
           pyinstaller --clean --noconfirm CloudAI_macOS.spec
-          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="${{ matrix.pyinstaller-target-arch }}"
+          cmake --build build/virtualworld --config Release
+          mkdir -p dist
+          cp build/virtualworld/VirtualWorld dist/VirtualWorld
           mkdir -p release
           ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI.app" "release/LocalAI-macos-${{ matrix.artifact-arch }}.zip"
           ditto -c -k --sequesterRsrc --keepParent "dist/LocalAI_SE.app" "release/LocalAI_SE-macos-${{ matrix.artifact-arch }}.zip"
           ditto -c -k --sequesterRsrc --keepParent "dist/CloudAI.app" "release/CloudAI-macos-${{ matrix.artifact-arch }}.zip"
-          ditto -c -k --keepParent "dist/QEMU Bridge" "release/QEMU_Bridge-macos-${{ matrix.artifact-arch }}.zip"
+          ditto -c -k --keepParent "dist/VirtualWorld" "release/VirtualWorld-macos-${{ matrix.artifact-arch }}.zip"
           (cd release && shasum -a 256 * > SHA256SUMS)
 
       - name: Build Linux apps
         if: matrix.platform == 'linux'
         env:
           PYINSTALLER_TARGET_ARCH: ${{ matrix.pyinstaller-target-arch }}
+          LOCALAI_TARGET_OS: linux
+          LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
         run: |
+          python3 scripts/build_llamacpp_runtime.py
+          python3 scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm LocalAI_Linux.spec
           pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
           pyinstaller --clean --noconfirm CloudAI_Linux.spec
-          pyinstaller --clean --noconfirm QEMU_Bridge.spec
+          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/virtualworld --config Release
+          mkdir -p dist
+          install -m 0755 build/virtualworld/VirtualWorld dist/VirtualWorld
 
       - name: Package Linux AppImage/deb/rpm/tar.gz
         if: matrix.platform == 'linux'
@@ -141,7 +173,7 @@ jobs:
           import json
           from pathlib import Path
           data = json.loads(Path("version.json").read_text(encoding="utf-8"))
-          print(str(data.get("version", "0.8")).split()[0])
+          print(str(data.get("version", "1.0")).split()[0])
           PY
           )"
           mkdir -p release package-root appdirs rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS}
@@ -286,7 +318,7 @@ jobs:
           localai|LocalAI|LocalAI|false
           localai-se|LocalAI SE|LocalAI_SE|true
           cloudai|CloudAI|CloudAI|false
-          qemu-bridge|QEMU Bridge|QEMU Bridge|true
+          virtualworld|VirtualWorld|VirtualWorld|false
           APPS
 
           (cd release && sha256sum * > SHA256SUMS)
@@ -320,7 +352,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LocalAI-${{ matrix.platform }}-${{ matrix.artifact-arch }}-0.8-Beta
+          name: LocalAI-${{ matrix.platform }}-${{ matrix.artifact-arch }}-1.0
           path: release/*
           if-no-files-found: error
 
@@ -350,20 +382,25 @@ jobs:
             set -euo pipefail
             export DEBIAN_FRONTEND=noninteractive
             apt-get update
-            apt-get install -y python3 python3-pip python3-venv python3-tk python3-dev gcc binutils fakeroot dpkg-dev rpm tar gzip file
+            apt-get install -y python3 python3-pip python3-venv python3-tk python3-dev gcc g++ binutils fakeroot dpkg-dev rpm tar gzip file cmake qtbase5-dev qttools5-dev-tools
             python3 -m venv .venv-riscv64
             . .venv-riscv64/bin/activate
             python -m pip install --upgrade pip
             pip install pyinstaller requests psutil py-cpuinfo pillow
+            LOCALAI_TARGET_OS=linux LOCALAI_TARGET_ARCH=riscv64 python scripts/build_llamacpp_runtime.py
+            python scripts/download_default_llamacpp_model.py
             pyinstaller --clean --noconfirm LocalAI_Linux.spec
             pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
             pyinstaller --clean --noconfirm CloudAI_Linux.spec
-            pyinstaller --clean --noconfirm QEMU_Bridge.spec
+            cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+            cmake --build build/virtualworld --config Release
+            mkdir -p dist
+            install -m 0755 build/virtualworld/VirtualWorld dist/VirtualWorld
             VERSION="$(python - <<PY
           import json
           from pathlib import Path
           data = json.loads(Path("version.json").read_text(encoding="utf-8"))
-          print(str(data.get("version", "0.8")).split()[0])
+          print(str(data.get("version", "1.0")).split()[0])
           PY
           )"
             mkdir -p release package-root
@@ -394,7 +431,7 @@ jobs:
           localai|LocalAI|LocalAI|false
           localai-se|LocalAI SE|LocalAI_SE|true
           cloudai|CloudAI|CloudAI|false
-          qemu-bridge|QEMU Bridge|QEMU Bridge|true
+          virtualworld|VirtualWorld|VirtualWorld|false
           APPS
             echo "RISC-V AppImage is skipped unless a compatible appimagetool-riscv64 binary is available." > release/AppImage-riscv64-UNAVAILABLE.txt
             (cd release && sha256sum * > SHA256SUMS)
@@ -403,7 +440,7 @@ jobs:
       - name: Upload Linux RISC-V artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: LocalAI-linux-riscv64-0.8-Beta
+          name: LocalAI-linux-riscv64-1.0
           path: release/*
           if-no-files-found: error
 
@@ -413,7 +450,81 @@ jobs:
         with:
           files: release/*
 
+  linux-loongarch64:
+    name: linux-loongarch64
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Enable QEMU for LoongArch
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: loong64
+
+      - name: Build Linux LoongArch64 apps
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/loong64 -v "$PWD:/work" -w /work ubuntu:24.04 bash -lc '
+            set -euo pipefail
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y python3 python3-pip python3-venv python3-tk python3-dev gcc g++ binutils fakeroot dpkg-dev tar gzip file cmake qtbase5-dev qttools5-dev-tools
+            python3 -m venv .venv-loongarch64
+            . .venv-loongarch64/bin/activate
+            python -m pip install --upgrade pip
+            pip install pyinstaller requests psutil py-cpuinfo pillow
+            LOCALAI_TARGET_OS=linux LOCALAI_TARGET_ARCH=loongarch64 python scripts/build_llamacpp_runtime.py
+            python scripts/download_default_llamacpp_model.py
+            pyinstaller --clean --noconfirm LocalAI_Linux.spec
+            pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
+            mkdir -p release package-root
+            VERSION="$(python - <<PY
+          import json
+          from pathlib import Path
+          data = json.loads(Path("version.json").read_text(encoding="utf-8"))
+          print(str(data.get("version", "1.0")).split()[0])
+          PY
+          )"
+            make_root() {
+              app_id="$1"; display="$2"; dist_name="$3"; terminal="$4"
+              root="package-root/${app_id}"
+              rm -rf "$root"
+              mkdir -p "$root/opt/${app_id}" "$root/usr/bin" "$root/usr/share/applications" "$root/usr/share/icons/hicolor/256x256/apps" "$root/DEBIAN"
+              cp -a "dist/${dist_name}/." "$root/opt/${app_id}/"
+              chmod +x "$root/opt/${app_id}/${dist_name}" || true
+              printf "%s\n" "#!/usr/bin/env sh" "exec \"/opt/${app_id}/${dist_name}\" \"\$@\"" > "$root/usr/bin/${app_id}"
+              chmod +x "$root/usr/bin/${app_id}"
+              cp assets/icons/localai_dark_256.png "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png"
+              printf "%s\n" "[Desktop Entry]" "Type=Application" "Name=${display}" "Exec=${app_id}" "Icon=${app_id}" "Terminal=${terminal}" "Categories=Utility;Development;" > "$root/usr/share/applications/${app_id}.desktop"
+              printf "%s\n" "Package: ${app_id}" "Version: ${VERSION}" "Section: utils" "Priority: optional" "Architecture: loong64" "Maintainer: LocalAI <localai@example.invalid>" "Description: ${display}" " LocalAI family application packaged by GitHub Actions." > "$root/DEBIAN/control"
+              fakeroot dpkg-deb --build "$root" "release/${app_id}-linux-loongarch64.deb"
+              tar -C "$root" -czf "release/${app_id}-linux-loongarch64.tar.gz" opt usr
+            }
+            make_root localai "LocalAI" LocalAI false
+            make_root localai-se "LocalAI SE" LocalAI_SE true
+            echo "LoongArch64 AppImage is skipped unless a compatible appimagetool-loongarch64 binary is available." > release/AppImage-loongarch64-UNAVAILABLE.txt
+            cp docs/llama.cpp/loongarch_support.md release/LoongArch-llama.cpp-notes.md
+            cp docs/llama.cpp/loongarch_projx_readme.md release/LoongArch-projX-reference.md
+            (cd release && sha256sum * > SHA256SUMS)
+          '
+
+      - name: Upload Linux LoongArch64 artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalAI-linux-loongarch64-1.0
+          path: release/*
+          if-no-files-found: error
+
+      - name: Upload tagged Linux LoongArch64 release assets
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+
   harmony-openharmony:
+    if: false
     name: ${{ matrix.target }}-${{ matrix.arch }}
     runs-on: ubuntu-24.04
     strategy:
@@ -448,7 +559,7 @@ jobs:
           if [ ! -d "$PROJECT_DIR" ]; then
             {
               echo "${TARGET} ${TARGET_ARCH} native package was not built because ${PROJECT_DIR}/ does not exist."
-              echo "CloudAI and QEMU Bridge are currently Python/Tkinter/PyInstaller desktop apps."
+              echo "CloudAI is currently a Python/Tkinter/PyInstaller desktop app. VirtualWorld has a C++/Qt source tree under virtualworld/."
               echo "Native ${TARGET} packages require a DevEco Studio or OpenHarmony SDK project with Hvigor/HvigorW."
               echo "HarmonyOS is configured for ARM only. OpenHarmony is configured for ARM, x64 and RISC-V."
               echo "Required external tools: DevEco Studio or HarmonyOS/OpenHarmony SDK, Hvigor/HvigorW, signing certificate/profile."
@@ -474,7 +585,7 @@ jobs:
       - name: Upload Harmony/OpenHarmony artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: CloudAI-QEMUBridge-${{ matrix.target }}-${{ matrix.arch }}-0.8-Beta
+          name: CloudAI-VirtualWorld-${{ matrix.target }}-${{ matrix.arch }}-1.0
           path: release/*
           if-no-files-found: error
 

@@ -3,7 +3,7 @@
 struct Index {
   build() {
     Column() {
-      Text('CloudAI v1.0.0')
+      Text('CloudAI 1.0')
         .fontSize(28)
         .fontWeight(FontWeight.Bold)
       Text('HarmonyOS C++ core is ready.')

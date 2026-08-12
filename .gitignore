@@ -1,0 +1,27 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+
+build/
+dist/
+release/
+
+runtime/llama.cpp/models/*.gguf
+runtime/llama.cpp/*/*/bin/
+runtime/llama.cpp/*/*/lib/
+
+third_party/llama.cpp/
+virtualworld/qemu-master/
+
+signature/*.p12
+signature/*.cer
+signature/*.p7b
+CloudAI for HarmonyOS/signature/*.p12
+CloudAI for HarmonyOS/signature/*.cer
+CloudAI for HarmonyOS/signature/*.p7b
+CloudAI_Release*.p12
+CloudAI_Release*.cer
+CloudAI_Release*.p7b
+
+.venv*/
+*.log

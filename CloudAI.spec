@@ -12,9 +12,6 @@ a = Analysis(
     datas=[('config.json', '.'), ('version.json', '.'), ('assets/icons', 'assets/icons'), ('CloudAI 隐私政策.docx', '.')],
     hiddenimports=[
         'PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'tkinter.ttk', 'cpuinfo',
-        'plugins', 'plugins.qemu_bridge', 'plugins.qemu_bridge.models', 'plugins.qemu_bridge.parser',
-        'plugins.qemu_bridge.translator', 'plugins.qemu_bridge.validator', 'plugins.qemu_bridge.standalone',
-        'plugins.qemu_bridge.ai_modify', 'plugins.qemu_bridge.plugin',
     ],
     hookspath=[],
     hooksconfig={},

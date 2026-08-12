@@ -3,7 +3,7 @@
 Included:
 - LocalAI merged Standard/Pro/Ultra architecture
 - CloudAI secure key storage update
-- QEMU Bridge plugin
+- VirtualWorld desktop app
 - Activation system
 
 Note:

@@ -1,9 +1,9 @@
 {
   "name": "LocalAI",
-  "version": "0.8",
+  "version": "1.0",
   "components": {
-    "LocalAI": "0.8",
-    "CloudAI": "1.0.0",
-    "QEMU Bridge": "0.8"
+    "LocalAI": "1.0",
+    "CloudAI": "1.0",
+    "VirtualWorld": "1.0"
   }
 }
