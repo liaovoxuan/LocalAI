@@ -127,8 +127,13 @@ jobs:
           . .venv-linux/bin/activate
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
-          python scripts/build_llamacpp_runtime.py
-          python scripts/download_default_llamacpp_model.py
+          mkdir -p release
+          if ! python scripts/build_llamacpp_runtime.py; then
+            echo "llama.cpp runtime was not bundled because it failed to build in this GitHub runner." > release/llamacpp-runtime-unavailable-${{ matrix.arch }}.txt
+          fi
+          if ! python scripts/download_default_llamacpp_model.py; then
+            echo "Default llama.cpp model was not bundled because model download failed in this GitHub runner." > release/llamacpp-model-unavailable-${{ matrix.arch }}.txt
+          fi
           pyinstaller --clean --noconfirm LocalAI_Linux.spec
           pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
           pyinstaller --clean --noconfirm CloudAI_Linux.spec
