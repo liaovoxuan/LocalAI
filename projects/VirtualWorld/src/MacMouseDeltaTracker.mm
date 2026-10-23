@@ -60,7 +60,7 @@ bool MacMouseDeltaTracker::takeDelta(QPoint* delta) {
 
 bool MacMouseDeltaTracker::nativeEventFilter(const QByteArray& eventType,
                                              void* message,
-                                             qintptr*) {
+                                             NativeEventResult*) {
     if (!enabled_ || eventType != "mac_generic_NSEvent" || !message) {
         return false;
     }

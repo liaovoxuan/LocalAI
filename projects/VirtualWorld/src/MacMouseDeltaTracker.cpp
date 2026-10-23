@@ -32,7 +32,7 @@ bool MacMouseDeltaTracker::takeDelta(QPoint* delta) {
     return true;
 }
 
-bool MacMouseDeltaTracker::nativeEventFilter(const QByteArray&, void*, qintptr*) {
+bool MacMouseDeltaTracker::nativeEventFilter(const QByteArray&, void*, NativeEventResult*) {
     return false;
 }
 
