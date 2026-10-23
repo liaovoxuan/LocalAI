@@ -33,6 +33,7 @@
 #include <QStyle>
 #include <QTimer>
 #include <QtGlobal>
+#include <QtMath>
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QMetaObject>
