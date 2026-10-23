@@ -46,6 +46,9 @@ jobs:
           python-version: "3.10"
           architecture: ${{ matrix.python-arch }}
 
+      - name: Validate packaging inputs and CPU fallback
+        run: python -m unittest tooling.tests.test_ci_packaging -v
+
       - name: Install Python dependencies
         if: matrix.platform == 'windows'
         run: |
@@ -73,6 +76,8 @@ jobs:
           LOCALAI_TARGET_OS: windows
           LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
         run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
           python tooling/scripts/build_llamacpp_runtime.py
           python tooling/scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI.spec
