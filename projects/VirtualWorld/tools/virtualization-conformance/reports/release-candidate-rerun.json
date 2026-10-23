@@ -1,0 +1,767 @@
+{
+  "report_schema": "virtualworld.release-candidate-final/1",
+  "report": "virtualworld-release-candidate-final",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-06T09:42:27+00:00",
+  "method": "independent black-box acceptance; no build, no rebuild, no product modification; only --check/--list-backends/--json are issued to the candidate and no VM is started",
+  "marker": {
+    "expected_path": "build-release-candidate/release-ready.json",
+    "historical_blocked": [
+      "build-release-candidate/release-blocked.2026-10-06T02-50Z.json"
+    ],
+    "active_blocked": null,
+    "path": "build-release-candidate/release-ready.json",
+    "sha256": "cffff4a42da2c2cebc26ef59a472581a8a598ef5f864c67ca90e57d05b85da72",
+    "size_bytes": 13503,
+    "document": {
+      "schema": "virtualworld.release-ready/1",
+      "generated_at_utc": "2026-10-06T09:29:16Z",
+      "generated_by": "Hy3 (free model) agent — final convergence, public integration + local Release Candidate",
+      "supersedes": "build-release-candidate/release-blocked.2026-10-06T02-50Z.json",
+      "release_ready": true,
+      "summary": "Software release candidate is green on both contrib ON and contrib OFF builds (full CTest 100% pass, packaging gates passed, ad-hoc codesign valid). Real-hardware Debian smoke was intentionally SKIPPED because deterministic/provably-graceful VM automation is not available (utmctl absent, pkill on QEMU forbidden); real_hardware_verified=false and vm_started=false are reported honestly — no fake green.",
+      "git": {
+        "repo_root": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI",
+        "head": "15e8d34bf664365c596a29163a594ecf025bf67b",
+        "branch": "main",
+        "working_tree_summary": "No tracked VirtualWorld source/CMake/CI/tool file was modified by this convergence. Pre-existing MM CMakeLists.txt and MM README.md belong to another workstream; build-release/ is tracked by another workstream. This convergence only added two untracked build dirs (build-release-candidate, build-release-candidate-nocontrib) and local logs/reports, and renamed the historical blocked file. No commit/push/format performed."
+      },
+      "platform_freeze_marker": {
+        "path": "build-mac-harmony-chaos/.platform-freeze-ready",
+        "file_sha256": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1",
+        "documented_self_sha": "266895a142363367e7b100a5dd80757ef187312b5f813d0eb6e53d283fb9ed69",
+        "freeze_utc": "2026-10-06T08:15:02Z",
+        "eight_file_consistency": {
+          "verified_against_disk": true,
+          "all_eight_match": true,
+          "stability_double_checked": true,
+          "note": "Recomputed all 8 platform-file SHA-256 independently; all 8 equal the marker; double-checked for stability before trusting the gate."
+        }
+      },
+      "aggregate_source_sha256": {
+        "value": "a6a1b6f12dbe075f5f0d28af611c58e711fe08c2a821228e99c4f5bde67b153c",
+        "file_count": 72,
+        "scope": "CMakeLists.txt + src/ + tests/ + cmake/ + assets/VirtualWorld.icns (full build-input fingerprint; identical source tree for both contrib builds)"
+      },
+      "candidate_builds": [
+        {
+          "id": "contrib-on",
+          "build_dir": "build-release-candidate",
+          "config": {
+            "CMAKE_BUILD_TYPE": "Release",
+            "VIRTUALWORLD_INCLUDE_CONTRIB_BACKENDS": "ON",
+            "VIRTUALWORLD_ENABLE_PACKAGING_GATE": "ON",
+            "generator": "Ninja",
+            "host": "macOS 15/26A428 arm64 (Apple Silicon)",
+            "toolchain": "AppleClang 21.0.0, CMake 4.4.2, Qt 6.11.1, OpenSSL 3.6.3, Ninja 1.13.2"
+          },
+          "binary": {
+            "path": "build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+            "sha256": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+            "codesign": "valid on disk; satisfies its Designated Requirement (ad-hoc, exit 0)",
+            "bundle_layout": "Contents/MacOS (executable), Contents/Resources/{runtime,support}, Contents/_CodeSignature"
+          },
+          "ctest": {
+            "total": 9,
+            "passed": 9,
+            "failed": 0,
+            "skipped": 0,
+            "ctest_exit": 0,
+            "tests": [
+              {
+                "name": "VirtualWorldTranslatorTests",
+                "result": "passed",
+                "checks": "not-emitted (QTest silent; exit 0)",
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationEngineTests",
+                "result": "passed",
+                "checks": 399,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationIntegrationTests",
+                "result": "passed",
+                "checks": 591,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldMacVirtualizationEngineTests",
+                "result": "passed",
+                "checks": 746,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldHarmonyVirtualizationEngineTests",
+                "result": "passed",
+                "checks": 1530,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldLinuxKvmEngineTests",
+                "result": "passed",
+                "checks": 586,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldWindowsHypervisorEngineTests",
+                "result": "passed",
+                "checks": 497,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationArchitectureMatrixTests",
+                "result": "passed",
+                "checks": 50071,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldPackagingGate",
+                "result": "passed",
+                "checks": "gate (bundle/manifest verification)",
+                "failures": 0,
+                "skipped": 0
+              }
+            ]
+          },
+          "read_only_cli": {
+            "invoked": [
+              "--list-backends x86_64",
+              "--list-backends aarch64",
+              "--list-backends aarch64 --json",
+              "--check x86_64",
+              "--check aarch64",
+              "--check x86_64 --json",
+              "--check aarch64 --json"
+            ],
+            "started_vm": false,
+            "selection_honesty": "x86_64 guest on aarch64 host: macOS backend reports guest_arch_supported=false; selection falls back to qemu-tcg (NEVER mislabeled Native). Windows/Harmony/LinuxKvm report host-unsupported (synthetic, no real device here). TCG pinned last."
+          },
+          "packaging_manifest": {
+            "path": "build-release-candidate/virtualization-release-manifest.json",
+            "schema": "virtualworld.release/1",
+            "sha256": "36bdb05ce9002d8d5493cc13c7204f088e527b82ee3108dda2cf7983cbe1083e",
+            "contrib_backends": true,
+            "backends": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": true,
+              "harmony": true
+            },
+            "gate_status": "passed",
+            "qemu_binaries": 10,
+            "firmware_count": 55,
+            "support_count": 6,
+            "verified": false,
+            "real_hardware_verified": false,
+            "main_program_sha256_matches_independent": true
+          }
+        },
+        {
+          "id": "contrib-off",
+          "build_dir": "build-release-candidate-nocontrib",
+          "config": {
+            "CMAKE_BUILD_TYPE": "Release",
+            "VIRTUALWORLD_INCLUDE_CONTRIB_BACKENDS": "OFF",
+            "VIRTUALWORLD_ENABLE_PACKAGING_GATE": "ON",
+            "generator": "Ninja",
+            "host": "macOS 15/26A428 arm64 (Apple Silicon)",
+            "toolchain": "AppleClang 21.0.0, CMake 4.4.2, Qt 6.11.1, OpenSSL 3.6.3, Ninja 1.13.2"
+          },
+          "binary": {
+            "path": "build-release-candidate-nocontrib/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+            "sha256": "56b87b0b99246f963d2bfc95d70f4100dabc3f1fac7bcdafc3139a78dcf09c18",
+            "codesign": "valid on disk; satisfies its Designated Requirement (ad-hoc, exit 0)",
+            "bundle_layout": "Contents/MacOS (executable), Contents/Resources/{runtime,support}, Contents/_CodeSignature"
+          },
+          "ctest": {
+            "total": 7,
+            "passed": 7,
+            "failed": 0,
+            "skipped": 0,
+            "ctest_exit": 0,
+            "tests": [
+              {
+                "name": "VirtualWorldTranslatorTests",
+                "result": "passed",
+                "checks": "not-emitted (QTest silent; exit 0)",
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationEngineTests",
+                "result": "passed",
+                "checks": 377,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationIntegrationTests",
+                "result": "passed",
+                "checks": 595,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldMacVirtualizationEngineTests",
+                "result": "passed",
+                "checks": 746,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldWindowsHypervisorEngineTests",
+                "result": "passed",
+                "checks": 497,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldVirtualizationArchitectureMatrixTests",
+                "result": "passed",
+                "checks": 50071,
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldPackagingGate",
+                "result": "passed",
+                "checks": "gate (bundle/manifest verification)",
+                "failures": 0,
+                "skipped": 0
+              },
+              {
+                "name": "VirtualWorldHarmonyVirtualizationEngineTests",
+                "result": "skipped",
+                "reason": "Harmony backend not compiled (contrib OFF) — legitimate, not a failure"
+              },
+              {
+                "name": "VirtualWorldLinuxKvmEngineTests",
+                "result": "skipped",
+                "reason": "Linux KVM backend not compiled (contrib OFF) — legitimate, not a failure"
+              }
+            ]
+          },
+          "read_only_cli": {
+            "invoked": [
+              "--list-backends aarch64",
+              "--list-backends aarch64 --json",
+              "--check aarch64",
+              "--check x86_64",
+              "--check aarch64 --json",
+              "--check x86_64 --json"
+            ],
+            "started_vm": false,
+            "selection_honesty": "Same-arch aarch64 guest: qemu-hardware reports available (HVF) and is selected; cross-arch x86_64 still falls back to qemu-tcg. Windows/Harmony/LinuxKvm report host-unsupported. TCG pinned last."
+          },
+          "packaging_manifest": {
+            "path": "build-release-candidate-nocontrib/virtualization-release-manifest.json",
+            "schema": "virtualworld.release/1",
+            "sha256": "0fa6ca86ad979d10f5bd3d087409f37a9d639e21f2dad9bb2a9704044ec8d079",
+            "contrib_backends": false,
+            "backends": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": false,
+              "harmony": false
+            },
+            "gate_status": "passed",
+            "qemu_binaries": 10,
+            "firmware_count": 55,
+            "support_count": 6,
+            "verified": false,
+            "real_hardware_verified": false,
+            "main_program_sha256_matches_independent": true
+          }
+        }
+      ],
+      "architecture_selection_honesty": {
+        "order": "native (same arch) > QEMU hardware acceleration (HVF/WHPX/KVM) > TCG (always last)",
+        "cross_isa_never_native": true,
+        "tgc_pinned_last": true,
+        "host_unsupported_reported_honestly": [
+          "windows-hypervisor (not Windows)",
+          "harmony-virtualization (not HarmonyOS)",
+          "linux-kvm (not Linux)"
+        ],
+        "macos_native_only_same_arch": true,
+        "verified_via": [
+          "VirtualWorldVirtualizationArchitectureMatrixTests (50071 checks)",
+          "--list-backends/--check --json output"
+        ]
+      },
+      "host_coverage_honesty": {
+        "macos_native_and_hvf": "real (this build host is macOS arm64; Virtualization.framework + HVF exercised by unit tests)",
+        "windows_whpx": "synthetic/cross-host (WHPX compiles but reports host-unsupported on macOS; not run on real Windows)",
+        "linux_kvm": "synthetic/cross-host (KVM backend compiles but reports host-unsupported on macOS; not run on real Linux)",
+        "harmony": "synthetic/cross-host (Harmony backend is pure Qt/C++ logic driven by injected environment; no real HarmonyOS/OpenHarmony device exercised)",
+        "real_hardware_verified": false
+      },
+      "vm_real_hardware_smoke": {
+        "vm_started": false,
+        "real_hardware_verified": false,
+        "skip_reason": "Safe, deterministic automation (start -> capability probe -> guaranteed graceful stop) is NOT provable on this host: utmctl is absent (no CLI start/stop), AppleScript stop is not provably graceful, and pkill/killall on QEMU is strictly forbidden (no guaranteed cleanup). Running state of the specific VM also cannot be reliably determined without utmctl. Per the convergence rule, the smoke is intentionally skipped rather than faked. The software release is still declared ready; only real-hardware verification is withheld.",
+        "target_identity_recorded_readonly": {
+          "path": "/Volumes/MacD/UTM/Linux.utm",
+          "uuid": "10F17625-6B5A-4CE8-8AEF-3A0D88EB6598",
+          "name": "Debian",
+          "disk_image": "/Volumes/MacD/UTM/Linux.utm/Data/B90D4890-732D-4A27-A02A-431D9523E7EC.qcow2",
+          "disk_image_sha256": "708038d764bc2139e31e15d5952763c8359dc0c2dcb32cadb7cce076189a04ab"
+        },
+        "kali_vm_untouched": true,
+        "kali_vm_path": "/Volumes/MacD/Linux.utm (UUID 368B4541-EEF9-441B-8885-7BED755BD5ED) — explicitly NOT started/touched",
+        "guest_os": null,
+        "utm_vm_id": null,
+        "started_by_session": false
+      },
+      "anti_fake_green_notes": [
+        "Both packaging gates write a manifest whose own 'verified'/'real_hardware_verified' fields are false; this document does not override them.",
+        "Test pass/fail derived from actual CTest exit codes and per-test check counts, not declared.",
+        "Windows/Linux/Harmony coverage is explicitly labeled synthetic/cross-host; no real hardware is claimed.",
+        "vm_started and real_hardware_verified are false with explicit skip_reason — no green fabricated for the omitted step."
+      ]
+    }
+  },
+  "facts": {
+    "candidate_path": {
+      "path": "$.candidate_builds[0].build_dir",
+      "found": true,
+      "value": "build-release-candidate"
+    },
+    "binary_path": {
+      "path": "$.candidate_builds[0].binary.path",
+      "found": true,
+      "value": "build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld"
+    },
+    "binary_sha256": {
+      "path": "$.candidate_builds[0].binary.sha256",
+      "found": true,
+      "value": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432"
+    },
+    "freeze_marker_path": {
+      "path": "$.platform_freeze_marker.path",
+      "found": true,
+      "value": "build-mac-harmony-chaos/.platform-freeze-ready"
+    },
+    "freeze_marker_sha256": {
+      "path": "$.platform_freeze_marker.file_sha256",
+      "found": true,
+      "value": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1"
+    },
+    "source_aggregate": {
+      "path": "$.aggregate_source_sha256.value",
+      "found": true,
+      "value": "a6a1b6f12dbe075f5f0d28af611c58e711fe08c2a821228e99c4f5bde67b153c"
+    },
+    "sources": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "aggregate_file_count": {
+      "path": "$.aggregate_source_sha256.file_count",
+      "found": true,
+      "value": 72
+    },
+    "aggregate_scope": {
+      "path": "$.aggregate_source_sha256.scope",
+      "found": true,
+      "value": "CMakeLists.txt + src/ + tests/ + cmake/ + assets/VirtualWorld.icns (full build-input fingerprint; identical source tree for both contrib builds)"
+    },
+    "contrib_backends": {
+      "path": "$.candidate_builds[0].packaging_manifest.contrib_backends",
+      "found": true,
+      "value": true
+    },
+    "real_hardware_verified": {
+      "path": "$.candidate_builds[0].packaging_manifest.real_hardware_verified",
+      "found": true,
+      "value": false
+    },
+    "vm_started": {
+      "path": "$.vm_real_hardware_smoke.vm_started",
+      "found": true,
+      "value": false
+    },
+    "skip_reason": {
+      "path": "$.vm_real_hardware_smoke.skip_reason",
+      "found": true,
+      "value": "Safe, deterministic automation (start -> capability probe -> guaranteed graceful stop) is NOT provable on this host: utmctl is absent (no CLI start/stop), AppleScript stop is not provably graceful, and pkill/killall on QEMU is strictly forbidden (no guaranteed cleanup). Running state of the specific VM also cannot be reliably determined without utmctl. Per the convergence rule, the smoke is intentionally skipped rather than faked. The software release is still declared ready; only real-hardware verification is withheld."
+    },
+    "guest_os": {
+      "path": "$.vm_real_hardware_smoke.guest_os",
+      "found": true,
+      "value": null
+    },
+    "vm_name": {
+      "path": "$.vm_real_hardware_smoke.utm_vm_id",
+      "found": true,
+      "value": null
+    },
+    "pre_start_state": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "image_path": {
+      "path": "$.vm_real_hardware_smoke.target_identity_recorded_readonly.disk_image",
+      "found": true,
+      "value": "/Volumes/MacD/UTM/Linux.utm/Data/B90D4890-732D-4A27-A02A-431D9523E7EC.qcow2"
+    },
+    "image_sha256": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "started_at": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "ready_at": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "stopped_at": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "evidence_paths": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "utm_config": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "instance_scope": {
+      "path": "",
+      "found": false,
+      "value": null
+    },
+    "generated_at": {
+      "path": "$.generated_at_utc",
+      "found": true,
+      "value": "2026-10-06T09:29:16Z"
+    },
+    "gate_status": {
+      "path": "$.candidate_builds[0].ctest.tests[0].result",
+      "found": true,
+      "value": "passed"
+    },
+    "supersedes_error": {
+      "path": "$.supersedes",
+      "found": true,
+      "value": "build-release-candidate/release-blocked.2026-10-06T02-50Z.json"
+    },
+    "freeze_utc": {
+      "path": "$.platform_freeze_marker.freeze_utc",
+      "found": true,
+      "value": "2026-10-06T08:15:02Z"
+    }
+  },
+  "findings": [
+    {
+      "severity": "warning",
+      "code": "source-aggregate-formula-unreproduced",
+      "message": "the source file set matches exactly, but the aggregate digest formula belongs to the release gate and could not be independently reproduced, so the digest value itself is not certified by this run",
+      "path": "$.aggregate_source_sha256.value"
+    }
+  ],
+  "verifiers": {
+    "self_tests": {
+      "command": [
+        "/opt/miniconda3/bin/python3",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance",
+        "-p",
+        "test_*.py"
+      ],
+      "exit_code": 0,
+      "stdout_tail": "",
+      "stderr_tail": "nce/verify_release_candidate.py' mode='r' encoding='utf-8'>\n  encoding=\"utf-8\").read()\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n........................................................../Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/test_verify_release_manifest.py:640: ResourceWarning: unclosed file <_io.TextIOWrapper name='/var/folders/r7/xkghvd8958s6dfykqbqq_x6w0000gn/T/tmpvpfwoult/release-manifest-report.json' mode='r' encoding='utf-8'>\n  report = json.load(open(os.path.join(tmp, \"release-manifest-report.json\"),\nResourceWarning: Enable tracemalloc to get the object allocation traceback\n...............\n----------------------------------------------------------------------\nRan 317 tests in 29.320s\n\nOK",
+      "duration_seconds": 29.6,
+      "timed_out": false,
+      "tests": 317,
+      "ok": true,
+      "baseline": 214
+    },
+    "parser_hardening": {
+      "command": [
+        "/opt/miniconda3/bin/python3",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py",
+        "--min-samples",
+        "5000",
+        "--seed",
+        "20261005",
+        "--out-dir",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/reports/rc-parser-hardening",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "stdout_tail": "",
+      "stderr_tail": "",
+      "duration_seconds": 11.8,
+      "timed_out": false,
+      "ok": true,
+      "samples": 5000
+    },
+    "conformance": {
+      "command": [
+        "/opt/miniconda3/bin/python3",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_conformance.py",
+        "--binary",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--output",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/reports/rc-conformance.json",
+        "--guest-arch",
+        "x86_64",
+        "--guest-arch",
+        "aarch64",
+        "--guest-arch",
+        "riscv64"
+      ],
+      "exit_code": 0,
+      "stdout_tail": " \"aarch64\",\n        \"--json\"\n      ],\n      \"exit_code\": 0,\n      \"ok\": true,\n      \"error_count\": 0,\n      \"warning_count\": 0,\n      \"findings\": [],\n      \"stderr_excerpt\": \"\"\n    },\n    {\n      \"source\": \"VirtualWorld --check aarch64\",\n      \"command\": [\n        \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld\",\n        \"--check\",\n        \"aarch64\",\n        \"--json\"\n      ],\n      \"exit_code\": 0,\n      \"ok\": true,\n      \"error_count\": 0,\n      \"warning_count\": 0,\n      \"findings\": [],\n      \"stderr_excerpt\": \"\"\n    },\n    {\n      \"source\": \"VirtualWorld --list-backends riscv64\",\n      \"command\": [\n        \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld\",\n        \"--list-backends\",\n        \"riscv64\",\n        \"--json\"\n      ],\n      \"exit_code\": 0,\n      \"ok\": true,\n      \"error_count\": 0,\n      \"warning_count\": 0,\n      \"findings\": [],\n      \"stderr_excerpt\": \"\"\n    },\n    {\n      \"source\": \"VirtualWorld --check riscv64\",\n      \"command\": [\n        \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld\",\n        \"--check\",\n        \"riscv64\",\n        \"--json\"\n      ],\n      \"exit_code\": 0,\n      \"ok\": true,\n      \"error_count\": 0,\n      \"warning_count\": 0,\n      \"findings\": [],\n      \"stderr_excerpt\": \"\"\n    }\n  ]\n}",
+      "stderr_tail": "",
+      "duration_seconds": 5.77,
+      "timed_out": false,
+      "ok": true,
+      "arches": [
+        "x86_64",
+        "aarch64",
+        "riscv64"
+      ]
+    },
+    "release_manifests": {
+      "command": [
+        "/opt/miniconda3/bin/python3",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/verify_release_manifest.py",
+        "--quiet",
+        "--out-dir",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/reports/rc-manifests",
+        "--search-root",
+        "build-release-candidate",
+        "--search-root",
+        "build-release-candidate-nocontrib"
+      ],
+      "exit_code": 0,
+      "stdout_tail": "",
+      "stderr_tail": "",
+      "duration_seconds": 16.72,
+      "timed_out": false,
+      "ok": true,
+      "search_roots": [
+        "build-release-candidate",
+        "build-release-candidate-nocontrib"
+      ]
+    },
+    "stability": {
+      "command": [
+        "/opt/miniconda3/bin/python3",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_stability_gate.py",
+        "--binary",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--expected-sha256",
+        "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+        "--rounds",
+        "50",
+        "--concurrency",
+        "8",
+        "--seed",
+        "20261005",
+        "--quiet",
+        "--out-dir",
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/reports/rc-stability"
+      ],
+      "exit_code": 0,
+      "stdout_tail": "",
+      "stderr_tail": "",
+      "duration_seconds": 258.4,
+      "timed_out": false,
+      "ok": true,
+      "rounds": 50,
+      "invocations": 600
+    }
+  },
+  "not_verified": [
+    "This tool started no VM: only --check/--list-backends/--json were issued to the candidate. VM evidence is WorkBuddy AI's and is certified as recorded, not reproduced here.",
+    "real_hardware_verified is false in the marker and is not claimed here; a Debian UTM guest is virtual hardware, not real hardware.",
+    "Windows, Linux and HarmonyOS hosts are not exercised on real hardware; any such evidence is absent rather than inferred.",
+    "Cross-platform packaging beyond the macOS candidates present on this host is not covered by this acceptance run."
+  ],
+  "fact_coercions": {
+    "binary_path": "took .path from the object at $.candidate_builds[0].binary",
+    "source_aggregate": "took .value/.file_count/.scope from the object at $.aggregate_source_sha256",
+    "freeze_marker_path": "took .path from the object at $.platform_freeze_marker"
+  },
+  "marker_details": {
+    "schema": "virtualworld.release-ready/1",
+    "real_hardware_verified": false,
+    "candidate_path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate",
+    "rc_dir": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate",
+    "binary_path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "binary_sha256_recorded": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "binary_sha256_computed": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "binary_matches": true,
+    "binary_size": 1478896,
+    "binary_mtime": "2026-10-06T16:48:14",
+    "freeze_marker_path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-mac-harmony-chaos/.platform-freeze-ready",
+    "freeze_marker_sha256_recorded": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1",
+    "freeze_marker_sha256_computed": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1",
+    "freeze_marker_matches": true,
+    "source_aggregate_recorded": "a6a1b6f12dbe075f5f0d28af611c58e711fe08c2a821228e99c4f5bde67b153c",
+    "source_entries": 0,
+    "aggregate_file_count_recorded": 72,
+    "aggregate_scope": "CMakeLists.txt + src/ + tests/ + cmake/ + assets/VirtualWorld.icns (full build-input fingerprint; identical source tree for both contrib builds)",
+    "aggregate_files_discovered": 72,
+    "source_aggregate_matches": null,
+    "source_aggregate_formula_reproduced": false,
+    "marker_mtime": "2026-10-06T17:29:16",
+    "newer_than_marker": [],
+    "vm_fact_scope": "vm smoke subtree",
+    "vm_started": false,
+    "vm_skip_reason": "Safe, deterministic automation (start -> capability probe -> guaranteed graceful stop) is NOT provable on this host: utmctl is absent (no CLI start/stop), AppleScript stop is not provably graceful, and pkill/killall on QEMU is strictly forbidden (no guaranteed cleanup). Running state of the specific VM also cannot be reliably determined without utmctl. Per the convergence rule, the smoke is intentionally skipped rather than faked. The software release is still declared ready; only real-hardware verification is withheld.",
+    "contrib_backends": true,
+    "freeze_marker": {
+      "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-mac-harmony-chaos/.platform-freeze-ready",
+      "sha256": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1",
+      "fields": {
+        "freeze_utc": "2026-10-06T08:15:02Z",
+        "generated_by": "Hy3 (free model) agent, strict 8-file ownership, no real VM launched",
+        "real_hardware_verified": "false",
+        "freeze_repaired_from_hash": "3c4d0462c3cb502a7677d0262b9c0f4e2963d2ab86075c1eba8a5e87ed41013b",
+        "freeze_repaired_to_hash": "1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5",
+        "freeze_repair_action": "kept_correct_doc; refreshed_recorded_hash_only",
+        "freeze_repair_no_test_rerun_required": "true"
+      },
+      "files_listed": 8,
+      "matched": [
+        "src/MacVirtualizationEngine.hpp",
+        "src/MacVirtualizationEngine.mm",
+        "tests/MacVirtualizationEngineTests.cpp",
+        "docs/macos-virtualization.md",
+        "src/HarmonyVirtualizationEngine.hpp",
+        "src/HarmonyVirtualizationEngine.cpp",
+        "tests/HarmonyVirtualizationEngineTests.cpp",
+        "docs/harmonyos-virtualization.md"
+      ],
+      "mismatched": [],
+      "missing": [],
+      "all_match": true,
+      "real_hardware_verified": "false"
+    },
+    "supersede": {
+      "required": true,
+      "generated_at": "2026-10-06T09:29:16Z",
+      "freeze_utc": "2026-10-06T08:15:02Z",
+      "reason": "",
+      "postdates_freeze": true,
+      "supersedes": "build-release-candidate/release-blocked.2026-10-06T02-50Z.json",
+      "superseded_marker": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/release-blocked.2026-10-06T02-50Z.json",
+      "superseded_marker_error_code": "PLATFORM_FREEZE_HASH_MISMATCH",
+      "supersedes_ok": true,
+      "supersede_form": "blocked marker named and error code confirmed"
+    }
+  },
+  "reachability": {
+    "allowed_candidate_flags": [
+      "--check",
+      "--help",
+      "--json",
+      "--list-backends",
+      "--version",
+      "-h"
+    ],
+    "forbidden_candidate_flags": [
+      "--boot",
+      "--create-qcow2",
+      "--execute",
+      "--gui",
+      "--install",
+      "--launch",
+      "--run",
+      "--start",
+      "--test",
+      "--vm"
+    ],
+    "modules_scanned": [
+      "verify_release_candidate.py",
+      "run_conformance.py",
+      "run_stability_gate.py",
+      "verify_release_manifest.py",
+      "make_final_report.py",
+      "run_parser_hardening.py"
+    ],
+    "forbidden_flag_mentions": [],
+    "vm_launch_reachable": false,
+    "note": "mentions inside the guard table and inside comments are ignored; a hit here means a launching flag appears in executable-looking code"
+  },
+  "preflight": {
+    "exit_code": 0,
+    "stderr_bytes": 0,
+    "flag": "--help",
+    "runnable": true,
+    "note": "a non-zero exit here would mean the pinned binary does not run at all; the product does not implement --version, so it is not probed"
+  },
+  "candidate_digest_stable": true,
+  "verdict": "certified",
+  "blocking": null,
+  "warning_count": 1,
+  "candidate": {
+    "binary": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "sha256": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "sha256_recomputed": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "size_bytes": 1478896,
+    "mtime": "2026-10-06T16:48:14",
+    "marker_sha256": "cffff4a42da2c2cebc26ef59a472581a8a598ef5f864c67ca90e57d05b85da72",
+    "freeze_marker": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-mac-harmony-chaos/.platform-freeze-ready",
+    "freeze_marker_sha256": "199ba93c8ab2d90b8828a1ae5ad52d3eef998870b34ceb328e3b4965818ca1b1",
+    "contrib_backends": true
+  },
+  "candidate_calls": [
+    {
+      "argv": [
+        "--help"
+      ],
+      "exit_code": 0,
+      "duration_ms": 98.8,
+      "stdout_bytes": 1712,
+      "stderr_bytes": 0
+    }
+  ],
+  "attestations": {
+    "real_hardware_verified": false,
+    "vm_started": false,
+    "vm_guest_os": null,
+    "vm_name": null,
+    "vm_pre_start_state": null,
+    "vm_image": null,
+    "vm_image_sha256": null,
+    "vm_image_authorised_root": false,
+    "vm_evidence_entries": null,
+    "vm_duration_seconds": null,
+    "vm_instance_scope_proven": false,
+    "no_vm_launched_by_this_tool": true,
+    "candidate_flags_issued": [
+      "--help"
+    ]
+  },
+  "elapsed_seconds": 322.41
+}

@@ -1,0 +1,6 @@
+{
+  "string": [
+    { "name": "app_name", "value": "LocalAI SE" },
+    { "name": "description_application", "value": "LocalAI SE terminal client with embedded llama.cpp" }
+  ]
+}

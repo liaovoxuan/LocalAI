@@ -1,0 +1,21 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "Native local model client for HarmonyOS" },
+    { "name": "EntryAbility_desc", "value": "LocalAI local chat" },
+    { "name": "EntryAbility_label", "value": "LocalAI" },
+    { "name": "harmony_edition", "value": "HarmonyOS native edition" },
+    { "name": "new_chat", "value": "New" },
+    { "name": "model", "value": "Model" },
+    { "name": "no_model", "value": "No model" },
+    { "name": "ready", "value": "Local inference ready" },
+    { "name": "you", "value": "YOU" },
+    { "name": "system", "value": "SYSTEM" },
+    { "name": "attachment", "value": "ATTACHMENT" },
+    { "name": "message_placeholder", "value": "Message LocalAI" },
+    { "name": "send", "value": "Send" },
+    { "name": "running", "value": "Running" },
+    { "name": "gguf_required", "value": "Select a GGUF model file." },
+    { "name": "model_loaded", "value": "GGUF model loaded." },
+    { "name": "select_model_first", "value": "Select a GGUF model before sending a message." }
+  ]
+}

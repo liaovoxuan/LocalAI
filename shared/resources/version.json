@@ -1,0 +1,9 @@
+{
+  "name": "LocalAI",
+  "version": "1.0",
+  "components": {
+    "LocalAI": "1.0",
+    "CloudAI": "1.0.1",
+    "VirtualWorld": "1.0"
+  }
+}

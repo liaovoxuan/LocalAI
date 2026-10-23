@@ -1,0 +1,1696 @@
+diff --git a/Configuration/UTMConfiguration.swift b/Configuration/UTMConfiguration.swift
+index abfe34709f2953d6860b950ec291826d3699b2e5..19dfa5e0d8d065f84cdc5a8a7695844887454314 100644
+--- a/Configuration/UTMConfiguration.swift
++++ b/Configuration/UTMConfiguration.swift
+@@ -93,7 +93,17 @@ extension UTMConfiguration {
+     static var dataDirectoryName: String { "Data" }
+     
+     static func load(from packageURL: URL) throws -> any UTMConfiguration {
+-        let scopedAccess = packageURL.startAccessingSecurityScopedResource()
++        // The local ad-hoc Puma build is intentionally unsandboxed. Calling
++        // startAccessingSecurityScopedResource() for its ordinary local
++        // package can block indefinitely while the security daemon tries to
++        // resolve a stale bookmark. Sandboxed production builds retain the
++        // original behavior.
++        let scopedAccess: Bool
++        if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++            scopedAccess = false
++        } else {
++            scopedAccess = packageURL.startAccessingSecurityScopedResource()
++        }
+         defer {
+             if scopedAccess {
+                 packageURL.stopAccessingSecurityScopedResource()
+diff --git a/Configuration/UTMQemuConfiguration+Arguments.swift b/Configuration/UTMQemuConfiguration+Arguments.swift
+index 34342d83779ce749a35736c1ff7c8dff1a63b752..92174ab19440dd8ce6c3b69e8fdd74387cb01aa9 100644
+--- a/Configuration/UTMQemuConfiguration+Arguments.swift
++++ b/Configuration/UTMQemuConfiguration+Arguments.swift
+@@ -35,18 +35,20 @@ import Virtualization // for getting network interfaces
+         #else
+         let appGroup = Bundle.main.infoDictionary?["AppGroupIdentifier"] as? String
+         let helper = Bundle.main.infoDictionary?["HelperIdentifier"] as? String
+-        // default to unsigned sandbox path
+-        var parentURL: URL = FileManager.default.homeDirectoryForCurrentUser
+-        parentURL.deleteLastPathComponent()
+-        parentURL.deleteLastPathComponent()
+-        parentURL.appendPathComponent(helper ?? "com.utmapp.QEMUHelper")
+-        parentURL.appendPathComponent("Data")
+-        parentURL.appendPathComponent("tmp")
+         if let appGroup = appGroup, !appGroup.hasPrefix("invalid.") {
+             if let containerURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) {
+                 return containerURL
+             }
+         }
++        // An ad-hoc macOS build has no App Group container. The historical
++        // fallback assumed a sandboxed home directory and resolves to / when
++        // run outside the sandbox, so use an explicit per-user runtime path.
++        let parentURL = FileManager.default.urls(for: .applicationSupportDirectory,
++                                                 in: .userDomainMask)[0]
++            .appendingPathComponent(helper ?? "com.utmapp.QEMUHelper", isDirectory: true)
++            .appendingPathComponent("tmp", isDirectory: true)
++        try? FileManager.default.createDirectory(at: parentURL,
++                                                 withIntermediateDirectories: true)
+         return parentURL
+         #endif
+     }
+@@ -269,6 +271,11 @@ import Virtualization // for getting network interfaces
+                     }
+                     if display.hardware.rawValue.lowercased().contains("vga") && isClassicMacNewWorld {
+                         "edid=on"
++                        // Puma's installer is designed for the original
++                        // 800x600 framebuffer; QEMU otherwise defaults to
++                        // 1280x800 and creates an unnecessarily large window.
++                        "xres=800"
++                        "yres=600"
+                     }
+                     f()
+                 }
+@@ -511,9 +518,6 @@ import Virtualization // for getting network interfaces
+                 properties = properties.appendingDefaultPropertyName("audiodev", value: "audio0")
+             }
+         }
+-        if isClassicMacNewWorld {
+-            properties = properties.appendingDefaultPropertyName("via", value: "pmu")
+-        }
+         return properties
+     }
+     
+@@ -557,7 +561,7 @@ import Virtualization // for getting network interfaces
+             declrom
+             f()
+         }
+-        if isClassicMacNewWorld {
++        if needsClassicMacVirtioNdrvLoader {
+             let ndrvloader = resourceURL.appendingPathComponent("ppc-ndrvloader")
+             f("-device")
+             "loader"
+@@ -573,6 +577,13 @@ import Virtualization // for getting network interfaces
+         f()
+     }
+     
++    private var needsClassicMacVirtioNdrvLoader: Bool {
++        isClassicMacNewWorld && (
++            drives.contains { $0.interface == .virtio } ||
++            sharing.directoryShareMode == .virtfs
++        )
++    }
++
+     private var hasCustomBios: Bool {
+         for drive in drives {
+             if drive.imageType == .disk || drive.imageType == .cd {
+@@ -722,25 +733,34 @@ import Virtualization // for getting network interfaces
+         var busindex = busInterfaceMap[drive.interface.rawValue, default: 0]
+         var realInterface = QEMUDriveInterface.none
+         if drive.interface == .ide {
+-            f("-device")
+-            if isCd {
+-                "ide-cd"
+-            } else {
+-                "ide-hd"
+-            }
+-            if drive.interfaceVersion >= 1 && !isIdeInterfaceSingleUnit {
+-                "bus=ide.\(busindex / 2)"
+-                "unit=\(busindex % 2)"
++            // mac99 Open Firmware only sees the legacy IDE units.  Exposing
++            // a drive through -device + if=none leaves the controller
++            // invisible to the firmware, so use VirtualWorld's legacy
++            // index mapping (disk 0, CD 2) for classic Puma guests.
++            if system.architecture == .ppc && system.target.rawValue == "mac99" {
++                realInterface = .ide
++                busindex += 1
+             } else {
+-                "bus=ide.\(busindex)"
+-            }
+-            busindex += 1
+-            "drive=drive\(drive.id)"
+-            if !disableBootIndex {
+-                "bootindex=\(bootindex)"
++                f("-device")
++                if isCd {
++                    "ide-cd"
++                } else {
++                    "ide-hd"
++                }
++                if drive.interfaceVersion >= 1 && !isIdeInterfaceSingleUnit {
++                    "bus=ide.\(busindex / 2)"
++                    "unit=\(busindex % 2)"
++                } else {
++                    "bus=ide.\(busindex)"
++                }
++                busindex += 1
++                "drive=drive\(drive.id)"
++                if !disableBootIndex {
++                    "bootindex=\(bootindex)"
++                }
++                bootindex += 1
++                f()
+             }
+-            bootindex += 1
+-            f()
+         } else if drive.interface == .scsi {
+             var bus = "scsi"
+             if system.architecture != .sparc && system.architecture != .sparc64 && system.architecture != .m68k {
+@@ -862,8 +882,18 @@ import Virtualization // for getting network interfaces
+             "media=disk"
+         }
+         "id=drive\(drive.id)"
++        let isClassicMacLegacyIDE = drive.interface == .ide && system.architecture == .ppc && system.target.rawValue == "mac99"
++        if isClassicMacLegacyIDE {
++            "index=\(isCd ? 2 : 0)"
++        }
+         if let imageURL = drive.imageURL {
+-            "file.filename="
++            if isClassicMacLegacyIDE {
++                // Mac OS X 10.1's IDE driver needs the legacy -drive file= form.
++                "format=\(isCd ? "raw" : (imageURL.pathExtension.lowercased() == "qcow2" ? "qcow2" : "raw"))"
++                "file="
++            } else {
++                "file.filename="
++            }
+             imageURL
+         } else if !isCd {
+             "file.filename="
+@@ -936,10 +966,6 @@ import Virtualization // for getting network interfaces
+     }
+ 
+     @QEMUArgumentBuilder private var otherInputsArguments: [QEMUArgument] {
+-        if isClassicMacNewWorld {
+-            f("-device")
+-            f("virtio-tablet-pci")
+-        }
+         if isClassicMacM68K {
+             f("-device")
+             f("virtio-tablet-device")
+diff --git a/Configuration/UTMQemuConfigurationInput.swift b/Configuration/UTMQemuConfigurationInput.swift
+index 6378e60ac76046e443770b3a3b9a803a20e9e982..636517c50407ce2ce2384c417f1533fdf150a285 100644
+--- a/Configuration/UTMQemuConfigurationInput.swift
++++ b/Configuration/UTMQemuConfigurationInput.swift
+@@ -59,6 +59,10 @@ extension UTMQemuConfigurationInput {
+         let rawTarget = target.rawValue
+         if !architecture.hasUsbSupport || !target.hasUsbSupport {
+             usbBusSupport = .disabled
++        } else if [.ppc, .ppc64].contains(architecture) && rawTarget == QEMUTarget_ppc.mac99.rawValue {
++            // Mac OS X 10.1 uses mac99's built-in ADB controller. Adding USB
++            // HID devices makes its installer lose or misroute input.
++            usbBusSupport = .disabled
+         } else if rawTarget.hasPrefix("pc") || rawTarget.hasPrefix("q35") {
+             usbBusSupport = .usb3_0
+         } else if (architecture == .arm || architecture == .aarch64) && (rawTarget.hasPrefix("virt-") || rawTarget == "virt") {
+diff --git a/Platform/Shared/VMNavigationListView.swift b/Platform/Shared/VMNavigationListView.swift
+index 32d8cbe365cffe7bf9ebd6bf47b6d22dfda7444c..c7b011f1f4bd581c59a359d93a290fe05a06cf1b 100644
+--- a/Platform/Shared/VMNavigationListView.swift
++++ b/Platform/Shared/VMNavigationListView.swift
+@@ -50,7 +50,10 @@ struct VMNavigationListView: View {
+     
+     @ViewBuilder private var listBody: some View {
+         ForEach(data.virtualMachines) { vm in
+-            if !vm.isLoaded {
++            let isLocalPuma = Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true &&
++                (vm.pathUrl.lastPathComponent.localizedCaseInsensitiveContains("Puma") ||
++                 vm.registryEntry?.name.localizedCaseInsensitiveContains("Puma") == true)
++            if !vm.isLoaded && !isLocalPuma {
+                 UTMUnavailableVMView(vm: vm)
+             } else {
+                 if #available(iOS 16, macOS 13, visionOS 1, *) {
+diff --git a/Platform/Shared/VMWizardOSClassicMacView.swift b/Platform/Shared/VMWizardOSClassicMacView.swift
+index c822ab7c7755282b11b547f9a6959b75ebd17332..2a7ddb4541fc4e39779d20edf69989c79173b225 100644
+--- a/Platform/Shared/VMWizardOSClassicMacView.swift
++++ b/Platform/Shared/VMWizardOSClassicMacView.swift
+@@ -48,7 +48,8 @@ struct VMWizardOSClassicMacView: View {
+ 
+     @ObservedObject var wizardState: VMWizardState
+     @State private var isFileImporterPresented: Bool = false
+-    @State private var ppcVia: PpcVia = .pmu
++    // Puma needs the built-in ADB keyboard and mouse instead of USB HID.
++    @State private var ppcVia: PpcVia = .pmuAdb
+     @State private var selectImage: SelectImage = .bootImage
+ 
+     var body: some View {
+diff --git a/Platform/UTMData.swift b/Platform/UTMData.swift
+index a6223d415e3e7cadc3c4e7f1e6c587b66fad246d..644db0f3a48d8714dcfb4c1fdba5dfe194a8bfb1 100644
+--- a/Platform/UTMData.swift
++++ b/Platform/UTMData.swift
+@@ -136,6 +136,39 @@ enum AlertItem: Identifiable {
+         beginObservingChanges()
+         #endif
+         listLoadFromDefaults()
++        if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++            // Hydrate entries whose registry bookmark resolves to a local
++            // package. Missing iCloud/temporary paths stay visible as
++            // unavailable, but never block startup on a stale entry.
++            Task { @MainActor in
++                for vm in self.virtualMachines {
++                    let resolvedPath = vm.pathUrl.path
++                    guard FileManager.default.fileExists(atPath: resolvedPath) else {
++                        continue
++                    }
++                    let isPuma = vm.pathUrl.lastPathComponent.localizedCaseInsensitiveContains("Puma") ||
++                        vm.registryEntry?.name.localizedCaseInsensitiveContains("Puma") == true
++                    do {
++                        try await vm.loadAsync()
++                    } catch {
++                        logger.error("VM load failed (\(resolvedPath)): \(error)")
++                        guard isPuma else { continue }
++                        let message = "\(error)\n"
++                        if let data = message.data(using: .utf8) {
++                            let url = URL(fileURLWithPath: "/private/tmp/utm-puma-load-error.log")
++                            if FileManager.default.fileExists(atPath: url.path),
++                               let handle = try? FileHandle(forWritingTo: url) {
++                                try? handle.seekToEnd()
++                                try? handle.write(contentsOf: data)
++                                try? handle.close()
++                            } else {
++                                try? data.write(to: url)
++                            }
++                        }
++                    }
++                }
++            }
++        }
+     }
+     
+     // MARK: - VM listing
+@@ -144,6 +177,12 @@ enum AlertItem: Identifiable {
+     ///
+     /// This removes stale entries (deleted/not accessible) and duplicate entries
+     func listRefresh() async {
++        // The local Puma build keeps registry entries as lazy VM objects. A
++        // synchronous directory scan would eagerly open every package and can
++        // block the main actor on stale security-scoped paths.
++        if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++            return
++        }
+         // create Documents directory if it doesn't exist
+         if !fileManager.fileExists(atPath: Self.defaultStorageUrl.path) {
+             try? fileManager.createDirectory(at: Self.defaultStorageUrl, withIntermediateDirectories: false)
+@@ -226,6 +265,9 @@ enum AlertItem: Identifiable {
+                 return nil
+             }
+             let vm = VMData(from: entry)
++            if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++                return vm
++            }
+             do {
+                 try vm.load()
+             } catch {
+diff --git a/Platform/VMData.swift b/Platform/VMData.swift
+index fb70720b5611d8c52444dfca013f621468299661..9589a0e61a03decf342bcd27f64d4662da140b24 100644
+--- a/Platform/VMData.swift
++++ b/Platform/VMData.swift
+@@ -158,6 +158,42 @@ import SwiftUI
+     func load() throws {
+         try load(from: pathUrl)
+     }
++
++    /// Loads a VM without performing package I/O on the main actor. This is
++    /// used by the local Puma build because older packages can block while
++    /// resolving stale bookmarks or provider-backed paths.
++    func loadAsync() async throws {
++        guard !isLoaded else {
++            return
++        }
++        let url = pathUrl
++        let config = try await Task.detached(priority: .userInitiated) {
++            try UTMQemuConfiguration.load(from: url)
++        }.value
++        var loaded: (any UTMVirtualMachine)?
++        if let qemuConfig = config as? UTMQemuConfiguration {
++            loaded = try UTMQemuVirtualMachine(packageUrl: url, configuration: qemuConfig, isShortcut: isShortcut(url))
++        }
++        #if os(macOS)
++        if let appleConfig = config as? UTMAppleConfiguration {
++            loaded = try UTMAppleVirtualMachine(packageUrl: url, configuration: appleConfig, isShortcut: isShortcut(url))
++        }
++        #endif
++        guard let vm = loaded else {
++            throw VMDataError.virtualMachineNotLoaded
++        }
++        if let oldEntry = registryEntry, oldEntry.uuid != vm.registryEntry.uuid {
++            if uuidUnknown {
++                UTMRegistry.shared.remove(entry: oldEntry)
++            } else {
++                vm.changeUuid(to: oldEntry.uuid, name: nil, copyingEntry: oldEntry)
++            }
++        }
++        wrapped = vm
++        uuidUnknown = false
++        vm.updateConfigFromRegistry()
++        subscribeToChildren()
++    }
+     
+     /// Loads the VM from a path
+     ///
+@@ -341,7 +377,12 @@ extension VMData {
+     
+     /// Display title for UI elements
+     var detailsTitleLabel: String {
+-        config?.information.name ??
++        if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true,
++           (pathUrl.lastPathComponent.localizedCaseInsensitiveContains("Puma") ||
++            registryEntry?.name.localizedCaseInsensitiveContains("Puma") == true) {
++            return "OS X 10.1 (Puma fixed)"
++        }
++        return config?.information.name ??
+         registryEntry?.name ??
+         unavailable
+     }
+diff --git a/Platform/macOS/AppDelegate.swift b/Platform/macOS/AppDelegate.swift
+index 140d56a7dcdebc8dbd33fc3bbfc32c6cd286c9c3..7f63ed7dec2607d878307a3d69d94f84c0a68753 100644
+--- a/Platform/macOS/AppDelegate.swift
++++ b/Platform/macOS/AppDelegate.swift
+@@ -82,6 +82,19 @@
+     }
+     
+     private func handleTerminateAfterSaving(candidates: some Sequence<VMData>, sender: NSApplication) {
++        let classicVMIds = Set(candidates.compactMap { vm -> UUID? in
++            guard let wrapped = vm.wrapped, Self.isClassicMacVM(wrapped) else {
++                return nil
++            }
++            return vm.id
++        })
++        // The local Puma build runs QEMU in this process. A failed monitor
++        // request must not leave the app permanently stuck in terminateLater.
++        if !classicVMIds.isEmpty && Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
++                sender.reply(toApplicationShouldTerminate: true)
++            }
++        }
+         Task {
+             do {
+                 try await withThrowingTaskGroup(of: Void.self) { group in
+@@ -93,7 +106,14 @@
+                                 throw UTMVirtualMachineError.notImplemented
+                             }
+                             do {
+-                                try await vm.saveSnapshot(name: nil)
++                                if !classicVMIds.contains(vm.id) {
++                                    try await vm.saveSnapshot(name: nil)
++                                } else {
++                                    // mac99/PPC cannot produce a valid suspend
++                                    // state. Use the immediate QMP quit path
++                                    // so app termination cannot hang.
++                                    try? await vm.stop(usingMethod: .kill)
++                                }
+                                 vm.delegate = nil
+                                 await vc?.enterSuspended(isBusy: false)
+                                 if let window = window {
+@@ -114,6 +134,13 @@
+             }
+         }
+     }
++
++    private static func isClassicMacVM(_ vm: any UTMVirtualMachine) -> Bool {
++        guard let config = vm.config as? UTMQemuConfiguration else {
++            return false
++        }
++        return config.system.architecture == .ppc && config.system.target.rawValue == QEMUTarget_ppc.mac99.rawValue
++    }
+     
+     private func handleTerminateAfterConfirmation(_ sender: NSApplication, window: NSWindow? = nil, error: Error? = nil) {
+         let alert = NSAlert()
+diff --git a/Platform/macOS/Display/VMDisplayQemuMetalWindowController.swift b/Platform/macOS/Display/VMDisplayQemuMetalWindowController.swift
+index 2e45795d0cd2925c42ec24c192028e4289c20f3f..451623d9d3bf9fa209eeeda39eee4197cc4d624f 100644
+--- a/Platform/macOS/Display/VMDisplayQemuMetalWindowController.swift
++++ b/Platform/macOS/Display/VMDisplayQemuMetalWindowController.swift
+@@ -18,7 +18,7 @@ import CocoaSpiceRenderer
+ import Carbon.HIToolbox
+ import SwiftUI
+ 
+-class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
++final class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+     var metalView: VMMetalView!
+     var renderer: CSMetalRenderer?
+     
+@@ -45,6 +45,11 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+     private var globalEventMonitor: Any? = nil
+     private var ctrlKeyDown: Bool = false
+     private var screenChangedToken: Any?
++    private var classicMouseButtonState: UInt = 0
++    private var classicMouseDelta = CGPoint.zero
++    private var classicMouseMoveTimer: Timer?
++    private var classicMacQMPInitializationTask: Task<Void, Never>?
++    private var classicMacQMPInputReady = false
+ 
+     private var displayConfig: UTMQemuConfigurationDisplay? {
+         vmQemuConfig?.displays[id]
+@@ -90,6 +95,7 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+             return
+         }
+         displayView.addSubview(metalView)
++        window?.acceptsMouseMovedEvents = true
+         renderer = CSMetalRenderer.init(metalKitView: metalView)
+         guard let renderer = self.renderer else {
+             showErrorAlert(NSLocalizedString("Internal error.", comment: "VMDisplayMetalWindowController"))
+@@ -124,6 +130,10 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+     override func windowWillClose(_ notification: Notification) {
+         vmDisplay?.removeRenderer(renderer!)
+         stopAllCapture()
++        resetClassicMacQMPInput()
++        classicMouseMoveTimer?.invalidate()
++        classicMouseMoveTimer = nil
++        UTMQemuCancelRelativeMouseMoves()
+         if let screenChangedToken = screenChangedToken {
+             NotificationCenter.default.removeObserver(screenChangedToken)
+         }
+@@ -157,9 +167,28 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+             displaySizeDidChange(size: vmDisplay.displaySize)
+         }
+         super.enterLive()
++        // Classic mac99 guests expose only the built-in relative ADB mouse.
++        // Their input is initialized after QEMU's monitor handshake, while
++        // display continues to use the ordinary CocoaSpice connection.
++        NSLog("[UTMInput] mode=%@ arch=%@ target=%@ machineProperties=%@ usb=%@",
++              shouldUseRelativeMouse ? "QMP ADB Input" : "SPICE Input",
++              vmQemuConfig?.system.architecture.rawValue ?? "nil",
++              vmQemuConfig?.system.target.rawValue ?? "nil",
++              vmQemuConfig?.qemu.machinePropertyOverride ?? "",
++              vmQemuConfig?.input.usbBusSupport.rawValue ?? "nil")
++        if shouldUseRelativeMouse {
++            // VMMetalView forwards the native relative NSEvent stream to this
++            // controller. Keeping one owner for the stream avoids duplicate
++            // QMP packets from AppKit monitors and HID taps.
++            activateClassicMacMouse()
++        }
+         setControl(.resize, isEnabled: false) // disable item
+         if isWindowFocusAutoCapture {
+-            captureMouse()
++            if shouldUseRelativeMouse {
++                captureClassicMacMouse()
++            } else {
++                captureMouse()
++            }
+         }
+     }
+     
+@@ -175,6 +204,7 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+             displaySize = .zero
+         }
+         stopAllCapture()
++        resetClassicMacQMPInput()
+         super.enterSuspended(isBusy: busy)
+     }
+ 
+@@ -190,6 +220,9 @@ class VMDisplayQemuMetalWindowController: VMDisplayQemuWindowController {
+             NSEvent.removeMonitor(globalEventMonitor)
+             self.globalEventMonitor = nil
+         }
++        classicMouseMoveTimer?.invalidate()
++        classicMouseMoveTimer = nil
++        classicMouseDelta = .zero
+         releaseMouse()
+     }
+ 
+@@ -205,6 +238,9 @@ extension VMDisplayQemuMetalWindowController {
+             vmInput = input
+         }
+         super.spiceDidCreateInput(input)
++        if shouldUseRelativeMouse {
++            NSLog("[UTMInput] SPICE input channel retained for display only; ADB events use QMP")
++        }
+     }
+     
+     override func spiceDidDestroyInput(_ input: CSInput) {
+@@ -489,10 +525,299 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+         isAlternativeCaptureKey || NSWorkspace.shared.isVoiceOverEnabled
+     }
+ 
++    var shouldUseRelativeMouse: Bool {
++        guard let config = vmQemuConfig,
++              config.system.architecture == .ppc,
++              config.system.target.rawValue == "mac99",
++              config.input.usbBusSupport == .disabled else {
++            return false
++        }
++        let properties = config.qemu.machinePropertyOverride?.lowercased() ?? ""
++        return properties.contains("via=pmu-adb") || properties.contains("via=cuda")
++    }
++
++    var shouldUseNativeRelativeMouseEvents: Bool {
++        // Classic Mac's ADB mouse has no absolute/tablet endpoint. Route
++        // native NSEvent deltas through the dedicated QMP input bridge,
++        // matching VirtualWorld's relative-pointer handling.
++        shouldUseRelativeMouse
++    }
++
++    /// Select QEMU's relative mouse endpoint before enabling input-send-event.
++    /// The display can become live before the QMP handshake, so a failed early
++    /// query must not permanently leave this VM on the SPICE input path.
++    private func activateClassicMacMouse() {
++        guard shouldUseRelativeMouse,
++              vm.state != .stopped,
++              !classicMacQMPInputReady,
++              classicMacQMPInitializationTask == nil else {
++            return
++        }
++        classicMacQMPInitializationTask = Task { @MainActor [weak self] in
++            guard let self else { return }
++            defer { self.classicMacQMPInitializationTask = nil }
++
++            // QEMU starts the SPICE display before its QMP monitor is usable.
++            // Keep the display alive, but defer Puma input until the monitor
++            // has a confirmed relative endpoint.
++            for attempt in 1...20 {
++                guard !Task.isCancelled,
++                      self.shouldUseRelativeMouse,
++                      self.vm.state != .stopped else {
++                    return
++                }
++
++                guard let monitor = await self.qemuVM.monitor else {
++                    NSLog("[UTMInput] QMP ADB Input waiting for monitor (attempt %d/20)", attempt)
++                    try? await Task.sleep(nanoseconds: 250_000_000)
++                    continue
++                }
++
++                if let index = await prepareClassicMacQMPInput(monitor) {
++                    NSLog("[UTMInput] QMP relative input selected device index=%lld", index)
++                    self.classicMacQMPInputReady = true
++                    NSLog("[UTMInput] mode=QMP ADB Input")
++                    return
++                }
++                NSLog("[UTMInput] QMP ADB Input query failed (attempt %d/20)", attempt)
++                try? await Task.sleep(nanoseconds: 250_000_000)
++            }
++
++            self.classicMacQMPInputReady = false
++            NSLog("[UTMInput] QMP ADB Input initialization failed after monitor wait; input remains disabled")
++        }
++    }
++
++    /// Select the actual relative QEMU input device before enabling the Puma
++    /// path. A successful input-send-event RPC only validates QMP's schema;
++    /// this query proves that QEMU has a registered relative endpoint and
++    /// makes the current-device target deterministic.
++    private func prepareClassicMacQMPInput(_ monitor: QEMUMonitor) async -> Int64? {
++        do {
++            let index = try await monitor.mouseIndex(forAbsolute: false)
++            guard index >= 0 else {
++                NSLog("[UTMInput] no relative QEMU mouse device is registered")
++                return nil
++            }
++            try await monitor.mouseSelect(index)
++            return index
++        } catch {
++            NSLog("[UTMInput] relative QEMU mouse selection failed: %@", error.localizedDescription)
++            return nil
++        }
++    }
++
++    private func resetClassicMacQMPInput() {
++        classicMacQMPInitializationTask?.cancel()
++        classicMacQMPInitializationTask = nil
++        classicMacQMPInputReady = false
++    }
++
++    #if false
++    // Superseded by VMMetalView's local event delivery. This inactive code is
++    // retained temporarily while the legacy monitor/tap implementation is
++    // removed from the historical patch series.
++    /// AppKit local monitors are not guaranteed to receive HID events after
++    /// the cursor is disassociated by captureMouse(). VirtualWorld uses the
++    /// native event stream for this exact case. A listen-only HID tap keeps
++    /// the host event stream intact while providing raw relative deltas even
++    /// when the pointer is outside the UTM window.
++    private func installClassicMacMouseEventTap() {
++        guard classicMouseEventTap == nil else { return }
++        let eventTypes: [CGEventType] = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
++                                         .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
++                                         .otherMouseDown, .otherMouseUp]
++        let eventMask = eventTypes.reduce(CGEventMask(0)) { mask, type in
++            mask | (CGEventMask(1) << CGEventMask(type.rawValue))
++        }
++        let userInfo = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
++        // A session-level tap receives events after WindowServer has routed them
++        // to the login session, including events delivered to an active VM window.
++        guard let tap = CGEvent.tapCreate(tap: CGEventTapLocation(rawValue: 1)!,
++                                          place: .headInsertEventTap,
++                                          options: .listenOnly,
++                                          eventsOfInterest: eventMask,
++                                          callback: utmClassicMouseEventTapCallback,
++                                          userInfo: userInfo) else {
++            NSLog("[PumaMouse] CGEvent HID tap unavailable; using AppKit fallback")
++            return
++        }
++        classicMouseEventTap = tap
++        classicMouseEventTapSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
++        if let source = classicMouseEventTapSource {
++            CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
++        }
++        CGEvent.tapEnable(tap: tap, enable: true)
++        NSLog("[PumaMouse] CGEvent HID tap installed")
++    }
++
++    private func removeClassicMacMouseEventTap() {
++        if let tap = classicMouseEventTap {
++            CGEvent.tapEnable(tap: tap, enable: false)
++        }
++        if let source = classicMouseEventTapSource {
++            CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes)
++        }
++        classicMouseEventTapSource = nil
++        classicMouseEventTap = nil
++    }
++
++    fileprivate static func classicMouseEventTapCallback(proxy: CGEventTapProxy,
++                                                          type: CGEventType,
++                                                          event: CGEvent,
++                                                          userInfo: UnsafeMutableRawPointer?) -> Unmanaged<CGEvent>? {
++        guard let userInfo else {
++            return Unmanaged.passUnretained(event)
++        }
++        let controller = Unmanaged<VMDisplayQemuMetalWindowController>
++            .fromOpaque(userInfo)
++            .takeUnretainedValue()
++        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
++            if let tap = controller.classicMouseEventTap {
++                CGEvent.tapEnable(tap: tap, enable: true)
++                NSLog("[PumaMouse] CGEvent HID tap re-enabled after disable")
++            }
++            return Unmanaged.passUnretained(event)
++        }
++        controller.classicMouseLastTapEvent = CFAbsoluteTimeGetCurrent()
++        controller.handleClassicMacCGEvent(type: type, event: event)
++        return Unmanaged.passUnretained(event)
++    }
++
++    private func handleClassicMacCGEvent(type: CGEventType, event: CGEvent) {
++        guard shouldUseNativeRelativeMouseEvents,
++              metalView?.isMouseCaptured == true else {
++            return
++        }
++        switch type {
++        case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
++            let dx = event.getIntegerValueField(.mouseEventDeltaX)
++            let dy = event.getIntegerValueField(.mouseEventDeltaY)
++            guard dx != 0 || dy != 0 else { return }
++            NSLog("[PumaMouse] HID type=%ld delta=(%ld,%ld)", type.rawValue, dx, dy)
++            DispatchQueue.main.async { [weak self] in
++                self?.queueClassicMacRelativeMouse(CGPoint(x: CGFloat(dx), y: CGFloat(dy)))
++            }
++        case .leftMouseDown, .rightMouseDown, .otherMouseDown:
++            let button = classicButton(for: type)
++            DispatchQueue.main.async { [weak self] in
++                self?.sendClassicMacButton(button, pressed: true)
++            }
++        case .leftMouseUp, .rightMouseUp, .otherMouseUp:
++            let button = classicButton(for: type)
++            DispatchQueue.main.async { [weak self] in
++                self?.sendClassicMacButton(button, pressed: false)
++            }
++        default:
++            break
++        }
++    }
++
++    private func classicButton(for type: CGEventType) -> CSInputButton {
++        switch type {
++        case .rightMouseDown, .rightMouseUp: return .right
++        case .otherMouseDown, .otherMouseUp: return .middle
++        default: return .left
++        }
++    }
++
++    private func installClassicMacMouseMonitor() {
++        guard classicMouseEventMonitor == nil else { return }
++        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged,
++                                            .leftMouseDown, .leftMouseUp, .rightMouseDown, .rightMouseUp,
++                                            .otherMouseDown, .otherMouseUp]
++        classicMouseEventMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
++            guard let self = self, self.shouldUseNativeRelativeMouseEvents else {
++                return event
++            }
++            NSLog("[PumaMouse] local type=%ld delta=(%.1f,%.1f) captured=%@ window=%@", event.type.rawValue, event.deltaX, event.deltaY, self.metalView?.isMouseCaptured == true ? "YES" : "NO", String(describing: event.window))
++            // Handle the Classic Mac display directly for both captured and
++            // uncaptured states. The Metal view deliberately does not forward
++            // mouse events for this guest, preventing duplicate ADB packets.
++            guard let metalView = self.metalView else {
++                return event
++            }
++            // Once the HID tap is active it owns captured events. Let this
++            // monitor handle only the initial in-window click and fallback
++            // motion when tap creation was denied by macOS permissions.
++            let tapRecentlyHandled = self.classicMouseEventTap != nil &&
++                (CFAbsoluteTimeGetCurrent() - self.classicMouseLastTapEvent) < 0.1
++            if metalView.isMouseCaptured && tapRecentlyHandled {
++                return event
++            }
++            // Keep title-bar and toolbar clicks available to AppKit while the
++            // pointer is not captured. Once captured, macOS can deliver HID
++            // events without an NSWindow (the cursor is disassociated and
++            // hidden), so requiring an exact window reference drops all motion.
++            if !metalView.isMouseCaptured {
++                guard let hostWindow = metalView.window,
++                      let eventWindow = event.window,
++                      eventWindow == hostWindow else {
++                    return event
++                }
++                let screenPoint = eventWindow.convertPoint(toScreen: event.locationInWindow)
++                let windowPoint = hostWindow.convertPoint(fromScreen: screenPoint)
++                let viewPoint = metalView.convert(windowPoint, from: nil)
++                guard metalView.bounds.insetBy(dx: -1, dy: -1).contains(viewPoint) else {
++                    return event
++                }
++            }
++            switch event.type {
++            case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
++                self.queueClassicMacRelativeMouse(CGPoint(x: event.deltaX, y: event.deltaY))
++            case .leftMouseDown, .rightMouseDown, .otherMouseDown:
++                // Classic Mac has only a relative ADB mouse. Lock it on the
++                // first click, matching VirtualWorld's mouse-lock workflow.
++                self.captureClassicMacMouse()
++                self.sendClassicMacButton(self.classicButton(for: event), pressed: true)
++            case .leftMouseUp, .rightMouseUp, .otherMouseUp:
++                self.sendClassicMacButton(self.classicButton(for: event), pressed: false)
++            default:
++                return event
++            }
++            // Preserve AppKit's event stream. VMMetalView skips forwarding
++            // these events for Classic Mac, so returning the event here avoids
++            // freezing the host cursor and window interaction.
++            return event
++        }
++        // A local monitor does not see events dispatched to another app. The
++        // global monitor supplies deltas/buttons while the captured pointer is
++        // outside UTM, matching VirtualWorld's native event filter.
++        classicGlobalMouseEventMonitor = NSEvent.addGlobalMonitorForEvents(matching: mask) { [weak self] event in
++            guard let self = self,
++                  self.shouldUseNativeRelativeMouseEvents,
++                  self.metalView?.isMouseCaptured == true else {
++                return
++            }
++            let tapRecentlyHandled = self.classicMouseEventTap != nil &&
++                (CFAbsoluteTimeGetCurrent() - self.classicMouseLastTapEvent) < 0.1
++            if tapRecentlyHandled {
++                return
++            }
++            NSLog("[PumaMouse] global type=%ld delta=(%.1f,%.1f)", event.type.rawValue, event.deltaX, event.deltaY)
++            switch event.type {
++            case .mouseMoved, .leftMouseDragged, .rightMouseDragged, .otherMouseDragged:
++                self.queueClassicMacRelativeMouse(CGPoint(x: event.deltaX, y: event.deltaY))
++            case .leftMouseDown, .rightMouseDown, .otherMouseDown:
++                self.sendClassicMacButton(self.classicButton(for: event), pressed: true)
++            case .leftMouseUp, .rightMouseUp, .otherMouseUp:
++                self.sendClassicMacButton(self.classicButton(for: event), pressed: false)
++            default:
++                break
++            }
++        }
++    }
++
++    #endif
++
+     func captureMouse() {
+         guard NSApp.modalWindow == nil && window?.attachedSheet == nil else {
+             return // don't capture if modal is shown
+         }
++        if shouldUseRelativeMouse {
++            captureClassicMacMouse()
++            return
++        }
+         let action = { () -> Void in
+             self.qemuVM.requestInputTablet(false)
+             self.metalView?.captureMouse()
+@@ -528,16 +853,51 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+             action()
+         }
+     }
++
++    /// Dedicated pointer lock for mac99/Puma. Unlike ordinary UTM guests,
++    /// this must begin before motion is sent because the ADB mouse accepts
++    /// relative deltas only. It intentionally has no first-use alert.
++    private func captureClassicMacMouse() {
++        guard !metalView.isMouseCaptured,
++              NSApp.modalWindow == nil,
++              window?.attachedSheet == nil else {
++            return
++        }
++        NSLog("[PumaMouse] captureClassicMacMouse")
++        activateClassicMacMouse()
++        metalView.captureMouse()
++        captureMouseToolbarButton.state = .on
++        let format = NSLocalizedString("Press %@ to release cursor", comment: "VMDisplayQemuMetalWindowController")
++        let keys = NSLocalizedString(shouldUseCmdOptForCapture ? "⌘+⌥" : "⌃+⌥", comment: "VMDisplayQemuMetalWindowController")
++        window?.subtitle = String.localizedStringWithFormat(format, keys)
++        window?.makeFirstResponder(metalView)
++        syncCapsLock()
++    }
+     
+     func releaseMouse() {
++        flushClassicMacMouse()
++        if classicMouseButtonState != 0 {
++            let state = classicMouseButtonState
++            classicMouseButtonState = 0
++            if state & 1 != 0 { sendClassicMacButton(.left, pressed: false) }
++            if state & 2 != 0 { sendClassicMacButton(.right, pressed: false) }
++            if state & 4 != 0 { sendClassicMacButton(.middle, pressed: false) }
++        }
+         syncCapsLock()
+-        qemuVM.requestInputTablet(true)
++        if !shouldUseRelativeMouse {
++            qemuVM.requestInputTablet(true)
++        }
+         metalView?.releaseMouse()
+         self.captureMouseToolbarButton.state = .off
+         self.window?.subtitle = defaultSubtitle
+     }
+     
+     func mouseMove(absolutePoint: CGPoint, buttonMask: CSInputButton) {
++        // Classic Mac input is always relative. This callback is only used by
++        // the absolute SPICE path and must never switch Puma back to tablet.
++        if shouldUseRelativeMouse {
++            return
++        }
+         guard let window = self.window else { return }
+         guard let vmInput = vmInput, !vmInput.serverModeCursor else {
+             logger.trace("requesting client mode cursor")
+@@ -556,6 +916,10 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+     }
+     
+     func mouseMove(relativePoint: CGPoint, buttonMask: CSInputButton) {
++        if shouldUseRelativeMouse {
++            queueClassicMacRelativeMouse(relativePoint)
++            return
++        }
+         guard let vmInput = vmInput, vmInput.serverModeCursor else {
+             logger.trace("requesting server mode cursor")
+             qemuVM.requestInputTablet(false)
+@@ -564,6 +928,96 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+         let translated = CGPoint(x: relativePoint.x, y: -relativePoint.y)
+         vmInput.sendMouseMotion(buttonMask, relativePoint: translated, forMonitorID: vmDisplay?.monitorID ?? 0)
+     }
++
++    /// Classic ADB mice require relative input. Keep the native deltas and
++    /// send them through the QMP input bridge at a fixed cadence.
++    private func queueClassicMacRelativeMouse(_ relativePoint: CGPoint) {
++        guard metalView?.isMouseCaptured == true else {
++            return
++        }
++        NSLog("[PumaMouse] queue delta=(%.1f,%.1f)", relativePoint.x, relativePoint.y)
++        classicMouseDelta.x += relativePoint.x
++        classicMouseDelta.y += relativePoint.y
++        guard classicMouseMoveTimer == nil else { return }
++        let timer = Timer(timeInterval: 0.016, repeats: true) { [weak self] _ in
++            self?.flushClassicMacMouse()
++        }
++        classicMouseMoveTimer = timer
++        RunLoop.main.add(timer, forMode: .common)
++    }
++
++    private func flushClassicMacMouse() {
++        let dx = Int(classicMouseDelta.x.rounded(.towardZero))
++        let dy = Int(classicMouseDelta.y.rounded(.towardZero))
++        guard dx != 0 || dy != 0 else {
++            if classicMouseMoveTimer != nil {
++                classicMouseMoveTimer?.invalidate()
++                classicMouseMoveTimer = nil
++            }
++            return
++        }
++        classicMouseDelta.x -= CGFloat(dx)
++        classicMouseDelta.y -= CGFloat(dy)
++        sendClassicMacQMPMotion(dx: dx, dy: dy)
++    }
++
++    private func sendClassicMacQMPMotion(dx: Int, dy: Int) {
++        guard dx != 0 || dy != 0 else { return }
++        Task { @MainActor [weak self] in
++            guard let self,
++                  self.classicMacQMPInputReady,
++                  let monitor = await self.qemuVM.monitor else {
++                // SPICE has no usable pointer endpoint for a mac99 PMU-ADB
++                // guest. Dropping motion until QMP is ready avoids silently
++                // sending the event to a different device model.
++                NSLog("[UTMInput] QMP relative motion unavailable; dropping delta=(%d,%d)", dx, dy)
++                return
++            }
++            UTMQemuSendRelativeMouseMove(monitor, dx, dy)
++        }
++    }
++
++    private func classicMouseButtonCode(_ button: CSInputButton) -> UInt {
++        if button.contains(.left) { return 1 }
++        if button.contains(.right) { return 2 }
++        if button.contains(.middle) { return 4 }
++        return 0
++    }
++
++    private var classicMouseButtonMask: CSInputButton {
++        var mask: CSInputButton = []
++        if classicMouseButtonState & 1 != 0 { mask.insert(.left) }
++        if classicMouseButtonState & 2 != 0 { mask.insert(.right) }
++        if classicMouseButtonState & 4 != 0 { mask.insert(.middle) }
++        return mask
++    }
++
++    private func classicButton(for event: NSEvent) -> CSInputButton {
++        switch event.buttonNumber {
++        case 2: return .middle
++        case 1: return .right
++        default: return .left
++        }
++    }
++
++    private func sendClassicMacButton(_ button: CSInputButton, pressed: Bool) {
++        let code = classicMouseButtonCode(button)
++        guard code != 0 else { return }
++        if pressed {
++            classicMouseButtonState |= code
++        } else {
++            classicMouseButtonState &= ~code
++        }
++        Task { @MainActor [weak self] in
++            guard let self,
++                  self.classicMacQMPInputReady,
++                  let monitor = await self.qemuVM.monitor else {
++                NSLog("[UTMInput] QMP button unavailable; dropping button=%@ down=%@", String(describing: button), pressed ? "YES" : "NO")
++                return
++            }
++            UTMQemuSendMouseButton(monitor, code, pressed)
++        }
++    }
+     
+     private func modifyMouseButton(_ button: CSInputButton) -> CSInputButton {
+         let buttonMod: CSInputButton
+@@ -576,19 +1030,50 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+     }
+     
+     func mouseDown(button: CSInputButton, mask: CSInputButton) {
+-        vmInput?.sendMouseButton(modifyMouseButton(button), mask: modifyMouseButton(mask), pressed: true)
++        let modifiedMask = modifyMouseButton(mask)
++        if shouldUseRelativeMouse {
++            captureClassicMacMouse()
++            sendClassicMacButton(modifyMouseButton(button), pressed: true)
++        } else {
++            vmInput?.sendMouseButton(modifyMouseButton(button), mask: modifiedMask, pressed: true)
++        }
+     }
+-    
++
+     func mouseUp(button: CSInputButton, mask: CSInputButton) {
+-        vmInput?.sendMouseButton(modifyMouseButton(button), mask: modifyMouseButton(mask), pressed: false)
++        let modifiedMask = modifyMouseButton(mask)
++        if shouldUseRelativeMouse {
++            sendClassicMacButton(modifyMouseButton(button), pressed: false)
++        } else {
++            vmInput?.sendMouseButton(modifyMouseButton(button), mask: modifiedMask, pressed: false)
++        }
+     }
+     
+     func mouseScroll(dy: CGFloat, buttonMask: CSInputButton) {
++        if shouldUseRelativeMouse {
++            return
++        }
+         let scrollDy = isInvertScroll ? -dy : dy
+         vmInput?.sendMouseScroll(.smooth, buttonMask: buttonMask, dy: scrollDy)
+     }
+     
+     private func sendExtendedKey(_ button: CSInputKey, keyCode: Int) {
++        if shouldUseRelativeMouse {
++            guard let qcode = classicMacQCode(for: keyCode) else {
++                logger.warning("ignored unmapped Classic Mac scan code \(keyCode)")
++                return
++            }
++            let pressed = button == .press
++            Task { @MainActor [weak self] in
++                    guard let self,
++                      self.classicMacQMPInputReady,
++                      let monitor = await self.qemuVM.monitor else {
++                    NSLog("[UTMInput] QMP key unavailable; dropping qcode=%@", qcode)
++                    return
++                }
++                UTMQemuSendKey(monitor, qcode, pressed)
++            }
++            return
++        }
+         if (keyCode & 0xFF00) == 0xE000 {
+             vmInput?.send(button, code: Int32(0x100 | (keyCode & 0xFF)))
+         } else if keyCode >= 0x100 {
+@@ -597,6 +1082,44 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+             vmInput?.send(button, code: Int32(keyCode))
+         }
+     }
++
++    private func classicMacQCode(for scanCode: Int) -> String? {
++        switch scanCode {
++        case 0x01: return "esc"
++        case 0x02...0x0b: return ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"][scanCode - 0x02]
++        case 0x0c: return "minus"
++        case 0x0d: return "equal"
++        case 0x0e: return "backspace"
++        case 0x0f: return "tab"
++        case 0x10...0x19: return ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"][scanCode - 0x10]
++        case 0x1a: return "bracket_left"
++        case 0x1b: return "bracket_right"
++        case 0x1c: return "ret"
++        case 0x1d: return "ctrl"
++        case 0x1e...0x26: return ["a", "s", "d", "f", "g", "h", "j", "k", "l"][scanCode - 0x1e]
++        case 0x27: return "semicolon"
++        case 0x28: return "apostrophe"
++        case 0x29: return "grave_accent"
++        case 0x2a: return "shift"
++        case 0x2b: return "backslash"
++        case 0x2c...0x35: return ["z", "x", "c", "v", "b", "n", "m", "comma", "dot", "slash"][scanCode - 0x2c]
++        case 0x36: return "shift_r"
++        case 0x38: return "alt"
++        case 0x39: return "spc"
++        case 0x3a: return "caps_lock"
++        case 0x3b...0x46: return "f\(scanCode - 0x3a)"
++        case 0xe01d: return "ctrl_r"
++        case 0xe038: return "alt_r"
++        case 0xe048: return "up"
++        case 0xe04b: return "left"
++        case 0xe04d: return "right"
++        case 0xe050: return "down"
++        case 0xe053: return "delete"
++        case 0xe05b: return "meta_l"
++        case 0xe05c: return "meta_r"
++        default: return nil
++        }
++    }
+     
+     func keyDown(scanCode: Int) {
+         if (scanCode & 0xFF) == 0x1D { // Ctrl
+@@ -621,6 +1144,13 @@ extension VMDisplayQemuMetalWindowController: VMMetalViewInputDelegate {
+     private func handleCaptureKeys(for event: NSEvent) -> Bool {
+         // if captured we route all keyevents to view
+         if let metalView = metalView, metalView.isMouseCaptured {
++            // Keep host window/application commands usable while the guest
++            // owns the pointer. Previously Cmd+W/Cmd+Q were sent to Puma and
++            // the UTM window could appear impossible to close.
++            if event.modifierFlags.contains(.command),
++               event.keyCode == kVK_ANSI_W || event.keyCode == kVK_ANSI_Q {
++                return false
++            }
+             if event.type == .keyDown {
+                 metalView.keyDown(with: event)
+             } else if event.type == .keyUp {
+diff --git a/Platform/macOS/Display/VMDisplayWindowController.swift b/Platform/macOS/Display/VMDisplayWindowController.swift
+index 9ed771f3ab95379c73b73f5e254449ea360bc366..74f50b8ee4562f8f8336e429eb0c7cbbc8e68af8 100644
+--- a/Platform/macOS/Display/VMDisplayWindowController.swift
++++ b/Platform/macOS/Display/VMDisplayWindowController.swift
+@@ -394,6 +394,11 @@ extension VMDisplayWindowController: NSWindowDelegate {
+         guard !isSecondary else {
+             return true
+         }
++        // Classic Mac OS (mac99/PPC) has no usable QEMU suspend state. Trying
++        // to save one here blocks the window and leaves the app appearing hung.
++        if isClassicMacVM {
++            return true
++        }
+         guard !(vm.state == .stopped || (vm.state == .paused && vm.registryEntry.isSuspended)) else {
+             return true
+         }
+@@ -439,6 +444,9 @@ extension VMDisplayWindowController: NSWindowDelegate {
+     }
+     
+     private func windowWillCloseAfterSaving(_ sender: NSWindow) -> Bool {
++        if isClassicMacVM {
++            return true
++        }
+         Task {
+             do {
+                 try await vm.saveSnapshot(name: nil)
+@@ -452,9 +460,19 @@ extension VMDisplayWindowController: NSWindowDelegate {
+         }
+         return false
+     }
++
++    private var isClassicMacVM: Bool {
++        guard let config = vm.config as? UTMQemuConfiguration else {
++            return false
++        }
++        return config.system.architecture == .ppc && config.system.target.rawValue == QEMUTarget_ppc.mac99.rawValue
++    }
+     
+     func windowWillClose(_ notification: Notification) {
+         if !isSecondary {
++            // Classic Mac QEMU runs in-process. The kill path sends a raw QMP
++            // quit and then tears down the launcher, so closing the window
++            // cannot leave the emulator thread behind.
+             self.vm.requestVmStop(force: true)
+         }
+         secondaryWindows.forEach { secondaryWindow in
+diff --git a/Platform/macOS/Display/VMMetalView.swift b/Platform/macOS/Display/VMMetalView.swift
+index 74c55d22c69eef586cd0f2c88a2724fa47ebb0ed..029852d79c45b2e77558c48b1ac93e16cd6973a6 100644
+--- a/Platform/macOS/Display/VMMetalView.swift
++++ b/Platform/macOS/Display/VMMetalView.swift
+@@ -259,8 +259,20 @@ class VMMetalView: MTKView {
+     
+     override func mouseMoved(with event: NSEvent) {
+         logger.trace("mouse moved: \(event.deltaX), \(event.deltaY)")
+-        if isMouseCaptured {
+-            inputDelegate?.mouseMove(relativePoint: CGPoint(x: event.deltaX, y: -event.deltaY),
++        // Classic Mac's ADB path uses the same view event stream as the other
++        // guests, but the delegate routes the relative delta to QMP instead of
++        // SPICE. This works for ad-hoc builds without Input Monitoring access.
++        if inputDelegate?.shouldUseNativeRelativeMouseEvents == true {
++            inputDelegate?.mouseMove(relativePoint: CGPoint(x: event.deltaX, y: event.deltaY),
++                                     buttonMask: NSEvent.pressedMouseButtons.inputButtons())
++            return
++        }
++        if inputDelegate?.shouldUseRelativeMouse == true || isMouseCaptured {
++            // VirtualWorld forwards native macOS deltas directly to QEMU's
++            // input-send-event path. Keep that Y direction for Classic Mac
++            // PPC while preserving the existing sign for other guests.
++            let relativeY = inputDelegate?.shouldUseRelativeMouse == true ? event.deltaY : -event.deltaY
++            inputDelegate?.mouseMove(relativePoint: CGPoint(x: event.deltaX, y: relativeY),
+                                      buttonMask: NSEvent.pressedMouseButtons.inputButtons())
+         } else {
+             let location = event.locationInWindow
+diff --git a/Platform/macOS/Display/VMMetalViewInputDelegate.swift b/Platform/macOS/Display/VMMetalViewInputDelegate.swift
+index 01707893deab9815f5d5d580561ac7383cd4bf13..19d62ad0cde77aecfec1a6dc9df68014a208f5f9 100644
+--- a/Platform/macOS/Display/VMMetalViewInputDelegate.swift
++++ b/Platform/macOS/Display/VMMetalViewInputDelegate.swift
+@@ -16,6 +16,13 @@
+ 
+ protocol VMMetalViewInputDelegate: AnyObject {
+     var shouldUseCmdOptForCapture: Bool { get }
++    /// Classic mac99 guests expose only a relative ADB mouse. Absolute
++    /// SPICE coordinates are ignored by Mac OS X 10.1, so route host motion
++    /// as deltas even when the cursor is not captured.
++    var shouldUseRelativeMouse: Bool { get }
++    /// Some guests need native macOS mouse deltas because AppKit's view
++    /// tracking stops delivering motion once the pointer is captured.
++    var shouldUseNativeRelativeMouseEvents: Bool { get }
+     func mouseMove(absolutePoint: CGPoint, buttonMask: CSInputButton)
+     func mouseMove(relativePoint: CGPoint, buttonMask: CSInputButton)
+     func mouseDown(button: CSInputButton, mask: CSInputButton)
+diff --git a/Platform/macOS/UTMDataExtension.swift b/Platform/macOS/UTMDataExtension.swift
+index 0872ddd6618e070b166cf1c6c8a146317c748103..ace03df237f3ea2033f0f26c1e5a8d1324f02c42 100644
+--- a/Platform/macOS/UTMDataExtension.swift
++++ b/Platform/macOS/UTMDataExtension.swift
+@@ -20,6 +20,17 @@ import Carbon.HIToolbox
+ @available(macOS 11, *)
+ extension UTMData {
+     func run(vm: VMData, options: UTMVirtualMachineStartOptions = [], startImmediately: Bool = true) {
++        if vm.wrapped == nil {
++            Task { @MainActor in
++                do {
++                    try await vm.loadAsync()
++                    self.run(vm: vm, options: options, startImmediately: startImmediately)
++                } catch {
++                    self.alertItem = .message(error.localizedDescription)
++                }
++            }
++            return
++        }
+         var window: Any? = vmWindows[vm]
+         if window == nil {
+             let close = {
+diff --git a/Services/UTMProcess.m b/Services/UTMProcess.m
+index 5f450b447d7e9d37c368a05b8c2326046c663d12..9a957efcbe47ac8d0fa3d2d30f380d51eb89491d 100644
+--- a/Services/UTMProcess.m
++++ b/Services/UTMProcess.m
+@@ -29,6 +29,9 @@ @interface UTMProcess ()
+ @property (nonatomic) dispatch_queue_t completionQueue;
+ @property (nonatomic) dispatch_semaphore_t done;
+ @property (nonatomic, nullable) NSString *processName;
++#if TARGET_OS_OSX
++@property (nonatomic, nullable) NSTask *externalTask;
++#endif
+ 
+ @end
+ 
+@@ -144,6 +147,13 @@ - (BOOL)setupXpc {
+ #if TARGET_OS_IPHONE
+     return YES;
+ #else // only supported on macOS
++    // The local Puma build is ad-hoc signed and intentionally runs QEMU
++    // in-process. There is no signed QEMUHelper service to connect to.
++    if ([NSBundle.mainBundle.bundleIdentifier hasPrefix:@"com.utmapp.UTMPumaFixed"]) {
++        // Keep the UTMProcess object valid; a nil return here makes every
++        // VM appear unavailable before startProcess can select the local path.
++        return YES;
++    }
+     NSString *helperIdentifier = NSBundle.mainBundle.infoDictionary[@"HelperIdentifier"];
+     if (!helperIdentifier) {
+         helperIdentifier = @"com.utmapp.QEMUHelper";
+@@ -271,6 +281,14 @@ - (void)startProcess:(nonnull NSString *)name completion:(nonnull void (^)(NSErr
+     NSString *dylib = [NSString stringWithFormat:@"%@.framework/%@%@", name, base, name];
+     self.processName = name;
+ #if TARGET_OS_OSX
++    // The custom Puma build must keep QEMU out of the UTM process. QEMU's
++    // device registry is process-global and cannot be initialized reliably a
++    // second time after qemu_cleanup. QEMULauncher is already bundled by UTM
++    // and provides the normal isolated-process lifecycle.
++    if ([NSBundle.mainBundle.bundleIdentifier hasPrefix:@"com.utmapp.UTMPumaFixed"]) {
++        [self startExternalProcess:dylib completion:completion];
++        return;
++    }
+     if (_connection) {
+         [self startQemuRemote:dylib completion:completion];
+     } else {
+@@ -281,8 +299,71 @@ - (void)startProcess:(nonnull NSString *)name completion:(nonnull void (^)(NSErr
+ #endif
+ }
+ 
++#if TARGET_OS_OSX
++- (void)startExternalProcess:(NSString *)dylib completion:(void (^)(NSError * _Nullable))completion {
++    NSError *error;
++    NSURL *bundleURL = [[NSBundle mainBundle] bundleURL];
++    NSURL *launcherURL = [bundleURL URLByAppendingPathComponent:
++        @"Contents/XPCServices/QEMUHelper.xpc/Contents/MacOS/QEMULauncher.app/Contents/MacOS/QEMULauncher"];
++    NSString *dylibPath = [[self.libraryURL URLByAppendingPathComponent:dylib] path];
++    if (![[NSFileManager defaultManager] isExecutableFileAtPath:launcherURL.path] ||
++        ![[NSFileManager defaultManager] fileExistsAtPath:dylibPath]) {
++        NSString *message = [NSString stringWithFormat:@"Cannot find QEMU launcher or framework (%@).", dylibPath];
++        completion([self errorWithMessage:message]);
++        return;
++    }
++
++    NSTask *task = [NSTask new];
++    NSMutableArray<NSString *> *arguments = [self.argv mutableCopy];
++    [arguments insertObject:dylibPath atIndex:0];
++    task.executableURL = launcherURL;
++    task.arguments = arguments;
++    task.standardOutput = self.standardOutput;
++    task.standardError = self.standardError;
++
++    NSMutableDictionary<NSString *, NSString *> *environment =
++        [[[NSProcessInfo processInfo] environment] mutableCopy];
++    [environment addEntriesFromDictionary:self.environment ?: @{}];
++    environment[@"TMPDIR"] = NSFileManager.defaultManager.temporaryDirectory.path;
++    task.environment = environment;
++    if (self.currentDirectoryUrl) {
++        task.currentDirectoryURL = self.currentDirectoryUrl;
++    }
++    task.qualityOfService = NSQualityOfServiceUserInitiated;
++
++    __weak typeof(self) weakSelf = self;
++    task.terminationHandler = ^(NSTask *terminatedTask) {
++        __strong typeof(weakSelf) self = weakSelf;
++        if (!self) {
++            return;
++        }
++        dispatch_async(self.completionQueue, ^{
++            if (self.externalTask == terminatedTask) {
++                self.externalTask = nil;
++            }
++            self.status = terminatedTask.terminationStatus;
++            [self processHasExited:terminatedTask.terminationStatus message:nil];
++        });
++    };
++
++    if (![task launchAndReturnError:&error]) {
++        completion(error ?: [self errorWithMessage:@"Failed to launch QEMU."]);
++        return;
++    }
++    self.externalTask = task;
++    completion(nil);
++}
++#endif
++
+ - (void)stopProcess {
+ #if TARGET_OS_OSX
++    NSTask *externalTask = self.externalTask;
++    self.externalTask = nil;
++    if (externalTask) {
++        if (externalTask.isRunning) {
++            [externalTask terminate];
++        }
++    }
+     if (_connection) {
+         [[_connection remoteObjectProxy] terminate];
+         [_connection invalidate];
+diff --git a/Services/UTMQemuSystem.m b/Services/UTMQemuSystem.m
+index 9b3cd73e534f70dbfa4958e39a9c7e0686c32573..71742869ee5cad2aee7b078d4e615d19e4ecd483 100644
+--- a/Services/UTMQemuSystem.m
++++ b/Services/UTMQemuSystem.m
+@@ -31,15 +31,32 @@ @implementation UTMQemuSystem {
+     void (*_qemu_cleanup)(void);
+ }
+ 
++// QEMU's in-process entry points own process-global device state.  A forced
++// stop can return control to UTM before the QEMU thread has finished its
++// cleanup, so a rapid restart must not call qemu_init concurrently with the
++// previous qemu_cleanup.  Keep the complete QEMU lifecycle serialized while
++// still allowing the UTM actor and UI to remain responsive.
++static dispatch_queue_t qemuLifecycleQueue(void) {
++    static dispatch_queue_t queue;
++    static dispatch_once_t onceToken;
++    dispatch_once(&onceToken, ^{
++        queue = dispatch_queue_create("com.utmapp.qemu-lifecycle", DISPATCH_QUEUE_SERIAL);
++    });
++    return queue;
++}
++
+ static int startQemu(UTMProcess *process, int argc, const char *argv[], const char *envp[]) {
+     UTMQemuSystem *self = (UTMQemuSystem *)process;
+-    int ret = self->_qemu_init(argc, argv, envp);
+-    if (ret != 0) {
+-        return ret;
+-    }
+-    self->_qemu_main_loop();
+-    self->_qemu_cleanup();
+-    return 0;
++    __block int ret = 0;
++    dispatch_sync(qemuLifecycleQueue(), ^{
++        ret = self->_qemu_init(argc, argv, envp);
++        if (ret != 0) {
++            return;
++        }
++        self->_qemu_main_loop();
++        self->_qemu_cleanup();
++    });
++    return ret;
+ }
+ 
+ - (void)setRendererBackend:(UTMQEMURendererBackend)rendererBackend {
+@@ -108,6 +125,14 @@ - (BOOL)didLoadDylib:(void *)handle {
+ }
+ 
+ - (void)startQemuWithCompletion:(nonnull void (^)(NSError * _Nullable))completion {
++    // UTM2 is an unsandboxed ad-hoc build. Its local VM resources do not need
++    // security-scoped bookmarks, and the bundled XPC helper can otherwise
++    // wait forever trying to resolve them. Start the in-process QEMU directly.
++    if ([NSBundle.mainBundle.bundleIdentifier hasPrefix:@"com.utmapp.UTMPumaFixed"]) {
++        NSString *name = [NSString stringWithFormat:@"qemu-%@-softmmu", self.architecture];
++        [self startProcess:name completion:completion];
++        return;
++    }
+     dispatch_group_t group = dispatch_group_create();
+     for (NSURL *resourceURL in self.resources) {
+         NSData *bookmark = self.remoteBookmarks[resourceURL];
+diff --git a/Services/UTMQemuVirtualMachine.swift b/Services/UTMQemuVirtualMachine.swift
+index 278e8e575182a94aa16fdb9d2b7d32c48d2b2388..88647d132a2b54e876b9b001dc5b8b29e2d645a8 100644
+--- a/Services/UTMQemuVirtualMachine.swift
++++ b/Services/UTMQemuVirtualMachine.swift
+@@ -56,10 +56,14 @@ final class UTMQemuVirtualMachine: UTMSpiceVirtualMachine {
+     
+     private(set) var pathUrl: URL {
+         didSet {
+-            if isScopedAccess {
+-                oldValue.stopAccessingSecurityScopedResource()
++            if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++                isScopedAccess = false
++            } else {
++                if isScopedAccess {
++                    oldValue.stopAccessingSecurityScopedResource()
++                }
++                isScopedAccess = pathUrl.startAccessingSecurityScopedResource()
+             }
+-            isScopedAccess = pathUrl.startAccessingSecurityScopedResource()
+         }
+     }
+     
+@@ -168,7 +172,11 @@ final class UTMQemuVirtualMachine: UTMSpiceVirtualMachine {
+     #endif
+ 
+     @MainActor required init(packageUrl: URL, configuration: UTMQemuConfiguration, isShortcut: Bool = false) throws {
+-        self.isScopedAccess = packageUrl.startAccessingSecurityScopedResource()
++        if Bundle.main.bundleIdentifier?.hasPrefix("com.utmapp.UTMPumaFixed") == true {
++            self.isScopedAccess = false
++        } else {
++            self.isScopedAccess = packageUrl.startAccessingSecurityScopedResource()
++        }
+         // load configuration
+         self.config = configuration
+         self.pathUrl = packageUrl
+@@ -483,10 +491,6 @@ extension UTMQemuVirtualMachine {
+             return
+         }
+         let kill = method == .kill
+-        if kill {
+-            // prevent deadlock force stopping during startup
+-            ioService?.disconnect()
+-        }
+         guard state != .stopped else {
+             return // nothing to do
+         }
+@@ -497,6 +501,16 @@ extension UTMQemuVirtualMachine {
+             state = .stopping
+         }
+         if kill {
++            // QEMUVirtualMachine.kill() only tears down the Swift wrapper for
++            // the in-process launcher. Ask QEMU itself to exit before closing
++            // the SPICE channel; otherwise the monitor command is discarded
++            // and the in-process QEMU thread remains alive.
++            let monitor = await qemuVM.monitor
++            if let monitor, monitor.isConnected {
++                UTMQemuRequestQuit(monitor)
++                try? await Task.sleep(nanoseconds: 750_000_000)
++            }
++            ioService?.disconnect()
+             await qemuVM.kill()
+         } else {
+             try await qemuVM.stop()
+diff --git a/Services/UTMSpiceIO.h b/Services/UTMSpiceIO.h
+index 1e0f9dac873a9750e001231fa361d7f1d8b9cb89..ce646033413b30a329d689a245b9e7c04ce3f107 100644
+--- a/Services/UTMSpiceIO.h
++++ b/Services/UTMSpiceIO.h
+@@ -69,4 +69,14 @@ NS_ASSUME_NONNULL_BEGIN
+ 
+ @end
+ 
++/// Input bridge for legacy QEMU guests whose pointer is only exposed through
++/// the QEMU monitor (for example Mac OS X Puma on mac99).
++FOUNDATION_EXPORT void UTMQemuSendRelativeMouseMove(QEMUMonitor *monitor, NSInteger dx, NSInteger dy);
++FOUNDATION_EXPORT void UTMQemuCancelRelativeMouseMoves(void);
++FOUNDATION_EXPORT void UTMQemuSendMouseButton(QEMUMonitor *monitor, NSUInteger button, BOOL pressed);
++FOUNDATION_EXPORT void UTMQemuSendKey(QEMUMonitor *monitor, NSString *qcode, BOOL pressed);
++/// Sends QMP quit without waiting for its response. Used to stop in-process
++/// QEMU instances whose monitor disconnects as soon as the process exits.
++FOUNDATION_EXPORT void UTMQemuRequestQuit(QEMUMonitor *monitor);
++
+ NS_ASSUME_NONNULL_END
+diff --git a/Services/UTMSpiceIO.m b/Services/UTMSpiceIO.m
+index 0ee166cc65b9ee6f8fffa14dbe72fa97894e71ab..42e58b1b7b4dfdbbb7738b8ca4c72eb6eda7ea01 100644
+--- a/Services/UTMSpiceIO.m
++++ b/Services/UTMSpiceIO.m
+@@ -20,6 +20,221 @@
+ 
+ NSString *const kUTMErrorDomain = @"com.utmapp.utm";
+ 
++// QEMUKit exposes the monitor queue and its QMP transport only to the
++// QEMUKitInternal target.  The public QEMUMonitor API currently contains
++// query_mice/mouse_set but not input-send-event, which is the only QMP command
++// that can represent relative axes and explicit key/button up/down events.
++// Keep the bridge local to UTM and use the same serialized queue/RPC helper as
++// QEMUKit, instead of opening a second monitor connection (which would race
++// QEMUKit's response dispatcher).
++typedef struct Error Error;
++extern void qmp_rpc_call(CFDictionaryRef args, CFDictionaryRef *ret, Error **err, void *ctx);
++extern const char *error_get_pretty(const Error *err);
++extern void error_free(Error *err);
++
++@interface QEMUMonitor (UTMPumaPrivateTransport)
++@property (nonatomic, readonly) dispatch_queue_t monitorQueue;
++@end
++
++static dispatch_queue_t UTMClassicMacMouseQueue(void) {
++    static dispatch_queue_t queue;
++    static dispatch_once_t onceToken;
++    dispatch_once(&onceToken, ^{
++        dispatch_queue_attr_t attr = dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
++                                                                              QOS_CLASS_USER_INTERACTIVE,
++                                                                              0);
++        queue = dispatch_queue_create("com.utmapp.utm.classic-mac-mouse", attr);
++    });
++    return queue;
++}
++
++// qmp_rpc_call is synchronous and can wait up to ten seconds when the monitor
++// is disconnected. Keep one movement request in flight and merge deltas that
++// arrive while it is waiting, matching VirtualWorld's frame-based input pump.
++static NSObject *UTMClassicMacMouseState(void) {
++    static NSObject *state;
++    static dispatch_once_t onceToken;
++    dispatch_once(&onceToken, ^{
++        state = [NSObject new];
++    });
++    return state;
++}
++
++static NSInteger UTMClassicMacPendingDeltaX;
++static NSInteger UTMClassicMacPendingDeltaY;
++static BOOL UTMClassicMacMouseWorkerScheduled;
++static __strong QEMUMonitor *UTMClassicMacPendingMonitor;
++static NSUInteger UTMClassicMacMotionLogCount;
++
++/// Keep a short, user-readable trace for the custom local build. Do not log
++/// individual pointer events: a captured mouse can generate thousands a minute.
++static void UTMPumaInputLog(NSString *message) {
++    NSLog(@"[PumaInput] %@", message);
++    NSString *line = [NSString stringWithFormat:@"%@ %@\n", [NSDate date], message];
++    NSData *data = [line dataUsingEncoding:NSUTF8StringEncoding];
++    NSString *path = @"/private/tmp/utm-puma-input.log";
++    if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
++        NSFileHandle *handle = [NSFileHandle fileHandleForWritingAtPath:path];
++        [handle seekToEndOfFile];
++        [handle writeData:data];
++        [handle closeFile];
++    } else {
++        [data writeToFile:path atomically:YES];
++    }
++}
++
++static void UTMQemuSendInputEvents(QEMUMonitor *monitor, NSArray<NSDictionary *> *events, NSString *label, void (^completion)(BOOL)) {
++    if (!monitor || !monitor.isConnected || events.count == 0) {
++        if (completion) {
++            completion(NO);
++        }
++        return;
++    }
++    dispatch_queue_t monitorQueue = monitor.monitorQueue;
++    if (!monitorQueue) {
++        UTMPumaInputLog([NSString stringWithFormat:@"QMP input-send-event %@ skipped: monitor queue unavailable", label]);
++        if (completion) {
++            completion(NO);
++        }
++        return;
++    }
++
++    // Run the RPC on QEMUKit's own serialized monitor queue and wait for it
++    // before returning.  The caller coalesces deltas while this request is in
++    // flight; dispatching and immediately returning would let a fast pointer
++    // generate an unbounded backlog of monitor requests.
++    __block BOOL success = NO;
++    dispatch_sync(monitorQueue, ^{
++        NSDictionary *command = @{
++            @"execute": @"input-send-event",
++            @"arguments": @{ @"events": events }
++        };
++        Error *qerr = NULL;
++        qmp_rpc_call((__bridge CFDictionaryRef)command, NULL, &qerr, (__bridge void *)monitor);
++        success = qerr == NULL;
++        if (qerr) {
++            const char *message = error_get_pretty(qerr);
++            NSString *description = message ? [NSString stringWithUTF8String:message] : @"unknown QMP error";
++            UTMPumaInputLog([NSString stringWithFormat:@"QMP input-send-event %@ failed: %@", label, description]);
++            error_free(qerr);
++        }
++    });
++    if (completion) {
++        completion(success);
++    }
++}
++
++static NSDictionary *UTMQemuRelativeEvent(NSString *axis, NSInteger value) {
++    return @{
++        @"type": @"rel",
++        @"data": @{ @"axis": axis, @"value": @(value) }
++    };
++}
++
++void UTMQemuSendRelativeMouseMove(QEMUMonitor *monitor, NSInteger dx, NSInteger dy) {
++    if (!monitor || !monitor.isConnected || (dx == 0 && dy == 0)) {
++        return;
++    }
++    @synchronized (UTMClassicMacMouseState()) {
++        UTMClassicMacPendingDeltaX += dx;
++        UTMClassicMacPendingDeltaY += dy;
++        UTMClassicMacPendingMonitor = monitor;
++        if (UTMClassicMacMouseWorkerScheduled) {
++            return;
++        }
++        UTMClassicMacMouseWorkerScheduled = YES;
++    }
++    dispatch_async(UTMClassicMacMouseQueue(), ^{
++        while (YES) {
++            NSInteger pendingX;
++            NSInteger pendingY;
++            QEMUMonitor *pendingMonitor;
++            @synchronized (UTMClassicMacMouseState()) {
++                pendingX = UTMClassicMacPendingDeltaX;
++                pendingY = UTMClassicMacPendingDeltaY;
++                UTMClassicMacPendingDeltaX = 0;
++                UTMClassicMacPendingDeltaY = 0;
++                pendingMonitor = UTMClassicMacPendingMonitor;
++                if (pendingX == 0 && pendingY == 0) {
++                    UTMClassicMacMouseWorkerScheduled = NO;
++                    UTMClassicMacPendingMonitor = nil;
++                    break;
++                }
++            }
++            if (!pendingMonitor || !pendingMonitor.isConnected) {
++                continue;
++            }
++            @synchronized (UTMClassicMacMouseState()) {
++                if (UTMClassicMacMotionLogCount++ == 0) {
++                    UTMPumaInputLog([NSString stringWithFormat:@"QMP ADB pointer dispatch first delta=(%ld,%ld)", (long)pendingX, (long)pendingY]);
++                }
++            }
++            NSMutableArray<NSDictionary *> *events = [NSMutableArray arrayWithCapacity:2];
++            if (pendingX != 0) {
++                [events addObject:UTMQemuRelativeEvent(@"x", pendingX)];
++            }
++            if (pendingY != 0) {
++                [events addObject:UTMQemuRelativeEvent(@"y", pendingY)];
++            }
++            UTMQemuSendInputEvents(pendingMonitor, events, @"relative motion", nil);
++        }
++    });
++}
++
++void UTMQemuCancelRelativeMouseMoves(void) {
++    @synchronized (UTMClassicMacMouseState()) {
++        UTMClassicMacPendingDeltaX = 0;
++        UTMClassicMacPendingDeltaY = 0;
++        UTMClassicMacPendingMonitor = nil;
++    }
++}
++
++void UTMQemuSendMouseButton(QEMUMonitor *monitor, NSUInteger button, BOOL pressed) {
++    if (!monitor || !monitor.isConnected) {
++        return;
++    }
++    NSString *buttonName;
++    switch (button) {
++        case 1: buttonName = @"left"; break;
++        case 2: buttonName = @"right"; break;
++        case 4: buttonName = @"middle"; break;
++        default: return;
++    }
++    dispatch_async(UTMClassicMacMouseQueue(), ^{
++        NSDictionary *event = @{
++            @"type": @"btn",
++            @"data": @{ @"button": buttonName, @"down": @(pressed) }
++        };
++        UTMQemuSendInputEvents(monitor, @[event], pressed ? @"button down" : @"button up", nil);
++    });
++}
++
++void UTMQemuSendKey(QEMUMonitor *monitor, NSString *qcode, BOOL pressed) {
++    if (!qcode.length) {
++        return;
++    }
++    dispatch_async(UTMClassicMacMouseQueue(), ^{
++        NSDictionary *event = @{
++            @"type": @"key",
++            @"data": @{
++                @"down": @(pressed),
++                @"key": @{ @"type": @"qcode", @"data": qcode }
++            }
++        };
++        UTMQemuSendInputEvents(monitor, @[event], [NSString stringWithFormat:@"key %@ %@", qcode, pressed ? @"down" : @"up"], nil);
++    });
++}
++
++void UTMQemuRequestQuit(QEMUMonitor *monitor) {
++    if (!monitor || !monitor.isConnected) {
++        return;
++    }
++    // QEMUMonitor serializes this command on its monitor queue. Do not route
++    // it through the mouse queue or a second raw-RPC queue: that can leave
++    // quit behind a blocked input request during shutdown.
++    [monitor qemuQuitWithCompletion:nil];
++}
++
+ @interface UTMSpiceIO ()
+ 
+ @property (nonatomic, nullable) NSURL *socketUrl;
+@@ -120,10 +335,10 @@ - (BOOL)startWithError:(NSError * _Nullable *)error {
+         // need to chdir to workaround AF_UNIX sun_len limitations
+         NSString *curdir = self.socketUrl.URLByDeletingLastPathComponent.path;
+         if (!curdir || ![NSFileManager.defaultManager changeCurrentDirectoryPath:curdir]) {
+-            if (error) {
+-                *error = [NSError errorWithDomain:kUTMErrorDomain code:-1 userInfo:@{NSLocalizedDescriptionKey: NSLocalizedString(@"Failed to change current directory.", "UTMSpiceIO")}];
+-            }
+-            return NO;
++            // The directory change only works around AF_UNIX sun_len on older
++            // systems. Modern macOS accepts the absolute socket path, so a
++            // failed chdir must not prevent the SPICE client from starting.
++            curdir = nil;
+         }
+     }
+     if (![self.spice spiceStart]) {

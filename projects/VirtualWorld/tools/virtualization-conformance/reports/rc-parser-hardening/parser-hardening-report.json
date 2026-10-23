@@ -1,0 +1,655 @@
+{
+  "report": "virtualworld-parser-hardening",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-06T09:42:57+00:00",
+  "method": "pure parsing/validation entry points only; no product binary executed, no VM command issued; exemptions are never used to convert a failure into a pass",
+  "seed": 20261005,
+  "reproducible": true,
+  "sample_manifest_sha256": "c7259e901ee3437f0f05d40fbc758f455fcbc190d89eefba9c4f02f086d38916",
+  "samples": 5000,
+  "targets": [
+    "conformance.arch",
+    "conformance.check",
+    "conformance.strictbool",
+    "json.parse",
+    "release.classify",
+    "release.escapesroot",
+    "release.pathsafe",
+    "release.resolvebundle",
+    "release.verify",
+    "report.defects",
+    "report.invariants",
+    "report.render",
+    "stability.canonical",
+    "stability.semantics"
+  ],
+  "limits": {
+    "max_sample_bytes": 262144,
+    "max_depth": 64,
+    "max_array_items": 256,
+    "batch_size": 40,
+    "batch_timeout_seconds": 120.0,
+    "peak_payload_bytes": 262158
+  },
+  "elapsed_seconds": 11.69,
+  "category_coverage": {
+    "conformance-backend-id-duplicate": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-backend-id-empty": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-backend-tier-invalid": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-build-not-bool": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-deep-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-duplicate-array": {
+      "samples": 2,
+      "gaps": 0
+    },
+    "conformance-execution-tier-invalid": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-guest-arch-cross-arch": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-guest-arch-cross-arch-real": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-host-platform-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-long-string": {
+      "samples": 32,
+      "gaps": 0
+    },
+    "conformance-missing-section": {
+      "samples": 8,
+      "gaps": 0
+    },
+    "conformance-not-object": {
+      "samples": 6,
+      "gaps": 0
+    },
+    "conformance-reason-empty": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-schema-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-selection-mismatch": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-selection-tier-invalid": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-status-class-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "conformance-type-swap": {
+      "samples": 1080,
+      "gaps": 0
+    },
+    "conformance-unknown-field": {
+      "samples": 3,
+      "gaps": 0
+    },
+    "conformance-verified-not-bool": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "json-control-char": {
+      "samples": 14,
+      "gaps": 0
+    },
+    "json-deep-nesting": {
+      "samples": 10,
+      "gaps": 0
+    },
+    "json-duplicate-array": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "json-duplicate-key": {
+      "samples": 3,
+      "gaps": 0
+    },
+    "json-empty": {
+      "samples": 7,
+      "gaps": 0
+    },
+    "json-fuzz": {
+      "samples": 120,
+      "gaps": 0
+    },
+    "json-long-array": {
+      "samples": 4,
+      "gaps": 0
+    },
+    "json-long-string": {
+      "samples": 4,
+      "gaps": 0
+    },
+    "json-non-object": {
+      "samples": 7,
+      "gaps": 0
+    },
+    "json-nonstandard": {
+      "samples": 5,
+      "gaps": 0
+    },
+    "json-number-edge": {
+      "samples": 19,
+      "gaps": 0
+    },
+    "json-structural-fuzz": {
+      "samples": 120,
+      "gaps": 0
+    },
+    "json-trailing": {
+      "samples": 4,
+      "gaps": 0
+    },
+    "json-truncated": {
+      "samples": 12,
+      "gaps": 0
+    },
+    "json-unicode": {
+      "samples": 30,
+      "gaps": 0
+    },
+    "json-unknown-field": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-classify": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-contrib-drift": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-contrib-drift-backend": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-count-negative": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-count-type": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-deep-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-duplicate-array": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-gate-failure-count": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-gate-status-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-gate-still-passed": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-hash": {
+      "samples": 22,
+      "gaps": 0
+    },
+    "release-hash-format": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-honesty-realhardware-true": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-honesty-verified-true": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-host-arch-empty": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-host-os-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-long-string": {
+      "samples": 10,
+      "gaps": 0
+    },
+    "release-missing-section": {
+      "samples": 13,
+      "gaps": 0
+    },
+    "release-not-object": {
+      "samples": 6,
+      "gaps": 0
+    },
+    "release-path": {
+      "samples": 52,
+      "gaps": 0
+    },
+    "release-path-absolute": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-path-traversal": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-schema-unknown": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-size-wrong": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-timestamp": {
+      "samples": 13,
+      "gaps": 0
+    },
+    "release-timestamp-impossible": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-timestamp-not-iso": {
+      "samples": 1,
+      "gaps": 0
+    },
+    "release-type-swap": {
+      "samples": 540,
+      "gaps": 0
+    },
+    "release-unknown-field": {
+      "samples": 2,
+      "gaps": 0
+    },
+    "report-findings": {
+      "samples": 16,
+      "gaps": 0
+    },
+    "report-incontract": {
+      "samples": 6,
+      "gaps": 0
+    },
+    "scalar-arch": {
+      "samples": 58,
+      "gaps": 0
+    },
+    "scalar-bool": {
+      "samples": 58,
+      "gaps": 0
+    },
+    "scalar-canonical": {
+      "samples": 58,
+      "gaps": 0
+    },
+    "scalar-escapesroot": {
+      "samples": 58,
+      "gaps": 0
+    },
+    "scalar-pathsafe": {
+      "samples": 58,
+      "gaps": 0
+    },
+    "structure-report-outofcontract": {
+      "samples": 396,
+      "gaps": 0
+    },
+    "structure-resolvebundle": {
+      "samples": 132,
+      "gaps": 0
+    },
+    "structure-semantics": {
+      "samples": 132,
+      "gaps": 0
+    },
+    "topup-conformance": {
+      "samples": 446,
+      "gaps": 0
+    },
+    "topup-json-fuzz": {
+      "samples": 463,
+      "gaps": 0
+    },
+    "topup-release": {
+      "samples": 478,
+      "gaps": 0
+    },
+    "topup-structure": {
+      "samples": 455,
+      "gaps": 0
+    }
+  },
+  "outcomes": {
+    "accepted": 1943,
+    "out-of-contract-exception": 379,
+    "rejected": 2678
+  },
+  "stable_error_codes": {
+    "observed": {
+      "array-item-not-string": 3,
+      "backend-flag-drift": 12,
+      "backend-flag-not-bool": 78,
+      "backend-id-duplicate": 2,
+      "backend-id-empty": 3,
+      "backend-id-missing": 16,
+      "backend-issue-not-object": 3,
+      "backend-issues-invalid": 15,
+      "backend-not-object": 33,
+      "backend-tier-invalid": 8,
+      "backends-empty": 1,
+      "backends-key-missing": 8,
+      "build-key-missing": 15,
+      "build-value-not-bool": 104,
+      "considered-empty": 1,
+      "considered-id-missing": 14,
+      "considered-missing-backend": 48,
+      "considered-none-selected": 50,
+      "considered-not-array": 21,
+      "considered-not-object": 21,
+      "considered-tier-invalid": 7,
+      "considered-unknown-backend": 59,
+      "count-not-int": 106,
+      "cross-arch-not-tcg": 25,
+      "document-not-object": 12,
+      "empty-field": 77,
+      "execution-tier-invalid": 43,
+      "fallback-from-missing": 1,
+      "field-not-array": 15,
+      "firmware-count-mismatch": 5,
+      "gate-check-not-object": 3,
+      "gate-failure-count-mismatch": 6,
+      "gate-failure-count-not-int": 24,
+      "gate-false-green": 6,
+      "gate-status-invalid": 28,
+      "generated-at-invalid": 38,
+      "harness-candidate-ambiguous": 1,
+      "host-arch-differs-from-runner": 10,
+      "host-arch-empty": 2,
+      "host-arch-invalid": 4,
+      "host-os-invalid": 11,
+      "host-platform-unknown": 9,
+      "json-unparseable": 144,
+      "main-program-missing": 30,
+      "main-program-path-absolute-ok": 1061,
+      "main-program-path-escape": 4,
+      "main-program-path-unsafe": 6,
+      "main-program-sha256-format": 41,
+      "main-program-size-mismatch": 5,
+      "matrix-cross-arch-acceleration": 11,
+      "matrix-empty": 2,
+      "matrix-platform-unknown": 8,
+      "matrix-row-not-object": 34,
+      "matrix-tier-invalid": 7,
+      "matrix-verified-not-bool": 17,
+      "missing-field": 290,
+      "native-execution-tier-mismatch": 8,
+      "platform-native-tier-not-native": 8,
+      "qemu-entry-not-object": 28,
+      "qemu-fallback-not-built": 1,
+      "qemu-list-empty": 1,
+      "qemu-missing": 18,
+      "qemu-path-absolute": 7,
+      "qemu-path-duplicate": 1,
+      "qemu-path-symlink": 3,
+      "qemu-path-traversal": 5,
+      "qemu-path-unsafe": 53,
+      "qemu-sha256-format": 32,
+      "qemu-size-mismatch": 3,
+      "real-hardware-verified-not-false": 6,
+      "schema-unknown": 55,
+      "selected-backend-arch-unsupported": 17,
+      "selected-backend-unsupported": 17,
+      "selected-mismatch": 64,
+      "selection-backend-empty": 3,
+      "selection-not-best-available": 132,
+      "selection-not-ok": 1,
+      "selection-tier-invalid": 10,
+      "status-class-invalid": 15,
+      "status-class-unknown": 6,
+      "support-count-mismatch": 2,
+      "tcg-missing": 3,
+      "verified-not-false": 4,
+      "wrong-field-type": 1254
+    },
+    "known_vocabulary_size": 135,
+    "unknown_codes": [],
+    "malformed_codes": [],
+    "harness_owned_labels": [
+      "harness-candidate-ambiguous"
+    ]
+  },
+  "incidents": [],
+  "out_of_contract_exceptions": {
+    "count": 379,
+    "explanation": "Internal consumers (`make_final_report` renderers) were fed arbitrary JSON, which is outside their contract: they only ever receive report structures this toolchain builds. Exceptions there are recorded as informational; a structurally in-contract payload that raises is still counted as a gap, and no untrusted-input validator may appear here.",
+    "targets": [
+      "report.defects",
+      "report.invariants",
+      "report.render"
+    ],
+    "samples": [
+      {
+        "sid": "structure-report-outofcontract-02477",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "KeyError: 'live'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/too"
+      },
+      {
+        "sid": "structure-report-outofcontract-02482",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'list' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/"
+      },
+      {
+        "sid": "structure-report-outofcontract-02487",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'NoneType' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱"
+      },
+      {
+        "sid": "structure-report-outofcontract-02488",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: 'NoneType' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/Local"
+      },
+      {
+        "sid": "structure-report-outofcontract-02489",
+        "category": "structure-report-outofcontract",
+        "target": "report.invariants",
+        "detail": "TypeError: 'NoneType' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/Local"
+      },
+      {
+        "sid": "structure-report-outofcontract-02492",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'bool' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/"
+      },
+      {
+        "sid": "structure-report-outofcontract-02493",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: 'bool' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/p"
+      },
+      {
+        "sid": "structure-report-outofcontract-02494",
+        "category": "structure-report-outofcontract",
+        "target": "report.invariants",
+        "detail": "TypeError: 'bool' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/p"
+      },
+      {
+        "sid": "structure-report-outofcontract-02497",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'int' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开"
+      },
+      {
+        "sid": "structure-report-outofcontract-02498",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: 'int' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/pr"
+      },
+      {
+        "sid": "structure-report-outofcontract-02499",
+        "category": "structure-report-outofcontract",
+        "target": "report.invariants",
+        "detail": "TypeError: 'int' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/pr"
+      },
+      {
+        "sid": "structure-report-outofcontract-02502",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'str' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开"
+      },
+      {
+        "sid": "structure-report-outofcontract-02507",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "AttributeError: 'bool' object has no attribute 'get'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/"
+      },
+      {
+        "sid": "structure-report-outofcontract-02508",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: 'bool' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/p"
+      },
+      {
+        "sid": "structure-report-outofcontract-02509",
+        "category": "structure-report-outofcontract",
+        "target": "report.invariants",
+        "detail": "TypeError: 'bool' object is not iterable\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/p"
+      },
+      {
+        "sid": "structure-report-outofcontract-02512",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "KeyError: 'live'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/too"
+      },
+      {
+        "sid": "structure-report-outofcontract-02513",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: string indices must be integers, not 'str'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料"
+      },
+      {
+        "sid": "structure-report-outofcontract-02514",
+        "category": "structure-report-outofcontract",
+        "target": "report.invariants",
+        "detail": "TypeError: string indices must be integers, not 'str'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料"
+      },
+      {
+        "sid": "structure-report-outofcontract-02517",
+        "category": "structure-report-outofcontract",
+        "target": "report.render",
+        "detail": "KeyError: 'live'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/too"
+      },
+      {
+        "sid": "structure-report-outofcontract-02518",
+        "category": "structure-report-outofcontract",
+        "target": "report.defects",
+        "detail": "TypeError: string indices must be integers, not 'str'\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/tools/virtualization-conformance/run_parser_hardening.py\", line 1107, in _run_sample\n    raw = target.call(sample[\"payload\"])\n  File \"/Users/liaoboxuan/Desktop/各种学习和娱乐资料"
+      }
+    ]
+  },
+  "gaps": [],
+  "gap_count": 0,
+  "fixes_applied": [
+    {
+      "module": "run_conformance.py",
+      "site": "_check_selection_policy",
+      "symptom": "AttributeError: 'bool' object has no attribute 'get' when host was a truthy non-mapping (e.g. JSON true)",
+      "cause": "(doc.get('host') or {}).get('arch') passes truthy non-mappings through",
+      "fix": "added _as_dict() and used it for the host lookup",
+      "regression_test": "TestFixedDefects.test_as_dict_guards_truthy_non_mappings"
+    },
+    {
+      "module": "verify_release_manifest.py",
+      "site": "resolve_bundle_root",
+      "symptom": "AttributeError: 'bool' object has no attribute 'get' when main_program was a truthy non-mapping",
+      "cause": "(document.get('main_program') or {}).get('path')",
+      "fix": "added _as_dict() and applied it at all five (x or {}).get(...) sites",
+      "regression_test": "TestFixedDefects.test_release_resolve_bundle_root_survives_non_mapping_main_program"
+    },
+    {
+      "module": "verify_release_manifest.py",
+      "site": "escapes_root",
+      "symptom": "ValueError: lstat: embedded null character in path",
+      "cause": "os.path.realpath() raises on an unresolvable path",
+      "fix": "fails closed: an unresolvable candidate is reported as escaping rather than raising",
+      "regression_test": "TestFixedDefects.test_escapes_root_fails_closed_on_unresolvable_path"
+    },
+    {
+      "module": "verify_release_manifest.py",
+      "site": "_check_qemu",
+      "symptom": "ValueError: no path specified",
+      "cause": "os.path.relpath('', bundle_root) when main_program.path was empty",
+      "fix": "require a non-empty main path before relativising it",
+      "regression_test": "TestFixedDefects.test_release_verify_survives_empty_main_program_path"
+    },
+    {
+      "module": "verify_release_manifest.py",
+      "site": "_check_qemu",
+      "symptom": "ValueError: lstat: embedded null character in path",
+      "cause": "os.path.realpath() called unguarded while building the escape message",
+      "fix": "added _safe_realpath() and used it in the check and the message",
+      "regression_test": "TestFixedDefects.test_release_verify_survives_nul_in_qemu_path"
+    },
+    {
+      "module": "run_stability_gate.py",
+      "site": "project_semantics",
+      "symptom": "TypeError: 'NoneType' object is not iterable",
+      "cause": "dict.get(key, []) returns None when the key is present with JSON null",
+      "fix": "added _as_list()/_as_dict() and used them for backends/selection/matrix",
+      "regression_test": "TestFixedDefects.test_project_semantics_survives_null_containers"
+    },
+    {
+      "module": "run_conformance.py",
+      "site": "_check_guest_arch",
+      "symptom": "guest-arch-invalid was unreachable: unknown-but-non-empty architectures are normalised, not rejected",
+      "cause": "canonical_arch() intentionally lowercases what it does not recognise, so the `if not guest` branch could never fire for a non-empty string",
+      "fix": "documented as deliberate -- rejecting unknown architectures would fail the bundled loongarch64 target; bogus acceleration claims are still caught by cross-arch-not-tcg",
+      "regression_test": "TestFixedDefects.test_guest_arch_invalid_is_documented_dead_branch"
+    }
+  ],
+  "findings": [],
+  "not_verified": [
+    "Only pure parsing/validation entry points are exercised; live binary runs and VM behaviour are out of scope.",
+    "Exhaustive input-space coverage is impossible; coverage is bounded by the generator and its documented resource limits.",
+    "Resource limits are enforced per sample; aggregate memory pressure across a whole batch is not measured."
+  ],
+  "hardening_status": "clean"
+}

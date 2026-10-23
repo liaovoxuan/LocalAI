@@ -1,0 +1,64 @@
+{
+  "schema": "virtualworld.release-audit/1",
+  "audit_type": "blocked",
+  "audit_timestamp_utc": "2026-10-06T02:52:00Z",
+  "audit_agent": "JoyAI-Code-1.5",
+  "audit_role": "read-only",
+  "gate_file": "build-release-candidate/release-blocked.json",
+  "gate_result": "BLOCKED",
+  "gate_error_code": "PLATFORM_FREEZE_HASH_MISMATCH",
+  "candidate_git_head": "15e8d34bf664365c596a29163a594ecf025bf67b",
+  "freeze_marker": "build-mac-harmony-chaos/.platform-freeze-ready",
+  "freeze_marker_freeze_utc": "2026-10-06T02:48:00Z",
+  "platform_hash_mismatch": {
+    "file": "docs/harmonyos-virtualization.md",
+    "expected_sha256": "3c4d0462c3cb502a7677d0262b9c0f4e2963d2ab86075c1eba8a5e87ed41013b",
+    "actual_sha256": "1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5",
+    "match": false
+  },
+  "platform_hash_verification": [
+    {"file": "src/MacVirtualizationEngine.hpp", "match": true},
+    {"file": "src/MacVirtualizationEngine.mm", "match": true},
+    {"file": "tests/MacVirtualizationEngineTests.cpp", "match": true},
+    {"file": "docs/macos-virtualization.md", "match": true},
+    {"file": "src/HarmonyVirtualizationEngine.hpp", "match": true},
+    {"file": "src/HarmonyVirtualizationEngine.cpp", "match": true},
+    {"file": "tests/HarmonyVirtualizationEngineTests.cpp", "match": true},
+    {"file": "docs/harmonyos-virtualization.md", "match": false}
+  ],
+  "all_eight_match": false,
+  "tests_executed": null,
+  "ctest_items": null,
+  "architecture_matrix_checks": null,
+  "windows_linux_fault_injection_checks": null,
+  "real_hardware_verified": false,
+  "vm_started": false,
+  "vm_skip_reason": "candidate blocked; no release-ready.json produced",
+  "downstream_steps_executed": false,
+  "working_tree_summary": {
+    "modified": 56,
+    "untracked": 84
+  },
+  "verdict": "BLOCKED",
+  "verdict_reason": "docs/harmonyos-virtualization.md SHA-256 mismatch against platform freeze marker. No Release Candidate build or tests were produced. Audit cannot proceed beyond gate verification.",
+  "previous_baseline": {
+    "source": "VirtualizationArchitectureMatrixTests (build-architecture-matrix)",
+    "checks": 50071,
+    "failures": 0,
+    "note": "historical baseline from previous conversation, not re-run in this blocked audit"
+  },
+  "unverified_real_hardware": [
+    "Windows x86_64",
+    "Windows ARM64",
+    "macOS x86_64",
+    "macOS ARM64",
+    "Linux x86_64",
+    "Linux ARM64",
+    "Linux RISC-V64",
+    "HarmonyOS ARM64"
+  ],
+  "reports": [
+    ".joycode/reports/virtualization-release-audit.json",
+    ".joycode/reports/virtualization-release-audit.md"
+  ]
+}

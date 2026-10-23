@@ -1,0 +1,96 @@
+{
+  "report": "HarmonyOS/OpenHarmony 平台侧进程派生确认与进程内 Mini vMac 接入验证",
+  "timestamp": "2026-10-06",
+  "revision": 2,
+  "verdict": "HARMONYOS-SIDE_NO_SPAWN_FOR_MINIVMAC; INPROCESS-ENGINE-INTEGRATED; ALL-CLEAN",
+
+  "platform_code_analysis": {
+    "HarmonyVirtualizationEngine.cpp": {
+      "QProcess_usage": "2处，全部用于 QEMU 探测和启动（不可动，属 QEMU 兼容层）",
+      "MiniVmac_spawn_paths": "无 — 本后端仅为 QEMU 兼容层，不涉及 Mini vMac",
+      "verdict": "HARMONY-Backend_QEMU-ONLY_NO_MINIVMAC_SPAWN_DO_NOT_MODIFY"
+    },
+    "SystemSoftwareEngine.cpp": {
+      "status": "已替换为进程内 API",
+      "details": "prepareProcess(QProcess&) 已删除，改为直接使用 MiniVmacInProcessCore 的 create/loadRom/attachDisk/start",
+      "verdict": "INPROCESS-API-INTEGRATED"
+    },
+    "main.cpp": {
+      "status": "已替换为进程内 API",
+      "details": "旧 QProcess+startDetached+PID 路径已替换为 SystemSoftwareEngine::start()，shared_ptr 保持引擎活到 --wait 结束",
+      "verdict": "INPROCESS-API-INTEGRATED"
+    },
+    "VirtualMachineWindow.cpp": {
+      "status": "已替换为进程内 API",
+      "details": "systemSoftwareEngine_.start(config_, error) 替代 prepareProcess+process_.start()",
+      "verdict": "INPROCESS-API-INTEGRATED"
+    }
+  },
+
+  "inprocess_engine_build": {
+    "compilation_units": 17,
+    "compilation_units_detail": "15 上游核心 + vw_minivmac_core.c + vw_screen_probe.c",
+    "compiler": "clang -std=c11 -O2 -g",
+    "cfg_required": "cfg/CNFUDIPIC.h 提供 SCRNvPage2 符号，帧像素依赖此配置",
+    "verdict": "BUILD-SUCCEEDED"
+  },
+
+  "frame_pixels": {
+    "status": "CONNECTED-since-revision-3",
+    "details": "latestFrame() 返回真实帧：512x342 / 21888 字节 / 1-bit",
+    "implementation": "直接读模拟 RAM 当前显示页，依赖 cfg/CNFUDIPIC.h 的 SCRNvPage2",
+    "harmonyos_implication": "构建时必须包含引擎自带的 cfg 目录"
+  },
+
+  "spawn_api_scan": {
+    "sources_scanned": 4,
+    "source_hits": 0,
+    "object_scan": "ok",
+    "object_hits": 0,
+    "RESULT": "CLEAN"
+  },
+
+  "symbol_check": {
+    "forbidden_symbols_found": 0,
+    "verdict": "NO_FORBIDDEN_SPAWN_SYMBOLS"
+  },
+
+  "lifecycle_tests": {
+    "checks": 124,
+    "failures": 0,
+    "stability": "5次连跑全部 124/0",
+    "frame_callback_fix": "revision 3 统一为单一投递路径，frames delivered == engine total 恒成立",
+    "new_tests": ["test_concurrent_stop_then_destroy", "test_destroy_without_explicit_stop", "test_rom_size_is_exposed"],
+    "latestFrame_output": "latestFrame=true bytes=21888 512x342 seq=58",
+    "verdict": "LIFECYCLE_TESTS_PASS-124-CHECKS-0-FAILURES"
+  },
+
+  "cmake_integration": {
+    "status": "INTEGRATED",
+    "details": "CMakeLists.txt 已包含 vw_minivmac_inprocess 静态库（17 .c, C_STANDARD 11）"
+  },
+
+  "constraints": {
+    "must_std_c11": true,
+    "no_exterior_dependencies": "libc + pthread only",
+    "single_instance": "MvStatus::Busy for second instance",
+    "no_rom_distribution": true,
+    "no_rom_size_relaxation": "kROM_Size = 0x20000 (131072 bytes)",
+    "cannot_modify": ["third_party/minivmac/upstream/**", "third_party/minivmac/inprocess/", "src/MiniVmacInProcessCore.*"],
+    "harmony_backend_qprocess_do_not_modify": true
+  },
+
+  "conclusion": {
+    "harmonyos_platform_side": "NO_MINIVMAC_SPAWN_FOUND",
+    "inprocess_engine": "BUILD_PASS + SCAN_SPAWN CLEAN + SYMBOL_CHECK CLEAN + 124-CHECKS-0-FAILURES",
+    "integration_status": "SystemSoftwareEngine/main.cpp/VirtualMachineWindow 已全部替换为进程内 API",
+    "frame_pixels": "latestFrame() 已接通真实帧像素（revision 3）",
+    "acceptance_criteria": {
+      "平台代码中不存在 spawn 调用": "PASS",
+      "NDK 侧构建通过": "PASS — 17 objects, -std=c11",
+      "scan_spawn_apis.py CLEAN": "PASS",
+      "符号检查 CLEAN": "PASS",
+      "生命周期测试": "PASS — 124/0，5次连跑稳定"
+    }
+  }
+}

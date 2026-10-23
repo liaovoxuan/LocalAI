@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -eu
+
+ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -x "$ROOT_DIR/.venv-localai-pack-tk/bin/python" ]; then
+  PYTHON_BIN="$ROOT_DIR/.venv-localai-pack-tk/bin/python"
+elif [ -x "$ROOT_DIR/.venv-localai-pack/bin/python" ]; then
+  PYTHON_BIN="$ROOT_DIR/.venv-localai-pack/bin/python"
+else
+  PYTHON_BIN="${LOCALAI_PYTHON:-python3}"
+fi
+exec "$PYTHON_BIN" "$ROOT_DIR/tooling/package.py" "$@"

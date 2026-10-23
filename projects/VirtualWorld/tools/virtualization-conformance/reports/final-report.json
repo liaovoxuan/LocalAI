@@ -1,0 +1,1177 @@
+{
+  "report": "virtualworld-virtualization-final-certification",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-05T03:20:23+00:00",
+  "certified_by": "stage-5 black-box virtualization certification",
+  "third_party_packages": false,
+  "network_access": false,
+  "allow_code_used": false,
+  "product_code_modified": false,
+  "product": {
+    "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "sha256": "238f603d3d1d1db3c8b574f9617d0632f0f6bcbfbe4c44d923917b6dda60b80f",
+    "size_bytes": 1477872,
+    "mtime": "2026-10-05T11:13:19",
+    "mtime_epoch": 1791169999,
+    "build_label": "build-final (Release, contrib backends ON)",
+    "schema": "virtualworld.virtualization/3",
+    "build_flags": {
+      "harmony_backend": true,
+      "linux_kvm_backend": true,
+      "macos_backend": true,
+      "qemu_fallback": true,
+      "windows_backend": true
+    },
+    "host": {
+      "arch": "aarch64",
+      "family": "macos-apple-silicon",
+      "name": "macOS",
+      "platform": "macos"
+    },
+    "guest_arch": "x86_64",
+    "preference": "qemu",
+    "backend_ids": [
+      "macos-virtualization",
+      "windows-hypervisor",
+      "qemu-hardware",
+      "harmony-virtualization",
+      "linux-kvm",
+      "qemu-tcg"
+    ],
+    "selection_order": [
+      "macos-virtualization",
+      "windows-hypervisor",
+      "qemu-hardware",
+      "harmony-virtualization",
+      "linux-kvm",
+      "qemu-tcg"
+    ],
+    "backend_fields_observed": [
+      "accelerator",
+      "execution_tier",
+      "guest_arch_supported",
+      "hardware_acceleration",
+      "host_supported",
+      "id",
+      "issues",
+      "name",
+      "native_execution",
+      "requirements",
+      "runs_in_process",
+      "status",
+      "status_class",
+      "summary",
+      "tier"
+    ],
+    "backend_fields_optional_absent": [],
+    "selection_fields_observed": [
+      "backend",
+      "considered",
+      "execution_tier",
+      "fallback_from",
+      "fell_back",
+      "name",
+      "ok",
+      "reason",
+      "tier"
+    ],
+    "considered_fields_observed": [
+      "config_accepted",
+      "guest_arch_supported",
+      "host_supported",
+      "id",
+      "reason",
+      "selected",
+      "status",
+      "tier"
+    ],
+    "matrix_fields_observed": [
+      "backend",
+      "guest_arch",
+      "host_arch",
+      "host_platform",
+      "note",
+      "status",
+      "tier",
+      "verified"
+    ]
+  },
+  "build_integrity": {
+    "binary_mtime": "2026-10-05T11:13:19",
+    "newest_product_input": "src/VirtualizationEngine.cpp",
+    "newest_product_input_mtime": "2026-10-05T11:08:57",
+    "newest_product_input_skew_seconds": -262.2,
+    "product_inputs_newer_than_binary": [],
+    "test_sources_newer_than_binary": [],
+    "artifact_matches_newest_product_input": true,
+    "note": "artifact was linked from the newest product inputs"
+  },
+  "product_self_tests": {
+    "available": true,
+    "build_dir": "build-final",
+    "results": [
+      {
+        "test": "VirtualWorldTranslatorTests",
+        "outcome": "passed",
+        "checks": ""
+      },
+      {
+        "test": "VirtualWorldVirtualizationEngineTests",
+        "outcome": "passed",
+        "checks": "VirtualizationEngineTests: 398 checks, 0 failures"
+      },
+      {
+        "test": "VirtualWorldVirtualizationIntegrationTests",
+        "outcome": "passed",
+        "checks": "VirtualizationIntegrationTests: 590 checks, 0 failures"
+      },
+      {
+        "test": "VirtualWorldMacVirtualizationEngineTests",
+        "outcome": "passed",
+        "checks": ""
+      },
+      {
+        "test": "VirtualWorldHarmonyVirtualizationEngineTests",
+        "outcome": "passed",
+        "checks": ""
+      },
+      {
+        "test": "VirtualWorldLinuxKvmEngineTests",
+        "outcome": "passed",
+        "checks": ""
+      },
+      {
+        "test": "VirtualWorldWindowsHypervisorEngineTests",
+        "outcome": "passed",
+        "checks": ""
+      }
+    ],
+    "passed": 7,
+    "failed": 0,
+    "stale": false,
+    "note": "ctest log is newer than the certified binary",
+    "log_mtime": "2026-10-05T11:15:20"
+  },
+  "self_tests": {
+    "command": "python3 virtualization-conformance/test_run_conformance.py",
+    "exit_code": 0,
+    "result": "OK",
+    "tests_run": 68,
+    "tail": [
+      "----------------------------------------------------------------------",
+      "Ran 68 tests in 7.899s",
+      "",
+      "OK"
+    ]
+  },
+  "live": {
+    "arches": [
+      "x86_64",
+      "aarch64",
+      "riscv64"
+    ],
+    "allow_code": [],
+    "targets": [
+      {
+        "source": "VirtualWorld --list-backends x86_64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--list-backends",
+          "x86_64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      },
+      {
+        "source": "VirtualWorld --check x86_64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--check",
+          "x86_64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      },
+      {
+        "source": "VirtualWorld --list-backends aarch64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--list-backends",
+          "aarch64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      },
+      {
+        "source": "VirtualWorld --check aarch64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--check",
+          "aarch64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      },
+      {
+        "source": "VirtualWorld --list-backends riscv64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--list-backends",
+          "riscv64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      },
+      {
+        "source": "VirtualWorld --check riscv64",
+        "command": [
+          "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+          "--check",
+          "riscv64",
+          "--json"
+        ],
+        "exit_code": 0,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": ""
+      }
+    ],
+    "summary": {
+      "targets": 6,
+      "errors": 0,
+      "warnings": 0,
+      "ok": true
+    }
+  },
+  "support_matrix": [
+    {
+      "backend": "windows-hypervisor",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "Windows x86_64 宿主：WHPX 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "windows-hypervisor",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "Windows ARM64 宿主：WHPX 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "macos-virtualization",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "Intel Mac：Virtualization.framework 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "macos-virtualization",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "Apple Silicon：Virtualization.framework 原生路径，已编译未实机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    }
+  ],
+  "fixtures": {
+    "manifest": "virtualization-conformance/fixtures/index.json",
+    "load_error": null,
+    "counts": {
+      "total": 12,
+      "real_captures": 2,
+      "synthetic_scenarios": 7,
+      "negative_fixtures": 3
+    },
+    "real_captures": [
+      "fixture:macOS Apple Silicon, aarch64 guest",
+      "fixture:macOS Apple Silicon, x86_64 guest (cross-architecture)"
+    ],
+    "synthetic_scenarios": [
+      "fixture:Intel Mac, x86_64 guest",
+      "fixture:Windows x86_64 host, x86_64 guest",
+      "fixture:Windows ARM64 host, aarch64 guest",
+      "fixture:Linux x86_64 host, x86_64 guest",
+      "fixture:Linux ARM64 host, aarch64 guest",
+      "fixture:Linux RISC-V64 host, riscv64 guest",
+      "fixture:HarmonyOS/OpenHarmony ARM64 host, aarch64 guest"
+    ],
+    "negative_fixtures": [
+      "fixture:HISTORICAL REGRESSION: WHPX reported tier 'emulation', pushing qemu-tcg out of last place",
+      "fixture:KNOWN DEFECT: HarmonyOS QEMU compatibility backend claims native",
+      "fixture:Malformed JSON must be reported, not crash the tool"
+    ],
+    "expectations_met": 12,
+    "rows": [
+      {
+        "source": "fixture:macOS Apple Silicon, aarch64 guest",
+        "command": [
+          "fixture:macos-apple-silicon-aarch64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "macos-apple-silicon-aarch64.json",
+        "synthetic": false,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:macOS Apple Silicon, x86_64 guest (cross-architecture)",
+        "command": [
+          "fixture:macos-apple-silicon-x86_64-guest.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "macos-apple-silicon-x86_64-guest.json",
+        "synthetic": false,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Intel Mac, x86_64 guest",
+        "command": [
+          "fixture:macos-intel-x86_64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "macos-intel-x86_64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Windows x86_64 host, x86_64 guest",
+        "command": [
+          "fixture:windows-x86_64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "windows-x86_64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Windows ARM64 host, aarch64 guest",
+        "command": [
+          "fixture:windows-aarch64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "windows-aarch64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Linux x86_64 host, x86_64 guest",
+        "command": [
+          "fixture:linux-x86_64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "linux-x86_64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Linux ARM64 host, aarch64 guest",
+        "command": [
+          "fixture:linux-aarch64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "linux-aarch64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Linux RISC-V64 host, riscv64 guest",
+        "command": [
+          "fixture:linux-riscv64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "linux-riscv64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:HarmonyOS/OpenHarmony ARM64 host, aarch64 guest",
+        "command": [
+          "fixture:harmonyos-aarch64.json"
+        ],
+        "exit_code": null,
+        "ok": true,
+        "error_count": 0,
+        "warning_count": 0,
+        "findings": [],
+        "stderr_excerpt": "",
+        "file": "harmonyos-aarch64.json",
+        "synthetic": true,
+        "expect_fail": false,
+        "tracked_defect_codes": [],
+        "expected": "must pass",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:HISTORICAL REGRESSION: WHPX reported tier 'emulation', pushing qemu-tcg out of last place",
+        "command": [
+          "fixture:negative/windows-native-tier-regression.json"
+        ],
+        "exit_code": null,
+        "ok": false,
+        "error_count": 2,
+        "warning_count": 0,
+        "findings": [
+          {
+            "severity": "error",
+            "code": "platform-native-tier-not-native",
+            "message": "'windows-hypervisor' wraps a host hypervisor API and must report tier 'native', got 'emulation'",
+            "path": "$.backends[5].tier"
+          },
+          {
+            "severity": "error",
+            "code": "tcg-not-last",
+            "message": "'qemu-tcg' must be the last candidate but ['windows-hypervisor'] follow it (last is 'windows-hypervisor')",
+            "path": "$.selection.considered"
+          }
+        ],
+        "stderr_excerpt": "",
+        "file": "negative/windows-native-tier-regression.json",
+        "synthetic": true,
+        "expect_fail": true,
+        "tracked_defect_codes": [],
+        "expected": "must fail",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:KNOWN DEFECT: HarmonyOS QEMU compatibility backend claims native",
+        "command": [
+          "fixture:negative/harmony-claims-native.json"
+        ],
+        "exit_code": null,
+        "ok": false,
+        "error_count": 2,
+        "warning_count": 0,
+        "findings": [
+          {
+            "severity": "error",
+            "code": "compat-backend-claims-native",
+            "message": "'harmony-virtualization' runs the guest through QEMU and must not report tier 'native'",
+            "path": "$.backends[2].tier"
+          },
+          {
+            "severity": "error",
+            "code": "compat-backend-claims-native-execution",
+            "message": "'harmony-virtualization' must not claim native_execution: the device model is always QEMU",
+            "path": "$.backends[2].native_execution"
+          }
+        ],
+        "stderr_excerpt": "",
+        "file": "negative/harmony-claims-native.json",
+        "synthetic": true,
+        "expect_fail": true,
+        "tracked_defect_codes": [],
+        "expected": "must fail",
+        "expectation_met": true
+      },
+      {
+        "source": "fixture:Malformed JSON must be reported, not crash the tool",
+        "command": [
+          "fixture:negative/broken-json.json"
+        ],
+        "exit_code": null,
+        "ok": false,
+        "error_count": 1,
+        "warning_count": 0,
+        "findings": [
+          {
+            "severity": "error",
+            "code": "fixture-unparseable",
+            "message": "fixture is not valid JSON: Expecting value: line 1 column 59 (char 58)",
+            "path": "negative/broken-json.json"
+          }
+        ],
+        "stderr_excerpt": "",
+        "file": "negative/broken-json.json",
+        "synthetic": true,
+        "expect_fail": true,
+        "tracked_defect_codes": [],
+        "expected": "must fail",
+        "expectation_met": true
+      }
+    ],
+    "invariant": {
+      "id": "fixture-expectations",
+      "description": "every fixture behaves as its manifest declares (positives pass, negatives fail)",
+      "status": "pass"
+    }
+  },
+  "legacy_compatibility": {
+    "note": "'backend=qemu' is the legacy default: resolveBackendPreference() falls back to it, and parseBackendPreference() maps it to the QemuOnly policy, which excludes native backends by policy rather than by failure.",
+    "selections": [
+      {
+        "arch": "x86_64",
+        "checks": [
+          {
+            "label": "legacy default (no --backend, no VIRTUALWORLD_BACKEND)",
+            "env": {},
+            "exit_code": 0,
+            "preference": "qemu",
+            "selected": "qemu-tcg",
+            "ok": true,
+            "fell_back": true,
+            "expectation": "legacy-default",
+            "satisfied": true,
+            "detail": "preference=qemu (legacy QemuOnly); 2 backend(s) excluded by policy, 0 without a reason"
+          },
+          {
+            "label": "explicit qemu-tcg",
+            "env": {
+              "VIRTUALWORLD_BACKEND": "qemu-tcg"
+            },
+            "exit_code": 0,
+            "preference": "qemu-tcg",
+            "selected": "qemu-tcg",
+            "ok": true,
+            "fell_back": false,
+            "expectation": "explicit-honoured",
+            "satisfied": true,
+            "detail": "explicit request resolved to 'qemu-tcg'"
+          },
+          {
+            "label": "explicit unknown id",
+            "env": {
+              "VIRTUALWORLD_BACKEND": "does-not-exist"
+            },
+            "exit_code": 0,
+            "preference": "does-not-exist",
+            "selected": "qemu-tcg",
+            "ok": true,
+            "fell_back": true,
+            "expectation": "explicit-unknown-falls-back",
+            "satisfied": true,
+            "detail": "unknown id fell back to 'qemu-tcg' (ok=True)"
+          }
+        ],
+        "ok": true
+      }
+    ],
+    "check_agreement": [
+      {
+        "arch": "x86_64",
+        "text_exit": 0,
+        "json_exit": 0,
+        "agree": true,
+        "selected": "qemu-tcg",
+        "text_has_keyvalue": true
+      },
+      {
+        "arch": "aarch64",
+        "text_exit": 0,
+        "json_exit": 0,
+        "agree": true,
+        "selected": "qemu-hardware",
+        "text_has_keyvalue": true
+      },
+      {
+        "arch": "riscv64",
+        "text_exit": 0,
+        "json_exit": 0,
+        "agree": true,
+        "selected": "qemu-tcg",
+        "text_has_keyvalue": true
+      }
+    ],
+    "selections_ok": true,
+    "check_agreement_ok": true,
+    "ok": true
+  },
+  "defects": [],
+  "invariants": [
+    {
+      "id": "schema",
+      "description": "JSON schema is virtualworld.virtualization/<n> with n >= 1",
+      "status": "pass"
+    },
+    {
+      "id": "exit-codes",
+      "description": "documented exit codes (--list-backends=0, --check in {0,1})",
+      "status": "pass"
+    },
+    {
+      "id": "single-document",
+      "description": "stdout is exactly one parseable JSON document",
+      "status": "pass"
+    },
+    {
+      "id": "backend-id-unique",
+      "description": "every backend id is non-empty and unique",
+      "status": "pass"
+    },
+    {
+      "id": "tier-legal",
+      "description": "every tier is one of native/hardware/emulation",
+      "status": "pass"
+    },
+    {
+      "id": "considered-reasons",
+      "description": "every candidate carries a non-empty reason",
+      "status": "pass"
+    },
+    {
+      "id": "considered-complete",
+      "description": "selection.considered covers exactly the registered backends",
+      "status": "pass"
+    },
+    {
+      "id": "considered-order",
+      "description": "candidates are ordered native -> hardware -> emulation",
+      "status": "pass"
+    },
+    {
+      "id": "best-eligible",
+      "description": "under preference=auto the best eligible candidate is selected",
+      "status": "pass"
+    },
+    {
+      "id": "tcg-last",
+      "description": "qemu-tcg is present and always the last candidate",
+      "status": "pass"
+    },
+    {
+      "id": "tcg-cross-arch",
+      "description": "cross-architecture guests are served by qemu-tcg",
+      "status": "pass"
+    },
+    {
+      "id": "harmony-not-native",
+      "description": "harmony-virtualization never claims native tier or native execution",
+      "status": "pass"
+    },
+    {
+      "id": "kvm-not-native",
+      "description": "linux-kvm never claims native tier or native execution",
+      "status": "pass"
+    },
+    {
+      "id": "whpx-native-tier",
+      "description": "windows-hypervisor reports the native tier",
+      "status": "pass"
+    },
+    {
+      "id": "matrix-complete",
+      "description": "support_matrix rows are complete and verified is a real boolean",
+      "status": "pass"
+    },
+    {
+      "id": "matrix-cross-arch",
+      "description": "no matrix row advertises acceleration across architectures",
+      "status": "pass"
+    },
+    {
+      "id": "legacy-compatibility",
+      "description": "legacy backend=qemu default and --check text/JSON agreement",
+      "status": "pass"
+    }
+  ],
+  "not_verified": [
+    "No guest was started by this certification: only --list-backends and --check were run.",
+    "Windows, Linux and HarmonyOS hosts were not exercised on real hardware; their documents here are synthetic fixtures labelled synthetic=true.",
+    "Intel Mac behaviour is covered by a synthetic fixture only; this machine is Apple Silicon.",
+    "QEMU/accelerator behaviour beyond capability reporting (an actual accelerated boot) is untested.",
+    "The product binary was produced by another workstream; this tool neither built nor modified it."
+  ],
+  "certification_status": "conformant",
+  "blocking": null
+}

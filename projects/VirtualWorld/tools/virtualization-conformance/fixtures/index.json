@@ -1,0 +1,166 @@
+{
+  "schema": "virtualworld.conformance.fixtures/1",
+  "about": [
+    "Offline documents for tools/virtualization-conformance/run_conformance.py.",
+    "",
+    "Every entry declares whether it is a REAL capture or SYNTHETIC, because the",
+    "two carry completely different authority:",
+    "",
+    "  synthetic: false -- captured verbatim from a built VirtualWorld binary on a",
+    "                      real host. Only these may ever be cited as evidence that",
+    "                      a host was exercised.",
+    "  synthetic: true  -- hand-authored (see make_synthetic_fixtures.py) so CI on",
+    "                      any machine can cover hosts it does not have. The checker",
+    "                      fails any synthetic fixture whose support_matrix claims",
+    "                      verified: true.",
+    "",
+    "expect_fail: true marks a fixture that reproduces a KNOWN defect. The checker",
+    "must reject it with the listed codes; when the underlying defect is fixed the",
+    "fixture is updated or moved, so a silently-passing negative fixture is itself",
+    "reported as an error (negative-fixture-unexpectedly-passed)."
+  ],
+  "fixtures": [
+    {
+      "file": "macos-apple-silicon-aarch64.json",
+      "label": "macOS Apple Silicon, aarch64 guest",
+      "synthetic": false,
+      "captured_from": "build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld --list-backends aarch64",
+      "requested_arch": "aarch64",
+      "expect": {
+        "host_platform": "macos",
+        "host_arch": "aarch64",
+        "guest_arch": "aarch64",
+        "selected_backend": "qemu-hardware"
+      },
+      "note": "Real capture taken from the certified build-final binary on a real Apple Silicon Mac. The Windows tier defect these captures used to exhibit is fixed as of schema /3, so they are expected to pass cleanly."
+    },
+    {
+      "file": "macos-apple-silicon-x86_64-guest.json",
+      "label": "macOS Apple Silicon, x86_64 guest (cross-architecture)",
+      "synthetic": false,
+      "captured_from": "build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld --list-backends x86_64-guest",
+      "requested_arch": "x86_64",
+      "expect": {
+        "host_platform": "macos",
+        "host_arch": "aarch64",
+        "guest_arch": "x86_64",
+        "selected_backend": "qemu-tcg"
+      },
+      "note": "Real capture taken from the certified build-final binary on a real Apple Silicon Mac. The Windows tier defect these captures used to exhibit is fixed as of schema /3, so they are expected to pass cleanly."
+    },
+    {
+      "file": "macos-intel-x86_64.json",
+      "label": "Intel Mac, x86_64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "macos",
+        "host_arch": "x86_64",
+        "guest_arch": "x86_64",
+        "selected_backend": "macos-virtualization",
+        "selected_tier": "native"
+      }
+    },
+    {
+      "file": "windows-x86_64.json",
+      "label": "Windows x86_64 host, x86_64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "windows",
+        "host_arch": "x86_64",
+        "guest_arch": "x86_64",
+        "selected_backend": "windows-hypervisor",
+        "selected_tier": "native"
+      }
+    },
+    {
+      "file": "windows-aarch64.json",
+      "label": "Windows ARM64 host, aarch64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "windows",
+        "host_arch": "aarch64",
+        "guest_arch": "aarch64",
+        "selected_backend": "windows-hypervisor",
+        "selected_tier": "native"
+      }
+    },
+    {
+      "file": "linux-x86_64.json",
+      "label": "Linux x86_64 host, x86_64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "linux",
+        "host_arch": "x86_64",
+        "guest_arch": "x86_64",
+        "selected_backend": "linux-kvm",
+        "selected_tier": "hardware"
+      }
+    },
+    {
+      "file": "linux-aarch64.json",
+      "label": "Linux ARM64 host, aarch64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "linux",
+        "host_arch": "aarch64",
+        "guest_arch": "aarch64",
+        "selected_backend": "linux-kvm",
+        "selected_tier": "hardware"
+      }
+    },
+    {
+      "file": "linux-riscv64.json",
+      "label": "Linux RISC-V64 host, riscv64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "linux",
+        "host_arch": "riscv64",
+        "guest_arch": "riscv64",
+        "selected_backend": "linux-kvm",
+        "selected_tier": "hardware"
+      }
+    },
+    {
+      "file": "harmonyos-aarch64.json",
+      "label": "HarmonyOS/OpenHarmony ARM64 host, aarch64 guest",
+      "synthetic": true,
+      "expect": {
+        "host_platform": "harmonyos",
+        "host_arch": "aarch64",
+        "guest_arch": "aarch64",
+        "selected_backend": "harmony-virtualization",
+        "selected_tier": "hardware"
+      }
+    },
+    {
+      "file": "negative/windows-native-tier-regression.json",
+      "label": "HISTORICAL REGRESSION: WHPX reported tier 'emulation', pushing qemu-tcg out of last place",
+      "synthetic": true,
+      "expect_fail": true,
+      "expected_codes": [
+        "platform-native-tier-not-native",
+        "tcg-not-last"
+      ],
+      "note": "Reproduces the defect that build-final schema /3 fixed. Kept as a detector regression: the checker must keep rejecting this document so the invariant stays enforced even though the product is now clean."
+    },
+    {
+      "file": "negative/harmony-claims-native.json",
+      "label": "KNOWN DEFECT: HarmonyOS QEMU compatibility backend claims native",
+      "synthetic": true,
+      "expect_fail": true,
+      "expected_codes": [
+        "compat-backend-claims-native",
+        "compat-backend-claims-native-execution"
+      ]
+    },
+    {
+      "file": "negative/broken-json.json",
+      "label": "Malformed JSON must be reported, not crash the tool",
+      "synthetic": true,
+      "expect_fail": true,
+      "expected_codes": [
+        "fixture-unparseable"
+      ]
+    }
+  ]
+}

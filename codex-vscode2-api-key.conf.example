@@ -1,0 +1,6 @@
+# Paste the API key from your provider after the equals sign.
+# Keep this file private and do not share it.
+OPENAI_API_KEY=YOUR_API_KEY_HERE
+
+# The provider's OpenAI-compatible API endpoint.
+OPENAI_BASE_URL=https://new.sharedchat.cc

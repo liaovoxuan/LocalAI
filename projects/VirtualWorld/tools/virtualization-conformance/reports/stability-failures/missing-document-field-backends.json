@@ -1,0 +1,532 @@
+{
+  "build": {
+    "harmony_backend": true,
+    "linux_kvm_backend": true,
+    "macos_backend": true,
+    "qemu_fallback": true,
+    "windows_backend": true
+  },
+  "guest_arch": "x86_64",
+  "host": {
+    "arch": "aarch64",
+    "family": "macos-apple-silicon",
+    "name": "macOS",
+    "platform": "macos"
+  },
+  "preference": "qemu",
+  "schema": "virtualworld.virtualization/3",
+  "selection": {
+    "backend": "qemu-tcg",
+    "considered": [
+      {
+        "config_accepted": false,
+        "guest_arch_supported": false,
+        "host_supported": false,
+        "id": "macos-virtualization",
+        "reason": "策略要求只使用 QEMU 后端，跳过原生后端。",
+        "selected": false,
+        "status": "excluded-by-policy",
+        "tier": "native"
+      },
+      {
+        "config_accepted": false,
+        "guest_arch_supported": false,
+        "host_supported": false,
+        "id": "windows-hypervisor",
+        "reason": "策略要求只使用 QEMU 后端，跳过原生后端。",
+        "selected": false,
+        "status": "excluded-by-policy",
+        "tier": "native"
+      },
+      {
+        "config_accepted": false,
+        "guest_arch_supported": false,
+        "host_supported": true,
+        "id": "qemu-hardware",
+        "reason": "QEMU 硬件加速只对同架构客户机有效：宿主 aarch64，客户机 x86_64。",
+        "selected": false,
+        "status": "guest-arch-unsupported",
+        "tier": "hardware"
+      },
+      {
+        "config_accepted": false,
+        "guest_arch_supported": false,
+        "host_supported": false,
+        "id": "harmony-virtualization",
+        "reason": "宿主不是 HarmonyOS/OpenHarmony，本后端不适用；请使用 QEMU 后端（qemu-hardware / qemu-tcg）。",
+        "selected": false,
+        "status": "host-unsupported",
+        "tier": "emulation"
+      },
+      {
+        "config_accepted": false,
+        "guest_arch_supported": false,
+        "host_supported": false,
+        "id": "linux-kvm",
+        "reason": "宿主不是 Linux，本后端不适用；请使用 QEMU 后端（qemu-hardware / qemu-tcg）。",
+        "selected": false,
+        "status": "host-unsupported",
+        "tier": "emulation"
+      },
+      {
+        "config_accepted": true,
+        "guest_arch_supported": true,
+        "host_supported": true,
+        "id": "qemu-tcg",
+        "reason": "可用：QEMU TCG 软件模拟（任意架构，最后兜底）",
+        "selected": true,
+        "status": "available",
+        "tier": "emulation"
+      }
+    ],
+    "execution_tier": "emulation",
+    "fallback_from": "qemu-hardware",
+    "fell_back": true,
+    "name": "QEMU TCG 软件模拟",
+    "ok": true,
+    "reason": "首选后端 qemu-hardware 不可用，回退：可用：QEMU TCG 软件模拟（任意架构，最后兜底）",
+    "tier": "emulation"
+  },
+  "support_matrix": [
+    {
+      "backend": "windows-hypervisor",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "Windows x86_64 宿主：WHPX 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "windows-hypervisor",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "Windows ARM64 宿主：WHPX 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "windows",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "macos-virtualization",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "Intel Mac：Virtualization.framework 原生路径，未在本机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "macos-virtualization",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "Apple Silicon：Virtualization.framework 原生路径，已编译未实机验证。",
+      "status": "native",
+      "tier": "native",
+      "verified": false
+    },
+    {
+      "backend": "qemu-hardware",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "原生后端不可用或配置校验失败时的硬件加速回退。",
+      "status": "hardware",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "macos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "linux-kvm",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生，LinuxKvmEngine 直述 never native），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "linux",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "x86_64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "aarch64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "x86_64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "aarch64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    },
+    {
+      "backend": "harmony-virtualization",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。",
+      "status": "compat",
+      "tier": "hardware",
+      "verified": false
+    },
+    {
+      "backend": "qemu-tcg",
+      "guest_arch": "riscv64",
+      "host_arch": "riscv64",
+      "host_platform": "harmonyos",
+      "note": "最终兜底：QEMU TCG 始终可用。",
+      "status": "emulation",
+      "tier": "emulation",
+      "verified": false
+    }
+  ]
+}

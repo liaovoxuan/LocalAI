@@ -24,19 +24,19 @@ jobs:
         run: python -m pip install --upgrade pip && pip install pyinstaller requests psutil py-cpuinfo pillow
 
       - name: Build Standard exe
-        run: pyinstaller --clean --noconfirm LocalAI.spec
+        run: pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI.spec
 
 
       - name: Build SE exe
-        run: pyinstaller --clean --noconfirm LocalAI_SE.spec
+        run: pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE.spec
 
 
       - name: Build CloudAI exe
-        run: pyinstaller --clean --noconfirm CloudAI.spec
+        run: pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI.spec
 
       - name: Build VirtualWorld
         run: |
-          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
           cmake --build build/virtualworld --config Release
           if (Test-Path "build/virtualworld/Release/VirtualWorld.exe") {
             Copy-Item "build/virtualworld/Release/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force

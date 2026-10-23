@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "native capability test module"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "native capability test ability"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "NativeCapTest"
+    }
+  ]
+}

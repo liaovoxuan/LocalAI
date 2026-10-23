@@ -1,0 +1,246 @@
+# .github/workflows/virtualization-ci.yml
+#
+# Cross-platform CI / release verification matrix for VirtualWorld's
+# virtualization engine.
+#
+# HONESTY CONTRACT (see docs/virtualization-ci.md):
+#   * This workflow NEVER starts a guest VM. Conformance is read-only CLI only.
+#   * Combinations without a reliable GitHub-hosted runner are NOT faked as
+#     passing. They are skipped on push/PR and run solely via workflow_dispatch
+#     with include_self_hosted=true on a maintainer-supplied self-hosted runner.
+#   * real_hardware_verified is false for every entry and every result.
+#   * Cross-compilation is never equated with real-hardware execution.
+#   * "Upload artifact succeeded" is NEVER a success signal. The aggregated
+#     status is DERIVED from per-step outcomes only (anti fake-green).
+#
+# This file is the orchestration layer only. It does not modify the engine,
+# the tests, or the packaging gate.
+
+name: VirtualWorld Virtualization CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      include_self_hosted:
+        description: >-
+          Also run self-hosted / expensive combinations (Windows ARM64, Linux
+          RISC-V64). Requires matching self-hosted runners to be available.
+        type: boolean
+        default: false
+
+# Cancel superseded runs for the same ref, but never cancel an explicitly
+# dispatched (manual, possibly expensive / self-hosted) run.
+concurrency:
+  group: vw-ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions: {}
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Layer 1: static / configuration checks. Runs BOTH script self-test suites
+  # (matrix plan + result aggregation) and produces the authoritative
+  # ci-matrix-report.json. This layer never builds anything.
+  # ---------------------------------------------------------------------------
+  static-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run CI matrix self-tests
+        run: python3 ci/virtualization/generate_matrix_report.py --self-test
+      - name: Run CI result aggregation self-tests
+        run: python3 ci/virtualization/aggregate_results.py --self-test
+      - name: Generate CI matrix report
+        run: >-
+          python3 ci/virtualization/generate_matrix_report.py
+          --yaml .github/workflows/virtualization-ci.yml
+          --out ci-matrix-report.json
+      - name: Upload CI matrix report
+        uses: actions/upload-artifact@v4
+        with:
+          name: virtualization-ci-matrix-report
+          path: ci-matrix-report.json
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Layer 2+3+4: per (host,arch,contrib) leg. Each leg runs configure, build,
+  # CTest (which INCLUDES the packaging gate VirtualWorldPackagingGate), and the
+  # read-only CLI conformance, then EMITS a per-task result JSON regardless of
+  # success/failure/cancellation (if: always()). The status is derived from the
+  # step outcomes, never from the artifact upload.
+  # ---------------------------------------------------------------------------
+  verify:
+    needs: static-checks
+    runs-on: ${{ matrix.runs_on }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    if: >-
+      matrix.on_default ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.include_self_hosted)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- hosted, runs on default push/PR -------------------------------
+          - { host: windows, arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: windows-latest,    contrib: "ON" }
+          - { host: windows, arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: windows-latest,    contrib: "OFF" }
+          - { host: macos,   arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: macos-13,         contrib: "ON" }
+          - { host: macos,   arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: macos-13,         contrib: "OFF" }
+          - { host: macos,   arch: arm64,   runner_type: hosted,     on_default: true,  runs_on: macos-latest,     contrib: "ON" }
+          - { host: macos,   arch: arm64,   runner_type: hosted,     on_default: true,  runs_on: macos-latest,     contrib: "OFF" }
+          - { host: linux,   arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: ubuntu-latest,    contrib: "ON" }
+          - { host: linux,   arch: x86-64,  runner_type: hosted,     on_default: true,  runs_on: ubuntu-latest,    contrib: "OFF" }
+          - { host: linux,   arch: arm64,   runner_type: hosted,     on_default: true,  runs_on: ubuntu-24.04-arm, contrib: "ON" }
+          - { host: linux,   arch: arm64,   runner_type: hosted,     on_default: true,  runs_on: ubuntu-24.04-arm, contrib: "OFF" }
+          # --- self-hosted, opt-in only (never faked on push/PR) --------------
+          - { host: windows, arch: arm64,   runner_type: self-hosted, on_default: false, runs_on: ["self-hosted", "windows", "arm64"],  contrib: "ON" }
+          - { host: windows, arch: arm64,   runner_type: self-hosted, on_default: false, runs_on: ["self-hosted", "windows", "arm64"],  contrib: "OFF" }
+          - { host: linux,   arch: riscv64, runner_type: self-hosted, on_default: false, runs_on: ["self-hosted", "linux", "riscv64"], contrib: "ON" }
+          - { host: linux,   arch: riscv64, runner_type: self-hosted, on_default: false, runs_on: ["self-hosted", "linux", "riscv64"], contrib: "OFF" }
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runner provisioning is environment-specific (Qt6, OpenSSL, codesign
+      # identity on macOS). These steps are intentionally minimal and MUST be
+      # adapted to the org's runners; they are not validated by local checks.
+      - name: Provision Qt6 (Linux)
+        if: matrix.host == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev qt6-tools-dev cmake ninja-build
+      - name: Provision Qt6 (macOS)
+        if: matrix.host == 'macos'
+        run: brew install qt@6 cmake ninja || true
+      - name: Provision Qt6 (Windows)
+        if: matrix.host == 'windows'
+        run: choco install qt6 --no-progress || true
+
+      - name: Cache build artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            build
+          key: >-
+            vw-${{ matrix.host }}-${{ matrix.arch }}-${{ matrix.contrib }}-
+            ${{ hashFiles('CMakeLists.txt') }}
+          restore-keys: |
+            vw-${{ matrix.host }}-${{ matrix.arch }}-${{ matrix.contrib }}-
+
+      - name: Configure (${{ matrix.host }}/${{ matrix.arch }}, contrib ${{ matrix.contrib }})
+        id: configure
+        run: >-
+          cmake -S . -B build
+          -DVIRTUALWORLD_INCLUDE_CONTRIB_BACKENDS=${{ matrix.contrib }}
+          -DVIRTUALWORLD_ENABLE_PACKAGING_GATE=ON
+          -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        id: build
+        run: cmake --build build -j 4
+
+      # CTest runs the engine tests AND the packaging gate
+      # (VirtualWorldPackagingGate). On macOS the gate verifies the .app bundle,
+      # runtime layout, QEMU binaries, firmware, support, and ad-hoc codesign.
+      - name: Test + packaging gate
+        id: test
+        run: ctest --test-dir build --output-on-failure -j 4
+
+      - name: Locate built binary
+        id: locate
+        if: success()
+        shell: bash
+        run: |
+          case "${{ matrix.host }}" in
+            windows) echo "VW_BIN=build/VirtualWorld.exe" >> "$GITHUB_ENV" ;;
+            macos)   echo "VW_BIN=build/VirtualWorld.app/Contents/MacOS/VirtualWorld" >> "$GITHUB_ENV" ;;
+            linux)   echo "VW_BIN=build/VirtualWorld" >> "$GITHUB_ENV" ;;
+          esac
+
+      # The guard rejects any command containing --start or any non-whitelisted
+      # flag. Only --check / --list-backends / --json / --help are allowed.
+      # Both read-only checks run in ONE step so the conformance outcome is a
+      # single, faithfully captured signal.
+      - name: Read-only conformance (whitelist-guarded)
+        id: conformance
+        if: success()
+        run: >-
+          python3 ci/virtualization/conformance_guard.py --exec --
+          ${{ env.VW_BIN }} --check --json &&
+          python3 ci/virtualization/conformance_guard.py --exec --
+          ${{ env.VW_BIN }} --list-backends --json
+
+      # Emit a per-task result JSON REGARDLESS of success/failure/cancellation.
+      # Status is derived from step outcomes; the artifact upload below is NOT a
+      # success signal. Artifact name embeds run_id+host+arch+contrib so a
+      # stray artifact from another run can never be mixed in.
+      - name: Emit CI result
+        id: emit
+        if: always()
+        env:
+          STEP_BUILD: ${{ steps.build.outcome }}
+          STEP_TEST: ${{ steps.test.outcome }}
+          STEP_CONFORMANCE: ${{ steps.conformance.outcome }}
+        run: >-
+          python3 ci/virtualization/emit_result.py
+          --run-id "${{ github.run_id }}"
+          --commit-sha "${{ github.sha }}"
+          --host "${{ matrix.host }}"
+          --arch "${{ matrix.arch }}"
+          --contrib "${{ matrix.contrib }}"
+          --runner-type "${{ matrix.runner_type }}"
+          --job-name "verify"
+          --artifact-path "${{ env.VW_BIN }}"
+          --out "ci-result-${{ matrix.host }}-${{ matrix.arch }}-${{ matrix.contrib }}.json"
+
+      - name: Upload CI result artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vw-result-${{ github.run_id }}-${{ matrix.host }}-${{ matrix.arch }}-${{ matrix.contrib }}
+          path: ci-result-${{ matrix.host }}-${{ matrix.arch }}-${{ matrix.contrib }}.json
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # Layer 5: aggregation gate. Runs only AFTER verify ends (needs: verify), even
+  # if some legs failed/cancelled (if: always()). It collects every per-task
+  # result, rejects cross run_id/commit mixing, duplicate combos, missing
+  # required (hosted) combos, stale timestamps, faked passed, and missing/
+  # duplicate artifact hashes, then publishes ci-aggregate-report.json.
+  # ---------------------------------------------------------------------------
+  aggregate:
+    needs: verify
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download all per-task result artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: vw-result-*
+          path: ci-results
+          merge-multiple: true
+      - name: Aggregate results (anti fake-green)
+        run: >-
+          python3 ci/virtualization/aggregate_results.py
+          --dir ci-results
+          --out ci-aggregate-report.json
+          --md ci-aggregate-report.md
+      - name: Upload aggregate report
+        uses: actions/upload-artifact@v4
+        with:
+          name: vw-aggregate-${{ github.run_id }}
+          path: |
+            ci-aggregate-report.json
+            ci-aggregate-report.md
+          if-no-files-found: error

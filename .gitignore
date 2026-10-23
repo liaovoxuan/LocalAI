@@ -6,22 +6,56 @@ build/
 dist/
 release/
 
-runtime/llama.cpp/models/*.gguf
-runtime/llama.cpp/*/*/bin/
-runtime/llama.cpp/*/*/lib/
+shared/runtime/llama.cpp/models/*.gguf
+shared/runtime/llama.cpp/*/*/bin/
+shared/runtime/llama.cpp/*/*/lib/
 
-third_party/llama.cpp/
-virtualworld/qemu-master/
+shared/third_party/llama.cpp/
+projects/VirtualWorld/qemu-master/
+artifacts/
+projects/UTM/source/build/
+projects/UTM/source/build-*/
+projects/UTM/source/dist/
+projects/UTM/source/sysroot-*/
+projects/LocalAI/harmonyos/.hvigor/
+projects/LocalAI-SE/harmonyos/.hvigor/
+projects/CloudAI/harmonyos/.hvigor/
+projects/LocalAI/harmonyos/build-host/
+projects/LocalAI-SE/harmonyos/build-host/
+projects/CloudAI/harmonyos/build-host/
+projects/*/harmonyos/oh_modules/
+projects/*/harmonyos/entry/oh_modules/
 
 signature/*.p12
 signature/*.cer
 signature/*.p7b
-CloudAI for HarmonyOS/signature/*.p12
-CloudAI for HarmonyOS/signature/*.cer
-CloudAI for HarmonyOS/signature/*.p7b
+projects/CloudAI/harmonyos/signature/*.p12
+projects/CloudAI/harmonyos/signature/*.cer
+projects/CloudAI/harmonyos/signature/*.p7b
 CloudAI_Release*.p12
 CloudAI_Release*.cer
 CloudAI_Release*.p7b
 
 .venv*/
 *.log
+model_backups/
+
+# Local provider credentials used by the VS Code launchers.
+codex-insiders-api-key.conf
+codex-vscode2-api-key.conf
+
+# Generated build directories and local tool state.
+build-*/
+cmake-build-*/
+/.hvigor/
+/.dsh-computer-use/
+/.workbuddy-ai/
+/search_cache.db
+/search_cache.db-*
+*.baiduyun.uploading.cfg
+# macOS archive index generated while building third-party libraries.
+**/__.SYMDEF*
+
+# Stored as a lossless archive to stay below GitHub file limits.
+/localai_knowledge.db
+/localai_knowledge.db-*

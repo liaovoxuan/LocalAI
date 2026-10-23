@@ -1,0 +1,8 @@
+{
+  "modelVersion": "6.1.1",
+  "description": "CloudAI HarmonyOS application",
+  "dependencies": {},
+  "devDependencies": {
+    "@ohos/hvigor-ohos-plugin": "6.24.4"
+  }
+}

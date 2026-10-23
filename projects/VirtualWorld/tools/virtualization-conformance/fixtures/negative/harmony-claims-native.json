@@ -1,0 +1,271 @@
+{
+  "schema": "virtualworld.virtualization/2",
+  "build": {
+    "macos_backend": true,
+    "windows_backend": true,
+    "linux_kvm_backend": true,
+    "harmony_backend": true,
+    "qemu_fallback": true
+  },
+  "host": {
+    "arch": "aarch64",
+    "family": "harmonyos-linux-compatible",
+    "name": "HarmonyOS (Linux-compatible mode)",
+    "platform": "harmonyos"
+  },
+  "guest_arch": "aarch64",
+  "preference": "auto",
+  "backends": [
+    {
+      "id": "macos-virtualization",
+      "name": "Apple Virtualization.framework",
+      "tier": "native",
+      "host_supported": false,
+      "guest_arch_supported": false,
+      "hardware_acceleration": false,
+      "native_execution": false,
+      "accelerator": "",
+      "status": "host-unsupported",
+      "summary": "Apple Virtualization.framework 在本宿主上不可用。",
+      "issues": [
+        {
+          "level": "error",
+          "code": "host-unsupported",
+          "message": "宿主不是 macos-virtualization 支持的平台。"
+        }
+      ],
+      "requirements": [
+        "Apple Virtualization.framework 需要其宿主平台。"
+      ],
+      "runs_in_process": true
+    },
+    {
+      "id": "qemu-hardware",
+      "name": "QEMU 硬件加速（HFV/WHPX/KVM）",
+      "tier": "hardware",
+      "host_supported": true,
+      "guest_arch_supported": true,
+      "hardware_acceleration": true,
+      "native_execution": false,
+      "accelerator": "kvm",
+      "status": "available",
+      "summary": "QEMU 硬件加速（HFV/WHPX/KVM） 可用。",
+      "issues": [
+        {
+          "level": "info",
+          "code": "host-supported",
+          "message": "qemu-hardware 在本宿主上可用。"
+        }
+      ],
+      "requirements": [
+        "QEMU 硬件加速（HFV/WHPX/KVM） 需要其宿主平台。"
+      ],
+      "runs_in_process": false
+    },
+    {
+      "id": "harmony-virtualization",
+      "name": "HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG）",
+      "tier": "native",
+      "host_supported": true,
+      "guest_arch_supported": true,
+      "hardware_acceleration": true,
+      "native_execution": true,
+      "accelerator": "kvm",
+      "status": "available",
+      "summary": "HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG） 可用。",
+      "issues": [
+        {
+          "level": "info",
+          "code": "host-supported",
+          "message": "harmony-virtualization 在本宿主上可用。"
+        }
+      ],
+      "requirements": [
+        "HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG） 需要其宿主平台。"
+      ],
+      "runs_in_process": false
+    },
+    {
+      "id": "linux-kvm",
+      "name": "Linux KVM/QEMU 兼容后端（KVM/TCG）",
+      "tier": "hardware",
+      "host_supported": false,
+      "guest_arch_supported": false,
+      "hardware_acceleration": false,
+      "native_execution": false,
+      "accelerator": "",
+      "status": "host-unsupported",
+      "summary": "Linux KVM/QEMU 兼容后端（KVM/TCG） 在本宿主上不可用。",
+      "issues": [
+        {
+          "level": "error",
+          "code": "host-unsupported",
+          "message": "宿主不是 linux-kvm 支持的平台。"
+        }
+      ],
+      "requirements": [
+        "Linux KVM/QEMU 兼容后端（KVM/TCG） 需要其宿主平台。"
+      ],
+      "runs_in_process": false
+    },
+    {
+      "id": "qemu-tcg",
+      "name": "QEMU TCG 软件模拟",
+      "tier": "emulation",
+      "host_supported": true,
+      "guest_arch_supported": true,
+      "hardware_acceleration": false,
+      "native_execution": false,
+      "accelerator": "tcg",
+      "status": "available",
+      "summary": "QEMU TCG 软件模拟 可用。",
+      "issues": [
+        {
+          "level": "info",
+          "code": "host-supported",
+          "message": "qemu-tcg 在本宿主上可用。"
+        }
+      ],
+      "requirements": [
+        "QEMU TCG 软件模拟 需要其宿主平台。"
+      ],
+      "runs_in_process": false
+    },
+    {
+      "id": "windows-hypervisor",
+      "name": "Windows Hypervisor Platform (WHPX)",
+      "tier": "native",
+      "host_supported": false,
+      "guest_arch_supported": false,
+      "hardware_acceleration": false,
+      "native_execution": false,
+      "accelerator": "",
+      "status": "host-unsupported",
+      "summary": "Windows Hypervisor Platform (WHPX) 在本宿主上不可用。",
+      "issues": [
+        {
+          "level": "error",
+          "code": "host-unsupported",
+          "message": "宿主不是 windows-hypervisor 支持的平台。"
+        }
+      ],
+      "requirements": [
+        "Windows Hypervisor Platform (WHPX) 需要其宿主平台。"
+      ],
+      "runs_in_process": false
+    }
+  ],
+  "selection": {
+    "ok": true,
+    "backend": "harmony-virtualization",
+    "name": "HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG）",
+    "tier": "hardware",
+    "reason": "可用：HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG）",
+    "fell_back": true,
+    "fallback_from": "qemu-tcg",
+    "considered": [
+      {
+        "id": "harmony-virtualization",
+        "tier": "native",
+        "host_supported": true,
+        "guest_arch_supported": true,
+        "config_accepted": true,
+        "selected": true,
+        "status": "selected",
+        "reason": "可用：HarmonyOS/OpenHarmony QEMU 兼容后端（KVM/TCG）"
+      },
+      {
+        "id": "macos-virtualization",
+        "tier": "native",
+        "host_supported": false,
+        "guest_arch_supported": false,
+        "config_accepted": false,
+        "selected": false,
+        "status": "host-unsupported",
+        "reason": "宿主不是 macos-virtualization 支持的平台，回退 QEMU 后端。"
+      },
+      {
+        "id": "windows-hypervisor",
+        "tier": "native",
+        "host_supported": false,
+        "guest_arch_supported": false,
+        "config_accepted": false,
+        "selected": false,
+        "status": "host-unsupported",
+        "reason": "宿主不是 windows-hypervisor 支持的平台，回退 QEMU 后端。"
+      },
+      {
+        "id": "linux-kvm",
+        "tier": "hardware",
+        "host_supported": false,
+        "guest_arch_supported": false,
+        "config_accepted": false,
+        "selected": false,
+        "status": "host-unsupported",
+        "reason": "宿主不是 linux-kvm 支持的平台，回退 QEMU 后端。"
+      },
+      {
+        "id": "qemu-hardware",
+        "tier": "hardware",
+        "host_supported": true,
+        "guest_arch_supported": true,
+        "config_accepted": true,
+        "selected": false,
+        "status": "lower-priority",
+        "reason": "qemu-hardware 可用但优先级低于 harmony-virtualization。"
+      },
+      {
+        "id": "qemu-tcg",
+        "tier": "emulation",
+        "host_supported": true,
+        "guest_arch_supported": true,
+        "config_accepted": true,
+        "selected": false,
+        "status": "lower-priority",
+        "reason": "qemu-tcg 可用但优先级低于 harmony-virtualization。"
+      }
+    ]
+  },
+  "support_matrix": [
+    {
+      "host_platform": "harmonyos",
+      "host_arch": "aarch64",
+      "guest_arch": "aarch64",
+      "backend": "harmony-virtualization",
+      "tier": "hardware",
+      "status": "compat",
+      "verified": false,
+      "note": "同架构：QEMU + KVM 兼容路径（非原生），取决于 /dev/kvm 是否暴露；不可用则回退 TCG。"
+    },
+    {
+      "host_platform": "harmonyos",
+      "host_arch": "aarch64",
+      "guest_arch": "aarch64",
+      "backend": "qemu-tcg",
+      "tier": "emulation",
+      "status": "emulation",
+      "verified": false,
+      "note": "最终兜底：QEMU TCG 始终可用。"
+    },
+    {
+      "host_platform": "harmonyos",
+      "host_arch": "aarch64",
+      "guest_arch": "x86_64",
+      "backend": "qemu-tcg",
+      "tier": "emulation",
+      "status": "emulation",
+      "verified": false,
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。"
+    },
+    {
+      "host_platform": "harmonyos",
+      "host_arch": "aarch64",
+      "guest_arch": "riscv64",
+      "backend": "qemu-tcg",
+      "tier": "emulation",
+      "status": "emulation",
+      "verified": false,
+      "note": "跨架构：只能软件模拟，不存在跨架构硬件加速。"
+    }
+  ]
+}

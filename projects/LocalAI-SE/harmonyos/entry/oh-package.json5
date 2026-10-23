@@ -1,0 +1,11 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "LocalAI SE terminal entry module",
+  "main": "",
+  "author": "LocalAI",
+  "license": "MIT",
+  "dependencies": {
+    "hllama": "^0.0.2"
+  }
+}

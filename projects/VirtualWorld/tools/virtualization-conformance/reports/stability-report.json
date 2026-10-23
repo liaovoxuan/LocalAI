@@ -1,0 +1,1413 @@
+{
+  "report": "virtualworld-virtualization-stability-gate",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-05T03:40:00+00:00",
+  "method": "read-only black-box; only --list-backends/--check are executed; no VM is started",
+  "normalization": {
+    "fields": [],
+    "rationale": "schema v3 output was verified byte-identical across runs, so no field is exempted from comparison; any divergence is reported rather than filtered"
+  },
+  "artifact": {
+    "ok": true,
+    "reason": "",
+    "actual_sha256": "238f603d3d1d1db3c8b574f9617d0632f0f6bcbfbe4c44d923917b6dda60b80f",
+    "expected_sha256": "238f603d3d1d1db3c8b574f9617d0632f0f6bcbfbe4c44d923917b6dda60b80f",
+    "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-final/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "size_bytes": 1477872,
+    "mtime": "2026-10-05T11:13:19"
+  },
+  "settings": {
+    "commands": [
+      "--list-backends",
+      "--check"
+    ],
+    "arches": [
+      "x86_64",
+      "aarch64",
+      "riscv64"
+    ],
+    "sequential_rounds": 50,
+    "concurrent_rounds": 50,
+    "concurrency": 8,
+    "timeout_seconds": 90.0,
+    "seed": 20261005
+  },
+  "stability": {
+    "variants": [
+      {
+        "variant": "--list-backends x86_64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 928.52,
+          "p50": 1850.71,
+          "p95": 3146.1,
+          "p99": 4094.4,
+          "max": 4094.4
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--list-backends x86_64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1284.79,
+          "p50": 1614.95,
+          "p95": 1837.88,
+          "p99": 1871.65,
+          "max": 1871.65
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--list-backends aarch64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 801.57,
+          "p50": 1226.93,
+          "p95": 2893.69,
+          "p99": 3893.62,
+          "max": 3893.62
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--list-backends aarch64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1531.14,
+          "p50": 1809.76,
+          "p95": 3072.8,
+          "p99": 3108.27,
+          "max": 3108.27
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--list-backends riscv64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 597.22,
+          "p50": 1495.97,
+          "p95": 4182.91,
+          "p99": 4890.07,
+          "max": 4890.07
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--list-backends riscv64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1418.71,
+          "p50": 1583.95,
+          "p95": 1859.28,
+          "p99": 1871.49,
+          "max": 1871.49
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0
+        ]
+      },
+      {
+        "variant": "--check x86_64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 639.21,
+          "p50": 1179.24,
+          "p95": 2352.28,
+          "p99": 3076.15,
+          "max": 3076.15
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      },
+      {
+        "variant": "--check x86_64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1524.53,
+          "p50": 1634.97,
+          "p95": 1775.37,
+          "p99": 1831.32,
+          "max": 1831.32
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      },
+      {
+        "variant": "--check aarch64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 693.96,
+          "p50": 1034.08,
+          "p95": 2095.79,
+          "p99": 2589.02,
+          "max": 2589.02
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      },
+      {
+        "variant": "--check aarch64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1615.31,
+          "p50": 1984.5,
+          "p95": 2849.29,
+          "p99": 3043.01,
+          "max": 3043.01
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      },
+      {
+        "variant": "--check riscv64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 623.6,
+          "p50": 700.67,
+          "p95": 1211.91,
+          "p99": 1494.71,
+          "max": 1494.71
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "sequential",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      },
+      {
+        "variant": "--check riscv64",
+        "runs": 50,
+        "ok": true,
+        "exit_codes": [
+          0
+        ],
+        "timed_out": 0,
+        "crashed": 0,
+        "signals": [],
+        "single_json_failures": 0,
+        "stderr_nonempty": 0,
+        "duration_ms": {
+          "min": 1574.26,
+          "p50": 1814.66,
+          "p95": 2290.18,
+          "p99": 2304.24,
+          "max": 2304.24
+        },
+        "distinct_stdout_hashes": 1,
+        "byte_identical": true,
+        "distinct_canonical_hashes": 1,
+        "canonical_json_identical": true,
+        "drift_fields": [],
+        "findings": [],
+        "phase": "concurrent",
+        "expected_exit_codes": [
+          0,
+          1
+        ]
+      }
+    ],
+    "summary": {
+      "invocations": 600,
+      "sequential_invocations": 300,
+      "concurrent_invocations": 300,
+      "variants": 12,
+      "variants_ok": 12,
+      "findings": 0,
+      "crashes": 0,
+      "timeouts": 0,
+      "stderr_nonempty": 0,
+      "duration_ms": {
+        "min": 597.22,
+        "p50": 1634.54,
+        "p95": 2903.41,
+        "p99": 3893.62,
+        "max": 4890.07
+      },
+      "duration_ms_by_phase": {
+        "sequential": {
+          "min": 597.22,
+          "p50": 1154.68,
+          "p95": 3123.94,
+          "p99": 4094.4,
+          "max": 4890.07
+        },
+        "concurrent": {
+          "min": 1284.79,
+          "p50": 1696.2,
+          "p95": 2797.66,
+          "p99": 3067.05,
+          "max": 3108.27
+        }
+      },
+      "byte_identical_variants": 12,
+      "ok": true
+    },
+    "findings": []
+  },
+  "mutation": {
+    "seed": 20261005,
+    "total": 73,
+    "detectors_fired": 73,
+    "gaps": [],
+    "coverage_by_category": {
+      "duplicate-id": {
+        "total": 1,
+        "detected": 1
+      },
+      "missing-field": {
+        "total": 8,
+        "detected": 8
+      },
+      "wrong-type": {
+        "total": 3,
+        "detected": 3
+      },
+      "unknown-tier": {
+        "total": 2,
+        "detected": 2
+      },
+      "unknown-status-class": {
+        "total": 1,
+        "detected": 1
+      },
+      "tcg-ordering": {
+        "total": 2,
+        "detected": 2
+      },
+      "cross-arch": {
+        "total": 2,
+        "detected": 2
+      },
+      "harmony-honesty": {
+        "total": 2,
+        "detected": 2
+      },
+      "empty-reason": {
+        "total": 1,
+        "detected": 1
+      },
+      "selection-inconsistency": {
+        "total": 4,
+        "detected": 4
+      },
+      "selection-ordering": {
+        "total": 1,
+        "detected": 1
+      },
+      "verified-type": {
+        "total": 3,
+        "detected": 3
+      },
+      "schema": {
+        "total": 1,
+        "detected": 1
+      },
+      "randomized": {
+        "total": 42,
+        "detected": 42
+      }
+    },
+    "results": [
+      {
+        "name": "duplicate-backend-id",
+        "category": "duplicate-id",
+        "expected_codes": [
+          "backend-id-duplicate"
+        ],
+        "detected_codes": [
+          "backend-id-duplicate",
+          "considered-unknown-backend"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/duplicate-backend-id.json"
+      },
+      {
+        "name": "missing-document-field-schema",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-schema.json"
+      },
+      {
+        "name": "missing-document-field-host",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-host.json"
+      },
+      {
+        "name": "missing-document-field-guest_arch",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-guest_arch.json"
+      },
+      {
+        "name": "missing-document-field-build",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-build.json"
+      },
+      {
+        "name": "missing-document-field-backends",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-backends.json"
+      },
+      {
+        "name": "missing-document-field-selection",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-selection.json"
+      },
+      {
+        "name": "missing-document-field-support_matrix",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-document-field-support_matrix.json"
+      },
+      {
+        "name": "missing-backend-field-tier",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/missing-backend-field-tier.json"
+      },
+      {
+        "name": "wrong-type-boolean-as-int",
+        "category": "wrong-type",
+        "expected_codes": [
+          "wrong-field-type"
+        ],
+        "detected_codes": [
+          "wrong-field-type"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/wrong-type-boolean-as-int.json"
+      },
+      {
+        "name": "wrong-type-issues-as-string",
+        "category": "wrong-type",
+        "expected_codes": [
+          "backend-issues-invalid"
+        ],
+        "detected_codes": [
+          "backend-issues-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/wrong-type-issues-as-string.json"
+      },
+      {
+        "name": "unknown-backend-tier",
+        "category": "unknown-tier",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid",
+          "native-execution-tier-mismatch",
+          "platform-native-tier-not-native"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/unknown-backend-tier.json"
+      },
+      {
+        "name": "unknown-considered-tier",
+        "category": "unknown-tier",
+        "expected_codes": [
+          "considered-tier-invalid"
+        ],
+        "detected_codes": [
+          "considered-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/unknown-considered-tier.json"
+      },
+      {
+        "name": "unknown-status-class",
+        "category": "unknown-status-class",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/unknown-status-class.json"
+      },
+      {
+        "name": "tcg-not-last",
+        "category": "tcg-ordering",
+        "expected_codes": [
+          "tcg-not-last"
+        ],
+        "detected_codes": [
+          "tcg-not-last"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/tcg-not-last.json"
+      },
+      {
+        "name": "tcg-missing",
+        "category": "tcg-ordering",
+        "expected_codes": [
+          "tcg-missing"
+        ],
+        "detected_codes": [
+          "considered-none-selected",
+          "cross-arch-without-tcg",
+          "selected-mismatch",
+          "tcg-missing"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/tcg-missing.json"
+      },
+      {
+        "name": "cross-arch-acceleration",
+        "category": "cross-arch",
+        "expected_codes": [
+          "matrix-cross-arch-acceleration"
+        ],
+        "detected_codes": [
+          "matrix-cross-arch-acceleration"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/cross-arch-acceleration.json"
+      },
+      {
+        "name": "cross-arch-not-tcg",
+        "category": "cross-arch",
+        "expected_codes": [
+          "cross-arch-not-tcg"
+        ],
+        "detected_codes": [
+          "cross-arch-not-tcg",
+          "selected-backend-arch-unsupported"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/cross-arch-not-tcg.json"
+      },
+      {
+        "name": "harmony-claims-native",
+        "category": "harmony-honesty",
+        "expected_codes": [
+          "compat-backend-claims-native",
+          "compat-backend-claims-native-execution"
+        ],
+        "detected_codes": [
+          "compat-backend-claims-native",
+          "compat-backend-claims-native-execution"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/harmony-claims-native.json"
+      },
+      {
+        "name": "harmony-matrix-native",
+        "category": "harmony-honesty",
+        "expected_codes": [
+          "matrix-compat-row-claims-native"
+        ],
+        "detected_codes": [
+          "matrix-compat-row-claims-native"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/harmony-matrix-native.json"
+      },
+      {
+        "name": "empty-candidate-reason",
+        "category": "empty-reason",
+        "expected_codes": [
+          "empty-field"
+        ],
+        "detected_codes": [
+          "empty-field"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/empty-candidate-reason.json"
+      },
+      {
+        "name": "selection-backend-mismatch",
+        "category": "selection-inconsistency",
+        "expected_codes": [
+          "selected-mismatch"
+        ],
+        "detected_codes": [
+          "selected-backend-arch-unsupported",
+          "selected-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/selection-backend-mismatch.json"
+      },
+      {
+        "name": "selection-none-selected",
+        "category": "selection-inconsistency",
+        "expected_codes": [
+          "considered-none-selected"
+        ],
+        "detected_codes": [
+          "considered-none-selected",
+          "selected-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/selection-none-selected.json"
+      },
+      {
+        "name": "selection-multiple-selected",
+        "category": "selection-inconsistency",
+        "expected_codes": [
+          "considered-multiple-selected"
+        ],
+        "detected_codes": [
+          "considered-multiple-selected",
+          "selected-backend-arch-unsupported",
+          "selected-backend-unsupported"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/selection-multiple-selected.json"
+      },
+      {
+        "name": "selection-unsupported-backend",
+        "category": "selection-inconsistency",
+        "expected_codes": [
+          "selected-backend-unsupported"
+        ],
+        "detected_codes": [
+          "selected-backend-unsupported"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/selection-unsupported-backend.json"
+      },
+      {
+        "name": "selection-order-nonmonotonic",
+        "category": "selection-ordering",
+        "expected_codes": [
+          "considered-order-nonmonotonic"
+        ],
+        "detected_codes": [
+          "considered-order-nonmonotonic",
+          "tcg-not-last"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/selection-order-nonmonotonic.json"
+      },
+      {
+        "name": "verified-pseudo-true-int-one",
+        "category": "verified-type",
+        "expected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/verified-pseudo-true-int-one.json"
+      },
+      {
+        "name": "verified-pseudo-true-string-true",
+        "category": "verified-type",
+        "expected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/verified-pseudo-true-string-true.json"
+      },
+      {
+        "name": "verified-pseudo-true-null",
+        "category": "verified-type",
+        "expected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detected_codes": [
+          "matrix-verified-not-bool"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/verified-pseudo-true-null.json"
+      },
+      {
+        "name": "schema-version-not-numeric",
+        "category": "schema",
+        "expected_codes": [
+          "schema-version-invalid"
+        ],
+        "detected_codes": [
+          "schema-version-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/schema-version-not-numeric.json"
+      },
+      {
+        "name": "build-flag-not-bool",
+        "category": "wrong-type",
+        "expected_codes": [
+          "build-value-not-bool"
+        ],
+        "detected_codes": [
+          "build-value-not-bool"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/build-flag-not-bool.json"
+      },
+      {
+        "name": "random-00-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-00-tier.json"
+      },
+      {
+        "name": "random-00-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-00-execution-tier.json"
+      },
+      {
+        "name": "random-00-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-00-status-class.json"
+      },
+      {
+        "name": "random-01-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-01-tier.json"
+      },
+      {
+        "name": "random-01-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-01-execution-tier.json"
+      },
+      {
+        "name": "random-01-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-01-status-class.json"
+      },
+      {
+        "name": "random-02-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-02-tier.json"
+      },
+      {
+        "name": "random-02-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-02-execution-tier.json"
+      },
+      {
+        "name": "random-02-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-02-status-class.json"
+      },
+      {
+        "name": "random-03-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid",
+          "native-execution-tier-mismatch",
+          "platform-native-tier-not-native"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-03-tier.json"
+      },
+      {
+        "name": "random-03-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-03-execution-tier.json"
+      },
+      {
+        "name": "random-03-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-03-status-class.json"
+      },
+      {
+        "name": "random-04-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-04-tier.json"
+      },
+      {
+        "name": "random-04-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-04-execution-tier.json"
+      },
+      {
+        "name": "random-04-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-04-status-class.json"
+      },
+      {
+        "name": "random-05-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-05-tier.json"
+      },
+      {
+        "name": "random-05-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-05-execution-tier.json"
+      },
+      {
+        "name": "random-05-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-05-status-class.json"
+      },
+      {
+        "name": "random-06-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid",
+          "platform-native-tier-not-native"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-06-tier.json"
+      },
+      {
+        "name": "random-06-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-06-execution-tier.json"
+      },
+      {
+        "name": "random-06-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-06-status-class.json"
+      },
+      {
+        "name": "random-07-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-07-tier.json"
+      },
+      {
+        "name": "random-07-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-07-execution-tier.json"
+      },
+      {
+        "name": "random-07-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-07-status-class.json"
+      },
+      {
+        "name": "random-08-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-08-tier.json"
+      },
+      {
+        "name": "random-08-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-08-execution-tier.json"
+      },
+      {
+        "name": "random-08-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-08-status-class.json"
+      },
+      {
+        "name": "random-09-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-09-tier.json"
+      },
+      {
+        "name": "random-09-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-09-execution-tier.json"
+      },
+      {
+        "name": "random-09-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-09-status-class.json"
+      },
+      {
+        "name": "random-10-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid",
+          "platform-native-tier-not-native"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-10-tier.json"
+      },
+      {
+        "name": "random-10-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-10-execution-tier.json"
+      },
+      {
+        "name": "random-10-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-10-status-class.json"
+      },
+      {
+        "name": "random-11-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detected_codes": [
+          "backend-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-11-tier.json"
+      },
+      {
+        "name": "random-11-execution-tier",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-11-execution-tier.json"
+      },
+      {
+        "name": "random-11-status-class",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-unknown"
+        ],
+        "detected_codes": [
+          "status-class-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-11-status-class.json"
+      },
+      {
+        "name": "random-00-status_class-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-invalid"
+        ],
+        "detected_codes": [
+          "status-class-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-00-status_class-wrong-type.json"
+      },
+      {
+        "name": "random-01-execution_tier-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-01-execution_tier-wrong-type.json"
+      },
+      {
+        "name": "random-02-execution_tier-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-02-execution_tier-wrong-type.json"
+      },
+      {
+        "name": "random-03-execution_tier-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detected_codes": [
+          "execution-tier-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-03-execution_tier-wrong-type.json"
+      },
+      {
+        "name": "random-04-status_class-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-invalid"
+        ],
+        "detected_codes": [
+          "status-class-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-04-status_class-wrong-type.json"
+      },
+      {
+        "name": "random-05-status_class-wrong-type",
+        "category": "randomized",
+        "expected_codes": [
+          "status-class-invalid"
+        ],
+        "detected_codes": [
+          "status-class-invalid"
+        ],
+        "detector_fired": true,
+        "sample": "stability-failures/random-05-status_class-wrong-type.json"
+      }
+    ],
+    "ok": true,
+    "normalization": []
+  },
+  "failures": [],
+  "not_verified": [
+    "No guest was started: only --list-backends and --check were executed.",
+    "Stability is demonstrated only on this macOS/Apple Silicon host; Windows, Linux and HarmonyOS hosts remain covered by synthetic fixtures, not real runs.",
+    "Byte-level determinism across different machines, locales or Qt builds is untested.",
+    "The artifact is pinned by SHA-256; a rebuild invalidates this report by design."
+  ],
+  "gate_status": "passed",
+  "blocking": null
+}

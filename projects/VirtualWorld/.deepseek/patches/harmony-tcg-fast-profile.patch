@@ -1,0 +1,120 @@
+diff --git a/scripts/ohos-tcg-fast-configure.sh b/scripts/ohos-tcg-fast-configure.sh
+new file mode 100755
+--- /dev/null
++++ b/scripts/ohos-tcg-fast-configure.sh
+@@ -0,0 +1,115 @@
++#!/bin/sh
++#
++# ohos-tcg-fast-configure.sh -- HarmonyOS / OpenHarmony ARM64
++# full-system TCG fast profile.
++#
++# Purpose: build ONE QEMU system-emulation target for the case where the host
++# has no usable hardware virtualization and the guest is either cross-ISA or
++# must run a full system image. Everything here is configuration only; no
++# upstream source change is required for any item in this file.
++#
++# This script is a CANDIDATE PROFILE. It has not been benchmarked on real
++# hardware. Do not quote disk/RSS numbers for it without measuring (§ of the
++# report gives the measurement method).
++#
++# Usage (from a QEMU source tree, out-of-tree is not supported by QEMU):
++#     sh scripts/ohos-tcg-fast-configure.sh /path/to/qemu-source
++#
++set -eu
++
++SRC="${1:-.}"
++cd "$SRC"
++
++# --- Toolchain ---------------------------------------------------------
++# OHOS native SDK ships clang 15.0.4 for target aarch64-linux-ohos.
++: "${OHOS_SDK:=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native}"
++: "${CROSS_PREFIX:=aarch64-unknown-linux-ohos-}"
++
++if [ -x "$OHOS_SDK/llvm/bin/clang" ]; then
++    CC="$OHOS_SDK/llvm/bin/clang --target=aarch64-linux-ohos --sysroot=$OHOS_SDK/sysroot"
++    export CC CXX
++    CXX="$OHOS_SDK/llvm/bin/clang++ --target=aarch64-linux-ohos --sysroot=$OHOS_SDK/sysroot"
++    export AR="$OHOS_SDK/llvm/bin/llvm-ar"
++    export STRIP="$OHOS_SDK/llvm/bin/llvm-strip"
++fi
++
++# --- Target selection ---------------------------------------------------
++# ONE target only. x86_64-softmmu / riscv64-softmmu must be built as SEPARATE
++# binaries, never added to this process: mixing target lists multiplies both
++# disk footprint and the resident translation cache.
++TARGETS="aarch64-softmmu"
++
++exec ./configure \
++    --target-list="$TARGETS" \
++    \
++    `# --- accelerator: TCG only, and only the JIT backend ---------------` \
++    --enable-tcg \
++    --disable-tcg-interpreter \
++    `# MTTCG is runtime-decided (tcg_cpus_mttcg_enabled); there is no` \
++    `# configure flag. See report section 1.` \
++    --disable-kvm \
++    --disable-hvf \
++    --disable-whpx \
++    --disable-xen \
++    \
++    `# --- footprint: only the devices the machine actually needs -------` \
++    --without-default-devices \
++    `# Enables a hand-picked device set; virtio-* must then be named` \
++    `# explicitly on the QEMU command line (see the report).` \
++    \
++    `# --- headless: no UI backend is linked in --------------------------` \
++    --disable-gtk \
++    --disable-sdl \
++    --disable-curses \
++    --disable-cocoa \
++    --disable-opengl \
++    --disable-spice \
++    --disable-vnc \
++    \
++    `# --- drop host services irrelevant to an appliance ----------------` \
++    --disable-docs \
++    --disable-tools \
++    --disable-guest-agent \
++    --disable-plugins \
++    --disable-debug-info \
++    --disable-debug-tcg \
++    --disable-debug-mutex \
++    --disable-debug-graph-lock \
++    --disable-debug-stack-usage \
++    --disable-debug-remap \
++    --disable-multiprocess \
++    --disable-seccomp \
++    --disable-tpm \
++    --disable-smartcard \
++    --disable-libudev \
++    --disable-libssh \
++    --disable-curl \
++    --disable-gnutls \
++    --disable-nettle \
++    --disable-numa \
++    --disable-rdma \
++    --disable-bpf \
++    --disable-capstone \
++    --disable-libiscsi \
++    --disable-libnfs \
++    --disable-glusterfs \
++    --disable-zstd \
++    --disable-lzo \
++    --disable-snappy \
++    --disable-bzip2 \
++    --disable-attr \
++    --disable-vhost-user \
++    --disable-vhost-vdpa \
++    --disable-vhost-net \
++    --disable-vhost-crypto \
++    --disable-vhost-kernel \
++    --disable-vhost-scsi \
++    \
++    `# --- keep: the pieces a virtio appliance needs --------------------` \
++    --enable-slirp \
++    --enable-fdt=internal \
++    \
++    `# --- link/optimisation --------------------------------------------` \
++    --disable-werror \
++    --disable-pie \
++    --enable-modules=no

@@ -1,0 +1,107 @@
+{
+  "tool": "virtualworld-virtualization-conformance",
+  "tool_version": "1.0.0",
+  "generated_at": "2026-10-06T09:43:08+00:00",
+  "binary": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+  "binary_sha256": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+  "fixture_dir": "",
+  "written_by": "stage-4 virtualization conformance harness (read-only, no VM is started)",
+  "summary": {
+    "targets": 6,
+    "errors": 0,
+    "warnings": 0,
+    "ok": true
+  },
+  "targets": [
+    {
+      "source": "VirtualWorld --list-backends x86_64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--list-backends",
+        "x86_64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    },
+    {
+      "source": "VirtualWorld --check x86_64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--check",
+        "x86_64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    },
+    {
+      "source": "VirtualWorld --list-backends aarch64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--list-backends",
+        "aarch64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    },
+    {
+      "source": "VirtualWorld --check aarch64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--check",
+        "aarch64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    },
+    {
+      "source": "VirtualWorld --list-backends riscv64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--list-backends",
+        "riscv64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    },
+    {
+      "source": "VirtualWorld --check riscv64",
+      "command": [
+        "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "--check",
+        "riscv64",
+        "--json"
+      ],
+      "exit_code": 0,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [],
+      "stderr_excerpt": ""
+    }
+  ]
+}

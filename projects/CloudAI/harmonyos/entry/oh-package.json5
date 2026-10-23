@@ -1,0 +1,9 @@
+{
+  "name": "entry",
+  "version": "1.0.1",
+  "description": "CloudAI HarmonyOS entry module",
+  "main": "",
+  "author": "CloudAI",
+  "license": "MIT",
+  "dependencies": {}
+}

@@ -1,0 +1,11 @@
+[submodule "projects/VirtualWorld/qemu-source"]
+	path = projects/VirtualWorld/qemu-source
+	url = https://github.com/qemu/qemu.git
+
+[submodule "projects/UTM/source"]
+	path = projects/UTM/source
+	url = https://github.com/utmapp/UTM.git
+
+[submodule "projects/VirtualWorld/qemu-ohos-source"]
+	path = projects/VirtualWorld/qemu-ohos-source
+	url = https://github.com/qemu/qemu.git

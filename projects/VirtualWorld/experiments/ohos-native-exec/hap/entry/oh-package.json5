@@ -1,0 +1,7 @@
+{
+  "name": "entry",
+  "version": "1.0.0",
+  "description": "native cap test entry module",
+  "main": "",
+  "dependencies": {}
+}

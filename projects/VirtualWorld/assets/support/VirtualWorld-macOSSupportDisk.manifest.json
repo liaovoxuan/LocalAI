@@ -1,0 +1,11 @@
+{
+    "format": "virtualworld-support-disk-v1",
+    "product": "VirtualWorld macOS Support Disk",
+    "version": "1.0.0",
+    "source": "official",
+    "payload": "VirtualWorld-macOSSupportDisk.qcow2",
+    "sha256": "1b7af784841125887e688254229e282829e17245d0e47fe7280da9b68a30d9e1",
+    "issued_at": "1787097600",
+    "expires_at": "1818633600",
+    "signature": "vPqbI/ZErmCxDWlte2R+C0dwkwqwWEAzjKcPRd5O0kkGNUITmHmodKoS20xkehGjMB77XBqhaKy7aM8gg2jYCA=="
+}

@@ -1,0 +1,31 @@
+{
+    "description": "UEFI firmware for loongarch64",
+    "interface-types": [
+        "uefi"
+    ],
+    "mapping": {
+        "device": "flash",
+        "executable": {
+            "filename": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/runtime/qemu/macos/apple-silicon/share/qemu/edk2-loongarch64-code.fd",
+            "format": "raw"
+        },
+        "nvram-template": {
+            "filename": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/runtime/qemu/macos/apple-silicon/share/qemu/edk2-loongarch64-vars.fd",
+            "format": "raw"
+        }
+    },
+    "targets": [
+        {
+            "architecture": "loongarch64",
+            "machines": [
+                "virt*"
+            ]
+        }
+    ],
+    "features": [
+
+    ],
+    "tags": [
+
+    ]
+}

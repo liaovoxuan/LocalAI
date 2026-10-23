@@ -1,0 +1,20 @@
+VirtualWorld Mini vMac arm64 build
+
+Upstream source: https://github.com/minivmac/minivmac
+Commit: 6860a9a7f372c461b25dc42974b191a453ebcfb2
+
+The source changes are in src/OSGLUCCO.m: LoadMacRom reads the absolute ROM
+path from VIRTUALWORLD_MINIVMAC_ROM, the native window title reads
+VIRTUALWORLD_MINIVMAC_TITLE, and the runtime uses accessory activation so its
+managed window comes forward without adding another Dock app. The generated
+setup-vw-*.sh files use a 68000 CPU for these compact Mac models and contain the complete configuration
+for the Twiggy, Macintosh 128K, Macintosh 512Ke, and Macintosh Plus builds.
+
+After running the setup script for a variant, compile the generated cfg with:
+
+  clang -arch arm64 -O2 -Icfg -Isrc src/OSGLUCCO.m src/GLOBGLUE.c \
+    src/M68KITAB.c src/MINEM68K.c src/VIAEMDEV.c src/IWMEMDEV.c \
+    src/SCCEMDEV.c src/RTCEMDEV.c src/ROMEMDEV.c src/SCSIEMDV.c \
+    src/SONYEMDV.c src/SCRNEMDV.c src/MOUSEMDV.c src/KBRDEMDV.c \
+    src/SNDEMDEV.c src/PROGMAIN.c -framework Cocoa \
+    -framework AudioUnit -framework OpenGL -o minivmac-<variant>

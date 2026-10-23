@@ -73,12 +73,12 @@ jobs:
           LOCALAI_TARGET_OS: windows
           LOCALAI_TARGET_ARCH: ${{ matrix.arch }}
         run: |
-          python scripts/build_llamacpp_runtime.py
-          python scripts/download_default_llamacpp_model.py
-          pyinstaller --clean --noconfirm LocalAI.spec
-          pyinstaller --clean --noconfirm LocalAI_SE.spec
-          pyinstaller --clean --noconfirm CloudAI.spec
-          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          python tooling/scripts/build_llamacpp_runtime.py
+          python tooling/scripts/download_default_llamacpp_model.py
+          pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI.spec
+          pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE.spec
+          pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI.spec
+          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
           cmake --build build/virtualworld --config Release
           New-Item -ItemType Directory -Force dist | Out-Null
           if (Test-Path "build/virtualworld/Release/VirtualWorld.exe") {
@@ -107,16 +107,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
           mkdir -p release
-          if ! python scripts/build_llamacpp_runtime.py; then
+          if ! python tooling/scripts/build_llamacpp_runtime.py; then
             echo "llama.cpp runtime was not bundled because it failed to build in this GitHub runner." > release/llamacpp-runtime-unavailable-${{ matrix.arch }}.txt
           fi
-          if ! python scripts/download_default_llamacpp_model.py; then
+          if ! python tooling/scripts/download_default_llamacpp_model.py; then
             echo "Default llama.cpp model was not bundled because model download failed in this GitHub runner." > release/llamacpp-model-unavailable-${{ matrix.arch }}.txt
           fi
-          pyinstaller --clean --noconfirm LocalAI_Linux.spec
-          pyinstaller --clean --noconfirm LocalAI_SE_Linux.spec
-          pyinstaller --clean --noconfirm CloudAI_Linux.spec
-          cmake -S virtualworld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI_Linux.spec
+          pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE_Linux.spec
+          pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI_Linux.spec
+          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
           cmake --build build/virtualworld --config Release
           mkdir -p dist
           install -m 0755 build/virtualworld/VirtualWorld dist/VirtualWorld
@@ -132,7 +132,7 @@ jobs:
           VERSION="$(python - <<'PY'
           import json
           from pathlib import Path
-          data = json.loads(Path("version.json").read_text(encoding="utf-8"))
+          data = json.loads(Path("shared/resources/version.json").read_text(encoding="utf-8"))
           print(str(data.get("version", "1.0")).split()[0])
           PY
           )"
@@ -172,7 +172,7 @@ jobs:
           EOF
             fi
             chmod +x "$root/usr/bin/${app_id}"
-            cp assets/icons/localai_dark_256.png "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png"
+            cp shared/assets/icons/localai_dark_256.png "$root/usr/share/icons/hicolor/256x256/apps/${app_id}.png"
             cat > "$root/usr/share/applications/${app_id}.desktop" <<EOF
           [Desktop Entry]
           Type=Application

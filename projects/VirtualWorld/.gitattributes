@@ -1,0 +1,25 @@
+* text=auto
+
+*.sh text eol=lf
+*.command text eol=lf
+*.py text eol=lf
+*.cmake text eol=lf
+CMakeLists.txt text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png binary
+*.icns binary
+*.gz binary
+*.rom binary
+*.ROM binary
+*.BIN binary
+runtime/system-software/macos/apple-silicon/bin/* binary
+
+# Generated and local-only material must not enter source archives even when it
+# happens to be tracked in a maintainer worktree.
+/build/** export-ignore
+/build-*/** export-ignore
+/dist/** export-ignore
+/.joycode/** export-ignore
+/.DS_Store export-ignore

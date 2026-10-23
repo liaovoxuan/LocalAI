@@ -1,0 +1,6 @@
+# Copy this file to codex-insiders-api-key.conf and replace the placeholder.
+# Use a DIFFERENT key from the one currently used by VS Code/Codex.
+OPENAI_API_KEY=replace-with-a-different-key
+
+# Default selection; the Insiders dropdown also offers deepseek-v4-pro.
+OPENAI_MODEL=deepseek-v4-flash

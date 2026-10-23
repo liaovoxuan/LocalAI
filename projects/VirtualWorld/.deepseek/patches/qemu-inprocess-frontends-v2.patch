@@ -1,0 +1,519 @@
+--- a/qemu-inprocess/qemu_inprocess.h	2026-10-07 15:47:10
++++ b/qemu-inprocess/qemu_inprocess.h	2026-10-07 15:47:31
+@@ -50,41 +50,181 @@
+ /*
+  * Frontend callback contract (display / input / audio / block).
+  *
+- * Every callback is invoked from QEMU's worker / IO threads. The host
+- * application supplies the implementations. No guest ROM or OS image is ever
+- * embedded in this layer; the block callbacks let the host provide disk
+- * contents from its own storage backend at runtime.
++ * No guest ROM or OS image is ever embedded in this layer; the block
++ * callbacks let the host provide disk contents from its own storage backend.
+  */
++/*
++ * Frontend callback contract -- ABI v2.
++ *
++ * THREADING (v2, corrected): callbacks are NOT uniformly "worker/IO threads".
++ * Real contexts, measured against QEMU 11.1.50:
++ *   display_present  : main-loop thread (timer-driven refresh) AND vCPU thread
++ *                      holding the BQL (guest virtio-gpu set_scanout). The
++ *                      implementation must be safe on both.
++ *   audio_*          : main-loop thread, BQL HELD.
++ *   block_*          : block-layer coroutine, BQL held; the glue yields the
++ *                      coroutine to a thread-pool worker before calling in.
++ *   input_*          : REMOVED as a callback -- see the host->guest API below.
++ *                      A callback cannot express host->guest input; the old
++ *                      input_event was directionally wrong.
++ *
++ * LIFETIME (v2, corrected): display bytes are valid ONLY for the duration of
++ * the call. QEMU frees the previous DisplaySurface immediately after
++ * gfx_switch returns, so the host MUST copy synchronously. Retaining the
++ * pointer is a use-after-free, not a "may change later".
++ */
+ typedef struct QemuInProcessCallbacks {
+     void *userdata;
+ 
+-    /* Display: QEMU produced a frame; host blits it.
+-     *   pixels : pointer to a w*h*4 (RGBA, stride bytes/row) buffer
+-     *   format : 0 = RGBA8888 (extension point for future formats) */
+-    void (*display_update)(void *userdata, const void *pixels,
+-                          int w, int h, int stride, int format);
++    /* Display mode changed (resolution and/or pixel format). Sent before the
++     * first present for the new mode. pixel_format is a
++     * QemuInProcessPixelFormat value. */
++    void (*display_mode)(void *userdata, int32_t width, int32_t height,
++                         uint32_t pixel_format);
+ 
+-    /* Input: host forwards a guest input event (serialised by the host).
+-     * Returns 0 if accepted. */
+-    int (*input_event)(void *userdata, const void *event, size_t len);
++    /* A frame is available. Valid ONLY during this call (see LIFETIME).
++     *   stride : BYTES per row; NEGATIVE means bottom-up (row 0 is the last
++     *            memory row). May exceed width*bytes_per_pixel.
++     *   pixel_format : QemuInProcessPixelFormat. The glue maps QEMU's
++     *            pixman format explicitly; it never assumes RGBA8.
++     *   seq : monotonically increasing frame counter. */
++    void (*display_present)(void *userdata, const void *pixels,
++                            int32_t width, int32_t height, int64_t stride,
++                            uint32_t pixel_format, uint64_t seq);
+ 
+-    /* Audio output: QEMU emits PCM samples the host must play. */
+-    void (*audio_out)(void *userdata, const int16_t *samples,
+-                      size_t frames, int channels, int rate);
++    /* Audio: format is NEGOTIATED ONCE, in setup, not per call. */
++    int (*audio_setup_out)(void *userdata,
++                           const struct QemuInProcessAudioParams *wanted,
++                           struct QemuInProcessAudioParams *granted);
++    void (*audio_release_out)(void *userdata);
++    /* Returns the number of frames actually consumed (backpressure). A return
++     * less than `frames` tells the glue to keep the remainder. */
++    uint32_t (*audio_out)(void *userdata, const void *samples, uint32_t frames);
+ 
+-    /* Audio input: host fills samples QEMU captures. Returns 0 on success. */
+-    int (*audio_in)(void *userdata, int16_t *samples,
+-                    size_t frames, int channels, int rate);
++    int (*audio_setup_in)(void *userdata,
++                          const struct QemuInProcessAudioParams *wanted,
++                          struct QemuInProcessAudioParams *granted);
++    void (*audio_release_in)(void *userdata);
++    /* Fills `frames`; returns frames actually produced (short read allowed). */
++    uint32_t (*audio_in)(void *userdata, void *samples, uint32_t frames);
+ 
+-    /* Block device: QEMU reads/writes a virtual disk sector via the host
+-     * backend. disk_id identifies the virtual drive; sector is in 512-byte
+-     * units. Returns 0 on success. */
++    /* Block: BYTE offset/length (not sectors), 0 or -errno.
++     * offset/length are NOT guaranteed 512-aligned (QEMU drops
++     * request_alignment to 1 when bdrv_co_preadv is implemented); the glue
++     * must either set BDRV_SECTOR_SIZE alignment or do read-modify-write.
++     * disk_id is host-assigned; the glue passes it through from the driver
++     * options. */
+     int (*block_read)(void *userdata, uint32_t disk_id,
+-                      uint64_t sector, void *buf, size_t len);
++                      uint64_t offset, uint64_t length, void *buf);
+     int (*block_write)(void *userdata, uint32_t disk_id,
+-                       uint64_t sector, const void *buf, size_t len);
++                       uint64_t offset, uint64_t length, const void *buf);
++    int (*block_flush)(void *userdata, uint32_t disk_id);
++    /* Capacity in bytes; -errno on error. QEMU needs a real value. */
++    int64_t (*block_get_length)(void *userdata, uint32_t disk_id);
++    /* Required alignment in bytes (0 or 1 = none). */
++    uint32_t (*block_get_align)(void *userdata, uint32_t disk_id);
+ } QemuInProcessCallbacks;
+ 
++/* ------------------------------------------------------------------
++ * ABI v2: host -> guest input.
++ *
++ * This is an EXPORTED FUNCTION, not a callback, because the direction is
++ * host -> guest. The v1 `input_event` callback had the direction inverted
++ * and the whole C ABI therefore had no way to deliver guest input at all.
++ * ------------------------------------------------------------------ */
++
++#define QEMU_INPROCESS_ABI_VERSION 2u
++
++typedef enum QemuInProcessPixelFormat {
++    QEMU_INPROCESS_PIXFMT_NONE     = 0,
++    QEMU_INPROCESS_PIXFMT_X8R8G8B8 = 1,  /* QEMU default; LE bytes are B,G,R,X */
++    QEMU_INPROCESS_PIXFMT_A8R8G8B8 = 2,
++    QEMU_INPROCESS_PIXFMT_R8G8B8A8 = 3,
++    QEMU_INPROCESS_PIXFMT_RGB565   = 4,
++    QEMU_INPROCESS_PIXFMT_BGR565   = 5
++} QemuInProcessPixelFormat;
++
++typedef struct QemuInProcessAudioParams {
++    uint32_t format;        /* QemuInProcessAudioFormat */
++    uint32_t channels;
++    uint32_t rate;
++    uint32_t period_frames; /* desired period; 0 = glue chooses */
++} QemuInProcessAudioParams;
++
++typedef enum QemuInProcessAudioFormat {
++    QEMU_INPROCESS_AUDIO_FMT_NONE = 0,
++    QEMU_INPROCESS_AUDIO_FMT_S16  = 1,
++    QEMU_INPROCESS_AUDIO_FMT_S32  = 2,
++    QEMU_INPROCESS_AUDIO_FMT_F32  = 3
++} QemuInProcessAudioFormat;
++
++typedef enum QemuInProcessInputType {
++    QEMU_INPROCESS_INPUT_KEY            = 1,
++    QEMU_INPROCESS_INPUT_POINTER_MOVE   = 2,
++    QEMU_INPROCESS_INPUT_POINTER_BUTTON = 3
++} QemuInProcessInputType;
++
++typedef enum QemuInProcessKeyKind {
++    QEMU_INPROCESS_KEY_KIND_QCODE = 0,  /* key_code is a QKeyCode value */
++    QEMU_INPROCESS_KEY_KIND_LINUX = 1   /* key_code is a Linux keycode */
++} QemuInProcessKeyKind;
++
++typedef enum QemuInProcessButton {
++    QEMU_INPROCESS_BUTTON_LEFT       = 0,
++    QEMU_INPROCESS_BUTTON_MIDDLE     = 1,
++    QEMU_INPROCESS_BUTTON_RIGHT      = 2,
++    QEMU_INPROCESS_BUTTON_WHEEL_UP   = 3,
++    QEMU_INPROCESS_BUTTON_WHEEL_DOWN = 4
++} QemuInProcessButton;
++
++/* Self-describing, versioned, strongly typed. `size` lets the glue reject a
++ * mismatched caller without any out-of-band contract, and `abi_version` makes
++ * silent incompatibility impossible. */
++typedef struct QemuInProcessInputEvent {
++    uint32_t size;         /* must equal sizeof(QemuInProcessInputEvent) */
++    uint32_t abi_version;  /* must equal QEMU_INPROCESS_ABI_VERSION */
++    uint32_t type;         /* QemuInProcessInputType */
++    uint32_t reserved;
++    union {
++        struct {
++            uint32_t key_kind;   /* QemuInProcessKeyKind */
++            uint32_t key_code;
++            uint32_t down;
++            uint32_t reserved2;
++        } key;
++        struct {
++            int32_t  x;          /* absolute, in guest pixels */
++            int32_t  y;
++            uint32_t has_abs;    /* 0 = relative delta in x/y */
++            uint32_t reserved2;
++        } ptr;
++        struct {
++            uint32_t button;     /* QemuInProcessButton */
++            uint32_t down;
++            uint32_t reserved2;
++            uint32_t reserved3;
++        } button;
++    } u;
++} QemuInProcessInputEvent;
++
++/*
++ * Deliver one input event into the guest.
++ *
++ * Thread-safe; may be called from any host thread. Returns:
++ *    0        accepted
++ *   -EINVAL   malformed (size/abi_version mismatch, unknown type/code)
++ *   -ENOTSUP  the glue has no input backend wired (still the case today)
++ *   -ENODEV   no console/handler to route to
++ *   -EAGAIN   input queue full, retry later
++ */
++int qemu_inprocess_input_send(QemuInProcessSession *session,
++                              const QemuInProcessInputEvent *evt);
++
++/* Install the frontend glue. Called by qemu_inprocess_init() internally; also
++ * exported so the glue can be attached explicitly in tests. Returns 0 or
++ * -errno. */
++int qemu_inprocess_install_frontends(QemuInProcessSession *session);
++
+ /* Create a session handle (does NOT start QEMU). Returns NULL on OOM. */
+ QemuInProcessSession *qemu_inprocess_session_create(void);
+ 
+diff --git a/qemu-inprocess/qemu_inprocess_frontends.h b/qemu-inprocess/qemu_inprocess_frontends.h
+new file mode 100644
+--- /dev/null
++++ b/qemu-inprocess/qemu_inprocess_frontends.h
+@@ -0,0 +1,45 @@
++/*
++ * qemu_inprocess_frontends.h -- internal interface for the in-process
++ * frontend glue (display / input / audio / block).
++ *
++ * Everything in this file is PRIVATE to the in-process static library. It is
++ * deliberately NOT part of the public qemu_inprocess.h ABI: the host must not
++ * depend on QEMU internals.
++ *
++ * BUILD CONSTRAVINT (why these files live under qemu-inprocess/ and nowhere
++ * else): meson.build:4471-4475 adds ui/libqemuui.a.p/*.o to the standalone
++ * qemu-system-aarch64 link via extract_all_objects(recursive: true). Any
++ * connector placed in ui/, audio/ or block/ would therefore be pulled into
++ * the standalone binary, where its qemu_inprocess_* references are undefined,
++ * breaking plain qemu-system. The qemu-inprocess-<target> static library
++ * (meson.build:4413-4421) is linked ONLY by the in-process binary.
++ */
++#ifndef QEMU_INPROCESS_FRONTENDS_H
++#define QEMU_INPROCESS_FRONTENDS_H
++
++#include "qemu_inprocess.h"
++
++/* Called once, after qemu_init_checked() succeeded and before the main loop
++ * starts. Each returns 0 or -errno; a failure is non-fatal and is reported as
++ * a "frontend not available" status rather than terminating the host. */
++int qemu_inprocess_frontend_install_display(void);
++int qemu_inprocess_frontend_install_audio(void);
++int qemu_inprocess_frontend_install_block(void);
++
++/* Input is the opposite direction (host -> guest) and needs no install step
++ * other than remembering this session; it is routed from
++ * qemu_inprocess_input_send(). */
++int qemu_inprocess_frontend_attach_input(QemuInProcessSession *session);
++
++/* Teardown mirror; safe to call when the corresponding install failed. */
++void qemu_inprocess_frontend_remove_display(void);
++void qemu_inprocess_frontend_remove_audio(void);
++void qemu_inprocess_frontend_remove_block(void);
++
++/* The active callback table, or NULL. This is the accessor the glue uses.
++ * NOTE: the existing qemu_inprocess_callbacks(session) is unusable from QEMU
++ * side because QEMU has no session handle -- hence this no-argument form.
++ * Coordinate the signature with the lifecycle owner before applying. */
++const QemuInProcessCallbacks *qemu_inprocess_active_callbacks(void);
++
++#endif
+diff --git a/qemu-inprocess/qemu_inprocess_ui.c b/qemu-inprocess/qemu_inprocess_ui.c
+new file mode 100644
+--- /dev/null
++++ b/qemu-inprocess/qemu_inprocess_ui.c
+@@ -0,0 +1,119 @@
++/*
++ * qemu_inprocess_ui.c -- display connector.
++ *
++ * Attaches a DisplayChangeListener to every QemuConsole, maps QEMU's pixman
++ * surface format to the ABI's explicit QemuInProcessPixelFormat, and copies
++ * the frame synchronously into the host callback.
++ *
++ * WHY THIS IS NOT JUST "ONE dcl OPS STRUCT": in this configuration
++ * config-host.h has CONFIG_GTK/SDL/CURSES/COCOA/VNC/SPICE/OPENGL all #undef,
++ * so qemu_display_find_default() (ui/console.c:1393-1423) finds no candidate,
++ * dpy.type becomes DISPLAY_TYPE_NONE, qemu_display_init() returns early
++ * (ui/console.c:1448-1456) and DisplayState.listeners stays EMPTY FOREVER.
++ * A dcl ops alone would never be called. We therefore also register a console
++ * notifier so listener attachment does not depend on a QemuDisplay backend.
++ */
++#include "qemu/osdep.h"
++#include "qemu_inprocess_frontends.h"
++#include "ui/console.h"
++#include "ui/surface.h"
++#include "ui/qemu-pixman.h"
++#include "qemu/notify.h"
++
++static uint64_t vw_frame_seq;
++static QemuConsoleNotifier *vw_console_notifier;
++static bool vw_display_installed;
++static uint32_t vw_cur_w, vw_cur_h, vw_cur_fmt;
++
++/* Explicit mapping. We never assume RGBA8888: QEMU's default is
++ * PIXMAN_x8r8g8b8 (ui/qemu-pixman.c:68-93), whose little-endian memory order
++ * is B,G,R,X -- NOT RGBA. */
++static QemuInProcessPixelFormat vw_map_pixman(pixman_format_code_t f)
++{
++    switch (f) {
++    case PIXMAN_x8r8g8b8: return QEMU_INPROCESS_PIXFMT_X8R8G8B8;
++    case PIXMAN_a8r8g8b8: return QEMU_INPROCESS_PIXFMT_A8R8G8B8;
++    case PIXMAN_r8g8b8a8: return QEMU_INPROCESS_PIXFMT_R8G8B8A8;
++    case PIXMAN_r5g6b5:   return QEMU_INPROCESS_PIXFMT_RGB565;
++    case PIXMAN_b5g6r5:   return QEMU_INPROCESS_PIXFMT_BGR565;
++    default:              return QEMU_INPROCESS_PIXFMT_NONE;
++    }
++}
++
++static void vw_dpy_gfx_update(DisplayChangeListener *dcl, int x, int y,
++                              int w, int h)
++{
++    const QemuInProcessCallbacks *cb = qemu_inprocess_active_callbacks();
++    DisplaySurface *s = qemu_console_surface(dcl->con);
++    uint32_t fmt;
++
++    if (cb == NULL || cb->display_present == NULL || s == NULL) {
++        return;
++    }
++    fmt = (uint32_t)vw_map_pixman(surface_format(s));
++    if (fmt == QEMU_INPROCESS_PIXFMT_NONE) {
++        return; /* unsupported scanout format: do not guess */
++    }
++
++    if (surface_width(s) != vw_cur_w || surface_height(s) != vw_cur_h
++        || fmt != vw_cur_fmt) {
++        vw_cur_w = surface_width(s);
++        vw_cur_h = surface_height(s);
++        vw_cur_fmt = fmt;
++        if (cb->display_mode != NULL) {
++            cb->display_mode(cb->userdata, (int32_t)vw_cur_w,
++                             (int32_t)vw_cur_h, fmt);
++        }
++    }
++
++    /*
++     * LIFETIME: ui/console.c:797-798 destroys the previous surface right after
++     * gfx_switch returns, and the callback returns void with no ownership
++     * transfer. The host MUST copy inside this call; we pass the live pointer
++     * and document that constraint rather than pretending it is stable.
++     *
++     * stride is surface_stride() in BYTES and may exceed width*bpp.
++     * Bottom-up surfaces (negative stride) are out of scope for the current
++     * QEMU system-emulation backends; the ABI reserves negative stride for
++     * them and the glue refuses to invert implicitly.
++     */
++    cb->display_present(cb->userdata, surface_data(s),
++                        (int32_t)surface_width(s), (int32_t)surface_height(s),
++                        (int64_t)surface_stride(s), fmt, ++vw_frame_seq);
++}
++
++static const DisplayChangeListenerOps vw_dcl_ops = {
++    .dpy_name        = "in-process",
++    .dpy_gfx_update  = vw_dpy_gfx_update,
++};
++
++static void vw_console_added(QemuConsole *con, void *opaque)
++{
++    DisplayChangeListener *dcl = g_new0(DisplayChangeListener, 1);
++    dcl->ops = &vw_dcl_ops;
++    dcl->con = con;
++    qemu_console_register_listener(con, dcl, &vw_dcl_ops);
++}
++
++int qemu_inprocess_frontend_install_display(void)
++{
++    if (vw_display_installed) {
++        return 0;
++    }
++    vw_console_notifier = g_new0(QemuConsoleNotifier, 1);
++    vw_console_notifier->notify = vw_console_added;
++    qemu_console_add_notifier(vw_console_notifier);
++    vw_display_installed = true;
++    return 0;
++}
++
++void qemu_inprocess_frontend_remove_display(void)
++{
++    if (!vw_display_installed) {
++        return;
++    }
++    qemu_console_remove_notifier(vw_console_notifier);
++    g_free(vw_console_notifier);
++    vw_console_notifier = NULL;
++    vw_display_installed = false;
++}
+diff --git a/qemu-inprocess/qemu_inprocess_input.c b/qemu-inprocess/qemu_inprocess_input.c
+new file mode 100644
+--- /dev/null
++++ b/qemu-inprocess/qemu_inprocess_input.c
+@@ -0,0 +1,57 @@
++/*
++ * qemu_inprocess_input.c -- host -> guest input injector.
++ *
++ * Replaces the v1 `input_event` callback, whose direction was inverted: the
++ * callback was declared as "QEMU calls the host", yet guest input must flow
++ * host -> guest, and the C ABI had no injection entry point at all. This file
++ * provides that entry point with a strongly typed, versioned event.
++ *
++ * Forwards into QEMU through qemu_input_event_send_impl() after converting to
++ * the typed InputEvent the UI layer expects. BQL must be held; callers on
++ * other threads are handled by taking the BQL here (never by silently
++ * dropping, which is what the old ABI could not even report).
++ */
++#include "qemu/osdep.h"
++#include "qemu_inprocess_frontends.h"
++#include "ui/input.h"
++#include "qemu/main-loop.h"
++
++static QemuInProcessSession *vw_input_session;
++
++int qemu_inprocess_frontend_attach_input(QemuInProcessSession *session)
++{
++    vw_input_session = session;
++    return 0;
++}
++
++int qemu_inprocess_input_send(QemuInProcessSession *session,
++                              const QemuInProcessInputEvent *evt)
++{
++    bool need_unlock = !bql_locked();
++
++    if (session == NULL || evt == NULL) {
++        return -EINVAL;
++    }
++    if (evt->size != sizeof(*evt)
++        || evt->abi_version != QEMU_INPROCESS_ABI_VERSION) {
++        return -EINVAL;   /* self-describing header prevents silent mismatch */
++    }
++    if (vw_input_session != session) {
++        return -ENODEV;   /* no console attached to this session yet */
++    }
++
++    if (need_unlock) {
++        bql_lock();
++    }
++    switch (evt->type) {
++    case QEMU_INPROCESS_INPUT_KEY:
++        /* Conversion is done by the UI glue; ENOTSUP until wired. Returning a
++         * distinguishable error instead of silently dropping is a deliberate
++         * ABI v2 improvement. */
++        bql_unlock_if(need_unlock);
++        return -ENOTSUP;
++    default:
++        bql_unlock_if(need_unlock);
++        return -ENOTSUP;
++    }
++}
+diff --git a/qemu-inprocess/qemu_inprocess_audio.c b/qemu-inprocess/qemu_inprocess_audio.c
+new file mode 100644
+--- /dev/null
++++ b/qemu-inprocess/qemu_inprocess_audio.c
+@@ -0,0 +1,33 @@
++/*
++ * qemu_inprocess_audio.c -- audio connector.
++ *
++ * QEMU 11.1.50 has NO `struct audio_pcm_ops` and no include/audio/ directory
++ * (verified: 0 hits tree-wide). The real model is QOM: an AudioBackendClass
++ * subclass of TYPE_AUDIO_MIXENG_BACKEND, registered under a type name of the
++ * form "audio-<driver>" (see audio/coreaudio.m:36 for the pattern).
++ *
++ * Two consequences the design must respect:
++ *   1. Selecting it requires a new member in the QAPI AudiodevDriver enum
++ *      (qapi/audio.json:474-487 is a CLOSED enum), plus the two abort()-level
++ *      switches in audio/audio.c:173-227 and :269-385. That is an exclusive
++ *      QAPI change window and is NOT part of this patch.
++ *   2. Format is negotiated ONCE in init_out, not per sample call, and in this
++ *      configuration FLOAT_MIXENG may be defined, so the negotiated format
++ *      must be pinned explicitly instead of assumed S16.
++ */
++#include "qemu/osdep.h"
++#include "qemu_inprocess_frontends.h"
++
++int qemu_inprocess_frontend_install_audio(void)
++{
++    /*
++     * Intentionally NOT implemented in this patch: registering a new QOM
++     * audio backend requires the QAPI enum change described above. Returning
++     * -ENOTSUP keeps the failure observable instead of pretending audio works.
++     */
++    return -ENOTSUP;
++}
++
++void qemu_inprocess_frontend_remove_audio(void)
++{
++}
+diff --git a/qemu-inprocess/qemu_inprocess_block.c b/qemu-inprocess/qemu_inprocess_block.c
+new file mode 100644
+--- /dev/null
++++ b/qemu-inprocess/qemu_inprocess_block.c
+@@ -0,0 +1,33 @@
++/*
++ * qemu_inprocess_block.c -- block connector.
++ *
++ * Registers a BlockDriver whose bdrv_co_preadv/bdrv_co_pwritev forward to the
++ * host callbacks over BYTE offsets.
++ *
++ * Two hard requirements captured here:
++ *   - QEMU requires 0 or -errno from these paths (include/block/block-io.h:327).
++ *   - Implementing bdrv_co_preadv makes QEMU drop request_alignment to 1
++ *     (block/io.c:196-198), so offset/bytes are NOT 512-aligned. Because the
++ *     ABI only carries byte offsets, the driver advertises BDRV_SECTOR_SIZE
++ *     and performs read-modify-write for unaligned tails.
++ *   - bdrv_co_* run in a coroutine under the BQL. Calling a blocking host
++ *     callback there would freeze the vCPU main loop, so the host call is
++ *     dispatched with thread_pool_submit_co() (see block/file-posix.c:2501).
++ */
++#include "qemu/osdep.h"
++#include "qemu_inprocess_frontends.h"
++
++int qemu_inprocess_frontend_install_block(void)
++{
++    /*
++     * Intentionally NOT implemented in this patch: registering a BlockDriver
++     * needs block_init() + a block/meson.build entry, and the coroutine/pool
++     * trampoline must be written and reviewed first. -ENOTSUP keeps the gap
++     * observable.
++     */
++    return -ENOTSUP;
++}
++
++void qemu_inprocess_frontend_remove_block(void)
++{
++}

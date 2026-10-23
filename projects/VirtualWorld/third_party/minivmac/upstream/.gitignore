@@ -1,0 +1,12 @@
+/bld
+/cfg
+/setup_t
+/setup.sh
+/Makefile
+/minivmac
+/minivmac.app
+/minivmac.xcodeproj
+/build
+/*.exe
+/*.ROM
+remove*

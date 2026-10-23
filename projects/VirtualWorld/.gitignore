@@ -1,0 +1,50 @@
+# macOS and editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# CMake/build output
+build/
+build-*/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+DartConfiguration.tcl
+Makefile
+build.ninja
+.ninja_deps
+.ninja_log
+cmake_install.cmake
+install_manifest.txt
+Testing/
+*_autogen/
+
+# Release output and local evidence
+dist/
+artifacts/
+*.dmg
+*.zip
+*.log
+*.tmp
+
+# Local VM/runtime data
+*.qcow2
+*.qcow
+*.vdi
+*.vhd
+*.vhdx
+*.vmdk
+*.raw
+*.rom
+*.ROM
+*.img
+*.hfs
+*.iso
+*.ipsw
+*.utm/
+runtime/system-software/roms/
+qemu-master/
+qemu-build-*/

@@ -1,0 +1,21 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "LocalAI SE HarmonyOS 原生终端模型客户端" },
+    { "name": "EntryAbility_desc", "value": "LocalAI SE 终端" },
+    { "name": "EntryAbility_label", "value": "LocalAI SE" },
+    { "name": "harmony_edition", "value": "HarmonyOS 终端版" },
+    { "name": "new_chat", "value": "新对话" },
+    { "name": "model", "value": "选择模型" },
+    { "name": "no_model", "value": "未加载模型" },
+    { "name": "ready", "value": "本地推理已就绪" },
+    { "name": "you", "value": "你" },
+    { "name": "system", "value": "系统" },
+    { "name": "attachment", "value": "附件" },
+    { "name": "message_placeholder", "value": "输入消息" },
+    { "name": "send", "value": "发送" },
+    { "name": "running", "value": "生成中" },
+    { "name": "gguf_required", "value": "请选择 GGUF 模型文件。" },
+    { "name": "model_loaded", "value": "GGUF 模型已加载。" },
+    { "name": "select_model_first", "value": "发送消息前请先选择 GGUF 模型。" }
+  ]
+}

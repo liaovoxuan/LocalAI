@@ -1,0 +1,839 @@
+{
+  "report": "virtualworld-release-manifest-certification",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-06T09:43:14+00:00",
+  "method": "independent black-box re-derivation: hashes, sizes, counts, path safety and backend flags are recomputed from the bundle and the same build's executable",
+  "product_code_modified": false,
+  "normalization": [],
+  "discovery": {
+    "mode": "auto-discovered",
+    "search_roots": [
+      "build-release-candidate",
+      "build-release-candidate-nocontrib"
+    ],
+    "candidates": [
+      "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate-nocontrib/virtualization-release-manifest.json",
+      "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/virtualization-release-manifest.json"
+    ],
+    "contrib_on": [
+      "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/virtualization-release-manifest.json"
+    ],
+    "contrib_off": [
+      "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate-nocontrib/virtualization-release-manifest.json"
+    ],
+    "ambiguous": [],
+    "problems": []
+  },
+  "manifests": [
+    {
+      "source": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/virtualization-release-manifest.json",
+      "command": [],
+      "exit_code": null,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [
+        {
+          "severity": "info",
+          "code": "main-program-path-absolute-ok",
+          "message": "main_program.path is absolute but confined to this build tree",
+          "path": "$.main_program.path"
+        }
+      ],
+      "stderr_excerpt": "",
+      "role": "contrib ON",
+      "stats": {
+        "hashes_recomputed": 11,
+        "hashes_recorded": 11,
+        "bytes_rehashed": 216667072,
+        "crosschecks": {
+          "cmake_cache": {
+            "path": "build-release-candidate/CMakeCache.txt",
+            "status": "checked",
+            "cmake_contrib": "ON",
+            "manifest_contrib": true
+          },
+          "executable": {
+            "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+            "status": "checked",
+            "exit_code": 0,
+            "observed": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": true,
+              "harmony": true
+            },
+            "stderr_bytes": 0,
+            "manifest": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": true,
+              "harmony": true
+            }
+          }
+        },
+        "bundle_root": "build-release-candidate/VirtualWorld.app",
+        "bundle_root_resolution": "resolved from VirtualWorld.app"
+      },
+      "bundle_root": "build-release-candidate/VirtualWorld.app",
+      "contrib_backends": true,
+      "backend_flags": {
+        "macos": true,
+        "windows": true,
+        "linux_kvm": true,
+        "harmony": true
+      },
+      "gate_status": "passed",
+      "gate_failure_count": 0,
+      "qemu_entries": 10,
+      "firmware_count": 55,
+      "support_count": 6
+    },
+    {
+      "source": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate-nocontrib/virtualization-release-manifest.json",
+      "command": [],
+      "exit_code": null,
+      "ok": true,
+      "error_count": 0,
+      "warning_count": 0,
+      "findings": [
+        {
+          "severity": "info",
+          "code": "main-program-path-absolute-ok",
+          "message": "main_program.path is absolute but confined to this build tree",
+          "path": "$.main_program.path"
+        }
+      ],
+      "stderr_excerpt": "",
+      "role": "contrib OFF",
+      "stats": {
+        "hashes_recomputed": 11,
+        "hashes_recorded": 11,
+        "bytes_rehashed": 216567920,
+        "crosschecks": {
+          "cmake_cache": {
+            "path": "build-release-candidate-nocontrib/CMakeCache.txt",
+            "status": "checked",
+            "cmake_contrib": "OFF",
+            "manifest_contrib": false
+          },
+          "executable": {
+            "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate-nocontrib/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+            "status": "checked",
+            "exit_code": 0,
+            "observed": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": false,
+              "harmony": false
+            },
+            "stderr_bytes": 0,
+            "manifest": {
+              "macos": true,
+              "windows": true,
+              "linux_kvm": false,
+              "harmony": false
+            }
+          }
+        },
+        "bundle_root": "build-release-candidate-nocontrib/VirtualWorld.app",
+        "bundle_root_resolution": "resolved from VirtualWorld.app"
+      },
+      "bundle_root": "build-release-candidate-nocontrib/VirtualWorld.app",
+      "contrib_backends": false,
+      "backend_flags": {
+        "macos": true,
+        "windows": true,
+        "linux_kvm": false,
+        "harmony": false
+      },
+      "gate_status": "passed",
+      "gate_failure_count": 0,
+      "qemu_entries": 10,
+      "firmware_count": 55,
+      "support_count": 6
+    }
+  ],
+  "mutation": {
+    "seed": 20261005,
+    "bundle_root": "build-release-candidate/VirtualWorld.app",
+    "total": 47,
+    "detectors_fired": 47,
+    "gaps": [],
+    "coverage_by_category": {
+      "verified-flag": {
+        "total": 5,
+        "detected": 5
+      },
+      "hash-size": {
+        "total": 6,
+        "detected": 6
+      },
+      "path-safety": {
+        "total": 6,
+        "detected": 6
+      },
+      "missing-qemu": {
+        "total": 1,
+        "detected": 1
+      },
+      "backend-drift": {
+        "total": 3,
+        "detected": 3
+      },
+      "gate": {
+        "total": 4,
+        "detected": 4
+      },
+      "time-host": {
+        "total": 5,
+        "detected": 5
+      },
+      "counts": {
+        "total": 3,
+        "detected": 3
+      },
+      "schema": {
+        "total": 1,
+        "detected": 1
+      },
+      "missing-field": {
+        "total": 5,
+        "detected": 5
+      },
+      "randomized": {
+        "total": 8,
+        "detected": 8
+      }
+    },
+    "results": [
+      {
+        "name": "verified-pseudo-true-bool-true",
+        "category": "verified-flag",
+        "expected_codes": [
+          "verified-not-false"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "verified-not-false"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/verified-pseudo-true-bool-true.json"
+      },
+      {
+        "name": "verified-pseudo-true-int-one",
+        "category": "verified-flag",
+        "expected_codes": [
+          "wrong-field-type"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "wrong-field-type"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/verified-pseudo-true-int-one.json"
+      },
+      {
+        "name": "verified-pseudo-true-string-true",
+        "category": "verified-flag",
+        "expected_codes": [
+          "wrong-field-type"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "wrong-field-type"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/verified-pseudo-true-string-true.json"
+      },
+      {
+        "name": "real-hardware-pseudo-true-bool-true",
+        "category": "verified-flag",
+        "expected_codes": [
+          "real-hardware-verified-not-false"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "real-hardware-verified-not-false"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/real-hardware-pseudo-true-bool-true.json"
+      },
+      {
+        "name": "real-hardware-pseudo-true-string-false",
+        "category": "verified-flag",
+        "expected_codes": [
+          "wrong-field-type"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "wrong-field-type"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/real-hardware-pseudo-true-string-false.json"
+      },
+      {
+        "name": "main-program-hash-wrong",
+        "category": "hash-size",
+        "expected_codes": [
+          "main-program-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "main-program-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/main-program-hash-wrong.json"
+      },
+      {
+        "name": "main-program-hash-format",
+        "category": "hash-size",
+        "expected_codes": [
+          "main-program-sha256-format"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "main-program-sha256-format"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/main-program-hash-format.json"
+      },
+      {
+        "name": "main-program-size-wrong",
+        "category": "hash-size",
+        "expected_codes": [
+          "main-program-size-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "main-program-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/main-program-size-wrong.json"
+      },
+      {
+        "name": "qemu-hash-wrong",
+        "category": "hash-size",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-hash-wrong.json"
+      },
+      {
+        "name": "qemu-size-wrong",
+        "category": "hash-size",
+        "expected_codes": [
+          "qemu-size-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-size-wrong.json"
+      },
+      {
+        "name": "qemu-file-missing",
+        "category": "hash-size",
+        "expected_codes": [
+          "qemu-missing"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-missing"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-file-missing.json"
+      },
+      {
+        "name": "qemu-duplicate-path",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-duplicate"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-path-duplicate"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-duplicate-path.json"
+      },
+      {
+        "name": "qemu-absolute-path",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-absolute"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-path-absolute"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-absolute-path.json"
+      },
+      {
+        "name": "qemu-traversal-path",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-traversal"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-path-traversal"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-traversal-path.json"
+      },
+      {
+        "name": "qemu-traversal-middle",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-traversal"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-path-traversal"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-traversal-middle.json"
+      },
+      {
+        "name": "qemu-duplicate-with-main",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-duplicate-with-main"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-path-duplicate-with-main",
+          "qemu-sha256-mismatch",
+          "qemu-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-duplicate-with-main.json"
+      },
+      {
+        "name": "qemu-list-empty",
+        "category": "missing-qemu",
+        "expected_codes": [
+          "qemu-list-empty"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-list-empty"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/qemu-list-empty.json"
+      },
+      {
+        "name": "backend-drift-linux-kvm",
+        "category": "backend-drift",
+        "expected_codes": [
+          "backend-flag-drift"
+        ],
+        "detected_codes": [
+          "backend-flag-drift",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/backend-drift-linux-kvm.json"
+      },
+      {
+        "name": "backend-drift-harmony",
+        "category": "backend-drift",
+        "expected_codes": [
+          "backend-flag-drift"
+        ],
+        "detected_codes": [
+          "backend-flag-drift",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/backend-drift-harmony.json"
+      },
+      {
+        "name": "backend-flag-not-bool",
+        "category": "backend-drift",
+        "expected_codes": [
+          "backend-flag-not-bool"
+        ],
+        "detected_codes": [
+          "backend-flag-not-bool",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/backend-flag-not-bool.json"
+      },
+      {
+        "name": "gate-false-green",
+        "category": "gate",
+        "expected_codes": [
+          "gate-false-green"
+        ],
+        "detected_codes": [
+          "gate-false-green",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/gate-false-green.json"
+      },
+      {
+        "name": "gate-failure-count-mismatch",
+        "category": "gate",
+        "expected_codes": [
+          "gate-failure-count-mismatch"
+        ],
+        "detected_codes": [
+          "gate-failure-count-mismatch",
+          "gate-false-green",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/gate-failure-count-mismatch.json"
+      },
+      {
+        "name": "gate-false-green-embedded-check",
+        "category": "gate",
+        "expected_codes": [
+          "gate-false-green"
+        ],
+        "detected_codes": [
+          "gate-check-failed",
+          "gate-false-green",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/gate-false-green-embedded-check.json"
+      },
+      {
+        "name": "gate-status-unknown",
+        "category": "gate",
+        "expected_codes": [
+          "gate-status-invalid"
+        ],
+        "detected_codes": [
+          "gate-status-invalid",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/gate-status-unknown.json"
+      },
+      {
+        "name": "generated-at-not-iso",
+        "category": "time-host",
+        "expected_codes": [
+          "generated-at-invalid"
+        ],
+        "detected_codes": [
+          "generated-at-invalid",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/generated-at-not-iso.json"
+      },
+      {
+        "name": "generated-at-impossible",
+        "category": "time-host",
+        "expected_codes": [
+          "generated-at-invalid"
+        ],
+        "detected_codes": [
+          "generated-at-invalid",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/generated-at-impossible.json"
+      },
+      {
+        "name": "host-os-invalid",
+        "category": "time-host",
+        "expected_codes": [
+          "host-os-invalid"
+        ],
+        "detected_codes": [
+          "host-os-invalid",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/host-os-invalid.json"
+      },
+      {
+        "name": "host-os-not-string",
+        "category": "time-host",
+        "expected_codes": [
+          "wrong-field-type"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "wrong-field-type"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/host-os-not-string.json"
+      },
+      {
+        "name": "host-arch-empty",
+        "category": "time-host",
+        "expected_codes": [
+          "empty-field"
+        ],
+        "detected_codes": [
+          "empty-field",
+          "host-arch-invalid",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/host-arch-empty.json"
+      },
+      {
+        "name": "firmware-count-mismatch",
+        "category": "counts",
+        "expected_codes": [
+          "firmware-count-mismatch"
+        ],
+        "detected_codes": [
+          "firmware-count-mismatch",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/firmware-count-mismatch.json"
+      },
+      {
+        "name": "support-count-mismatch",
+        "category": "counts",
+        "expected_codes": [
+          "support-count-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "support-count-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/support-count-mismatch.json"
+      },
+      {
+        "name": "support-count-not-int",
+        "category": "counts",
+        "expected_codes": [
+          "count-not-int"
+        ],
+        "detected_codes": [
+          "count-not-int",
+          "main-program-path-escape"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/support-count-not-int.json"
+      },
+      {
+        "name": "schema-unknown",
+        "category": "schema",
+        "expected_codes": [
+          "schema-unknown"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "schema-unknown"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/schema-unknown.json"
+      },
+      {
+        "name": "missing-main_program",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "bundle-root-missing",
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/missing-main_program.json"
+      },
+      {
+        "name": "missing-qemu_binaries",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/missing-qemu_binaries.json"
+      },
+      {
+        "name": "missing-gate",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/missing-gate.json"
+      },
+      {
+        "name": "missing-host",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/missing-host.json"
+      },
+      {
+        "name": "missing-backends",
+        "category": "missing-field",
+        "expected_codes": [
+          "missing-field"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "missing-field"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/missing-backends.json"
+      },
+      {
+        "name": "random-00-qemu-size",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-size-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-00-qemu-size.json"
+      },
+      {
+        "name": "random-01-qemu-sha256",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-01-qemu-sha256.json"
+      },
+      {
+        "name": "random-02-qemu-sha256",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-02-qemu-sha256.json"
+      },
+      {
+        "name": "random-03-qemu-size",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-size-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-03-qemu-size.json"
+      },
+      {
+        "name": "random-04-qemu-size",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-size-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-size-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-04-qemu-size.json"
+      },
+      {
+        "name": "random-05-qemu-sha256",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-05-qemu-sha256.json"
+      },
+      {
+        "name": "random-06-qemu-sha256",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-06-qemu-sha256.json"
+      },
+      {
+        "name": "random-07-qemu-sha256",
+        "category": "randomized",
+        "expected_codes": [
+          "qemu-sha256-mismatch"
+        ],
+        "detected_codes": [
+          "main-program-path-escape",
+          "qemu-sha256-mismatch"
+        ],
+        "detector_fired": true,
+        "sample": "release-manifest-mutations/random-07-qemu-sha256.json"
+      },
+      {
+        "name": "symlink-escape-sandbox",
+        "category": "path-safety",
+        "expected_codes": [
+          "qemu-path-symlink"
+        ],
+        "detected_codes": [
+          "main-program-missing",
+          "qemu-path-symlink"
+        ],
+        "detector_fired": true,
+        "sandbox": "temporary directory; no real bundle was touched"
+      }
+    ],
+    "ok": true
+  },
+  "failures": [],
+  "not_verified": [
+    "No VM command was run: only --list-backends --json was executed, and never --start.",
+    "Real-hardware verification is explicitly false in both manifests and is not claimed here.",
+    "Windows and Linux packaging is not covered: only the macOS bundles present on this host were certified.",
+    "Code signature validity beyond the recorded ad-hoc gate result was not re-verified.",
+    "Manifests are certified as documents plus their referenced local files; a manifest produced on another machine cannot be compared against this host's filesystem."
+  ],
+  "certification_status": "certified",
+  "blocking": null
+}

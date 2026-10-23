@@ -1,0 +1,112 @@
+{
+  "report_schema": "virtualworld.release-candidate-final/1",
+  "report": "virtualworld-release-candidate-final",
+  "report_version": "1.0.0",
+  "generated_at": "2026-10-06T02:52:12+00:00",
+  "method": "independent black-box acceptance; no build, no rebuild, no product modification; only --check/--list-backends/--json are issued to the candidate and no VM is started",
+  "marker": {
+    "expected_path": "build-release-candidate/release-ready.json",
+    "path": "build-release-candidate/release-blocked.json",
+    "sha256": "a8297ca4fb7f287ef8ae9f04c63cf8e36d5691bc1e1a3e3c4d49793b043627a3",
+    "size_bytes": 3594,
+    "kind": "release-blocked"
+  },
+  "facts": {},
+  "findings": [],
+  "verifiers": {},
+  "not_verified": [],
+  "verdict": "blocked",
+  "blocked_marker": {
+    "schema": "virtualworld.release-blocked/1",
+    "gate_result": "BLOCKED",
+    "error_code": "PLATFORM_FREEZE_HASH_MISMATCH",
+    "marker_sha256": "a8297ca4fb7f287ef8ae9f04c63cf8e36d5691bc1e1a3e3c4d49793b043627a3",
+    "claims_checked": 8,
+    "claims_confirmed": 8,
+    "claims_refuted": [],
+    "files_missing": [],
+    "authenticated": true,
+    "schema_ok": true,
+    "disputed_file": "docs/harmonyos-virtualization.md",
+    "disputed_file_recomputed": "1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5",
+    "disputed_file_confirmed": true
+  },
+  "blocking": {
+    "reason": "the release gate published release-blocked.json",
+    "marker": "build-release-candidate/release-blocked.json",
+    "detail": {
+      "schema": "virtualworld.release-blocked/1",
+      "generated_at_utc": "2026-10-06T02:50:41Z",
+      "git_head": "15e8d34bf664365c596a29163a594ecf025bf67b",
+      "freeze_marker": "build-mac-harmony-chaos/.platform-freeze-ready",
+      "freeze_marker_freeze_utc": "2026-10-06T02:48:00Z",
+      "working_tree_summary": {
+        "modified": 56,
+        "untracked": 84,
+        "note": "all 8 platform files are untracked (??) in this repo; there is no committed baseline to reconcile against the marker"
+      },
+      "gate_result": "BLOCKED",
+      "error_code": "PLATFORM_FREEZE_HASH_MISMATCH",
+      "all_eight_match": false,
+      "platform_hash_verification": [
+        {
+          "file": "src/MacVirtualizationEngine.hpp",
+          "expected": "2b276e78729e3471387fdd88dc4d4890f3432fb5d756dd621b55ed72399b42e7",
+          "actual": "2b276e78729e3471387fdd88dc4d4890f3432fb5d756dd621b55ed72399b42e7",
+          "match": true
+        },
+        {
+          "file": "src/MacVirtualizationEngine.mm",
+          "expected": "1df57d964b529e3a92593feca166993aa122b89869e37a91a0c133626e1c6693",
+          "actual": "1df57d964b529e3a92593feca166993aa122b89869e37a91a0c133626e1c6693",
+          "match": true
+        },
+        {
+          "file": "tests/MacVirtualizationEngineTests.cpp",
+          "expected": "59fb3d1d69fe95af8576090a8b1e6fd71759d721f5d4259c30fe3d5a1143ee28",
+          "actual": "59fb3d1d69fe95af8576090a8b1e6fd71759d721f5d4259c30fe3d5a1143ee28",
+          "match": true
+        },
+        {
+          "file": "docs/macos-virtualization.md",
+          "expected": "5e3de993880ee2e244e611c7a55e2ba9992042918ae32a2dd660f5589212ce04",
+          "actual": "5e3de993880ee2e244e611c7a55e2ba9992042918ae32a2dd660f5589212ce04",
+          "match": true
+        },
+        {
+          "file": "src/HarmonyVirtualizationEngine.hpp",
+          "expected": "d90dd8abd3f7cf669c757cc04bdcf0fb2e5fa779e1d753d4a6adb6d1b09e433e",
+          "actual": "d90dd8abd3f7cf669c757cc04bdcf0fb2e5fa779e1d753d4a6adb6d1b09e433e",
+          "match": true
+        },
+        {
+          "file": "src/HarmonyVirtualizationEngine.cpp",
+          "expected": "f98653351c0e62f08bcc60fe1b5c7de7d2c04e0b23e76ec579f7baea6b219012",
+          "actual": "f98653351c0e62f08bcc60fe1b5c7de7d2c04e0b23e76ec579f7baea6b219012",
+          "match": true
+        },
+        {
+          "file": "tests/HarmonyVirtualizationEngineTests.cpp",
+          "expected": "31ce340f79df3b88a4c6acde4092e8291970f83120e8bf11126acb77ea158a84",
+          "actual": "31ce340f79df3b88a4c6acde4092e8291970f83120e8bf11126acb77ea158a84",
+          "match": true
+        },
+        {
+          "file": "docs/harmonyos-virtualization.md",
+          "expected": "3c4d0462c3cb502a7677d0262b9c0f4e2963d2ab86075c1eba8a5e87ed41013b",
+          "actual": "1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5",
+          "match": false
+        }
+      ],
+      "mismatch": {
+        "file": "docs/harmonyos-virtualization.md",
+        "expected": "3c4d0462c3cb502a7677d0262b9c0f4e2963d2ab86075c1eba8a5e87ed41013b",
+        "actual": "1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5"
+      },
+      "evidence": "docs/harmonyos-virtualization.md on disk (sha256=1d42259dbd464dbb4ef68a8c6274853fc485cd7f93f21087db57b321c824bbd5) does not match the freeze marker's recorded sha256 (3c4d0462c3cb502a7677d0262b9c0f4e2963d2ab86075c1eba8a5e87ed41013b). The marker asserts these 8 platform files are NOT modified further, but disk state is inconsistent with that claim, so the freeze is untrustworthy as a stable base for the final Release Candidate build. Per the gate rule, this is an immediate BLOCK. No Release Candidate build, CTest, Debian real-hardware smoke, or release-ready.json was produced.",
+      "real_hardware_verified": false,
+      "vm_started": false,
+      "downstream_steps_executed": false
+    }
+  }
+}

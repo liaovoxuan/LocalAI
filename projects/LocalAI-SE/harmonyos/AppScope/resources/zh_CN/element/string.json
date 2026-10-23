@@ -1,0 +1,6 @@
+{
+  "string": [
+    { "name": "app_name", "value": "LocalAI SE" },
+    { "name": "description_application", "value": "内置 llama.cpp 的 LocalAI SE 终端客户端" }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "modelVersion": "5.0.0",
+  "name": "ohosnativecaptest",
+  "version": "1.0.0",
+  "description": "HarmonyOS native-exec capability test HAP",
+  "dependencies": {}
+}

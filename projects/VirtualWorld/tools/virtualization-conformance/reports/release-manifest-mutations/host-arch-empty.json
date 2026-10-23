@@ -1,0 +1,161 @@
+{
+  "schema": "virtualworld.release/1",
+  "product_version": "1.0",
+  "generated_at": "2026-10-06T08:50:04Z",
+  "host": {
+    "os": "Darwin",
+    "arch": ""
+  },
+  "verified": false,
+  "real_hardware_verified": false,
+  "contrib_backends": true,
+  "backends": {
+    "macos": true,
+    "windows": true,
+    "linux_kvm": true,
+    "harmony": true
+  },
+  "main_program": {
+    "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "sha256": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "size": 1478896
+  },
+  "qemu_binaries": [
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-aarch64",
+      "sha256": "aec138584dcc8579a3fba1078171122ade2adb5ae1bb8188fdf58e683ee59721",
+      "size": 37562752
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-arm",
+      "sha256": "32b463ed7a457b0f7ca925ffe50b6435b5839d630abecde406f06284e5f5f318",
+      "size": 33497408
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-i386",
+      "sha256": "1a3208d398b2bc9ee5ea615bc5fdf8204f7c74300dc1bdf91691178425dded25",
+      "size": 29763408
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-loongarch64",
+      "sha256": "ed552f7c4082f3e21225eefcdadc051faa14f745a404196b1920e1171ad7a4b3",
+      "size": 16606288
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-m68k",
+      "sha256": "feb025b7d26d1a9c09356811cae53b1e2fa0f7045910bcad3879ad1f34d453b4",
+      "size": 11252512
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-ppc",
+      "sha256": "6fafd8c6c4a8ad4b86423985e7290f987b2417a197ea9269c83a96b341949d15",
+      "size": 17309568
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-ppc64",
+      "sha256": "de725e2dc76795d31642447e7f8b6105971d82efced2ab237451f69936110f36",
+      "size": 18706080
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-riscv64",
+      "sha256": "21fb61021b87964173176f960807585b55b65480fbdc13b27b8b6b624862a7ac",
+      "size": 17820048
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-system-x86_64",
+      "sha256": "6820d2ba2804c53927b10766766fba1d086592f131da46a35d39f147f3d556c3",
+      "size": 29797248
+    },
+    {
+      "path": "Contents/Resources/runtime/qemu/macos/apple-silicon/bin/qemu-img",
+      "sha256": "63d506bf104cbbcc2c3ad9d0673c10db08be982112f873129d4751180b9fb1e6",
+      "size": 2872864
+    }
+  ],
+  "firmware_count": 55,
+  "support_count": 6,
+  "gate": {
+    "status": "passed",
+    "checks": [
+      {
+        "check": "main-executable-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "message": "main program present"
+      },
+      {
+        "check": "main-executable-permission",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "message": "main program is executable"
+      },
+      {
+        "check": "runtime-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime",
+        "message": "runtime directory present"
+      },
+      {
+        "check": "runtime-platform-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "host platform runtime directory present"
+      },
+      {
+        "check": "qemu-binary-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "QEMU binaries present (10)"
+      },
+      {
+        "check": "qemu-binary-permission",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "QEMU binaries are executable"
+      },
+      {
+        "check": "support-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/support",
+        "message": "support resources present (6)"
+      },
+      {
+        "check": "firmware-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime",
+        "message": "firmware / data present (55)"
+      },
+      {
+        "check": "app-bundle-layout",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app",
+        "message": "app bundle layout valid"
+      },
+      {
+        "check": "app-codesign-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/_CodeSignature",
+        "message": "ad-hoc signature directory present"
+      },
+      {
+        "check": "app-codesign-verify",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app",
+        "message": "codesign --verify passed"
+      }
+    ],
+    "failure_count": 0,
+    "failures": []
+  }
+}

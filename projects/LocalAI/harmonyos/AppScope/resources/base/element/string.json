@@ -1,0 +1,6 @@
+{
+  "string": [
+    { "name": "app_name", "value": "LocalAI" },
+    { "name": "description_application", "value": "LocalAI local model assistant" }
+  ]
+}

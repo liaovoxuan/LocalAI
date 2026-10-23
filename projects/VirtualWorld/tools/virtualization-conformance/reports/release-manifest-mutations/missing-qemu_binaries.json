@@ -1,0 +1,109 @@
+{
+  "schema": "virtualworld.release/1",
+  "product_version": "1.0",
+  "generated_at": "2026-10-06T08:50:04Z",
+  "host": {
+    "os": "Darwin",
+    "arch": "arm64"
+  },
+  "verified": false,
+  "real_hardware_verified": false,
+  "contrib_backends": true,
+  "backends": {
+    "macos": true,
+    "windows": true,
+    "linux_kvm": true,
+    "harmony": true
+  },
+  "main_program": {
+    "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+    "sha256": "cee56e76a3ebfaee762447788ca373cbee052790b11adfe9fad64797d7c26432",
+    "size": 1478896
+  },
+  "firmware_count": 55,
+  "support_count": 6,
+  "gate": {
+    "status": "passed",
+    "checks": [
+      {
+        "check": "main-executable-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "message": "main program present"
+      },
+      {
+        "check": "main-executable-permission",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/MacOS/VirtualWorld",
+        "message": "main program is executable"
+      },
+      {
+        "check": "runtime-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime",
+        "message": "runtime directory present"
+      },
+      {
+        "check": "runtime-platform-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "host platform runtime directory present"
+      },
+      {
+        "check": "qemu-binary-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "QEMU binaries present (10)"
+      },
+      {
+        "check": "qemu-binary-permission",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime/qemu/macos",
+        "message": "QEMU binaries are executable"
+      },
+      {
+        "check": "support-dir-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/support",
+        "message": "support resources present (6)"
+      },
+      {
+        "check": "firmware-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/Resources/runtime",
+        "message": "firmware / data present (55)"
+      },
+      {
+        "check": "app-bundle-layout",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app",
+        "message": "app bundle layout valid"
+      },
+      {
+        "check": "app-codesign-present",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app/Contents/_CodeSignature",
+        "message": "ad-hoc signature directory present"
+      },
+      {
+        "check": "app-codesign-verify",
+        "ok": true,
+        "skipped": false,
+        "path": "/Users/liaoboxuan/Desktop/各种学习和娱乐资料/开发/LocalAI/projects/VirtualWorld/build-release-candidate/VirtualWorld.app",
+        "message": "codesign --verify passed"
+      }
+    ],
+    "failure_count": 0,
+    "failures": []
+  }
+}
