@@ -134,6 +134,15 @@ implemented inside `qemu-ohos-source/` and is env-gated (`VW_GUARD_MS`), but nee
 arm/disarm on every init exit path before it can capture the writer.  Producer not identified; no fix
 applied; BLOCKED remains.  Details: `build-qemu-nojit/evidence/write-capture-attempts.md`.
 
+## Round-4 write-guard hardening (2026-10-18)
+Guard v2 now (a) disarms on every stage transition and every init trap/error return, and (b) emulates
+same-page legitimate stores (AArch64 STR family) so the page is re-protected and monitoring continues
+over them; undecodable same-page stores fail the run.  The synthetic sequence "same-page store ->
+watched store" is provably caught (`evidence/guard-selftest.log`).  On the real mixed-battery workload
+the guard itself makes runs hang right after arming (no fault logged), so the probe was stopped rather
+than accumulating reproductions; it stays env-gated and inert by default.  Producer not identified, no
+fix applied, BLOCKED remains.  Details: `evidence/write-capture-attempts.md`.
+
 ## Performance (lifecycle only — not Debian performance)
 
 Guestless 20-round lifecycle on this host: no-JIT (TCI) 0.16 s vs native TCG JIT
