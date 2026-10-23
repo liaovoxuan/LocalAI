@@ -82,14 +82,14 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $PSNativeCommandUseErrorActionPreference = $true
+          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/virtualworld --config Release
+          ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           python tooling/scripts/build_llamacpp_runtime.py
           python tooling/scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI.spec
           pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE.spec
           pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI.spec
-          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/virtualworld --config Release
-          ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           New-Item -ItemType Directory -Force dist | Out-Null
           if (Test-Path "build/virtualworld/Release/VirtualWorld.exe") {
             Copy-Item "build/virtualworld/Release/VirtualWorld.exe" "dist/VirtualWorld.exe" -Force
@@ -117,6 +117,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
           mkdir -p release
+          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/virtualworld --config Release
+          ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           if ! python tooling/scripts/build_llamacpp_runtime.py; then
             echo "llama.cpp runtime was not bundled because it failed to build in this GitHub runner." > release/llamacpp-runtime-unavailable-${{ matrix.arch }}.txt
           fi
@@ -126,9 +129,6 @@ jobs:
           pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI_Linux.spec
           pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE_Linux.spec
           pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI_Linux.spec
-          cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
-          cmake --build build/virtualworld --config Release
-          ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           mkdir -p dist
           install -m 0755 build/virtualworld/VirtualWorld dist/VirtualWorld
 

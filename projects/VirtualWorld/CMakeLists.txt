@@ -241,6 +241,13 @@ list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_minivmac_core.c
 list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_screen_probe.c")
 list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_host_platform.cpp")
 
+# Visual Studio treats target-wide language expressions as CXX for mixed
+# C/C++ targets. Attach the C-only atomic flags to the C translation unit.
+if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+    set_property(SOURCE "${VW_MINIVMAC_INPROCESS_DIR}/vw_minivmac_core.c"
+        APPEND PROPERTY COMPILE_OPTIONS /std:c11 /experimental:c11atomics)
+endif()
+
 # Production archive: no test hooks or GUI dependencies. C11 atomics protect
 # engine state; standard C++ host services supply timing and synchronization.
 add_library(vw_minivmac_inprocess STATIC ${VW_MINIVMAC_SOURCES})
@@ -248,10 +255,6 @@ set_target_properties(vw_minivmac_inprocess PROPERTIES C_STANDARD 11 C_STANDARD_
 target_include_directories(vw_minivmac_inprocess PRIVATE ${VW_MINIVMAC_INCLUDE})
 if(MSVC)
     target_compile_options(vw_minivmac_inprocess PRIVATE /w /utf-8)
-    if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(vw_minivmac_inprocess PRIVATE
-            $<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>)
-    endif()
 else()
     target_compile_options(vw_minivmac_inprocess PRIVATE -w)
 endif()
@@ -264,10 +267,6 @@ set_target_properties(vw_minivmac_inprocess_test PROPERTIES C_STANDARD 11 C_STAN
 target_include_directories(vw_minivmac_inprocess_test PRIVATE ${VW_MINIVMAC_INCLUDE})
 if(MSVC)
     target_compile_options(vw_minivmac_inprocess_test PRIVATE /w /utf-8)
-    if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
-        target_compile_options(vw_minivmac_inprocess_test PRIVATE
-            $<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>)
-    endif()
 else()
     target_compile_options(vw_minivmac_inprocess_test PRIVATE -w)
 endif()
