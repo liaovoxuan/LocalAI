@@ -9,8 +9,13 @@
 
 /* adapt to current compiler/host processor */
 
+#ifdef _MSC_VER
+#define MayInline __forceinline
+#define MayNotInline __declspec(noinline)
+#else
 #define MayInline inline __attribute__((always_inline))
 #define MayNotInline __attribute__((noinline))
+#endif
 #define SmallGlobals 0
 #define cIncludeUnused 0
 #define UnusedParam(p) (void) p

@@ -133,6 +133,11 @@ def main():
             "-DLLAMA_BUILD_TESTS=OFF",
             "-DLLAMA_BUILD_EXAMPLES=ON",
             "-DLLAMA_BUILD_SERVER=ON",
+            # Reset cached accelerator settings from the failed configure.
+            "-DGGML_VULKAN=OFF",
+            "-DGGML_BLAS=OFF",
+            "-DGGML_METAL=OFF",
+            "-DGGML_CUDA=OFF",
         ]
         run(fallback)
 

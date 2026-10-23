@@ -15,7 +15,7 @@ datas = [
     (str(SHARED_DIR / "resources" / "config.json"), "."),
     (str(SHARED_DIR / "resources" / "version.json"), "."),
     (str(SHARED_DIR / "assets" / "icons"), "assets/icons"),
-    (str(PROJECT_DIR / "resources" / "Readme.docx"), "."),
+    (str(REPO_ROOT / "projects" / "LocalAI" / "resources" / "Readme.docx"), "."),
 ]
 if RUNTIME_DIR.is_dir():
     datas.append((str(RUNTIME_DIR), "runtime/llama.cpp"))

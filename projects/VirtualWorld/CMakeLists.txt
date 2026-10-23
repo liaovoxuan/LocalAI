@@ -39,6 +39,7 @@ set(VIRTUALWORLD_QEMU_BUILD_JOBS "4" CACHE STRING "Parallel jobs for bundled QEM
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core Widgets Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
 find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+find_package(Threads REQUIRED)
 
 # Python3 drives the Mini vMac in-process spawn-API scan (CTest + packaging gate).
 find_package(Python3 COMPONENTS Interpreter QUIET)
@@ -212,14 +213,11 @@ endif()
 # as a static archive; the C++ API (src/MiniVmacInProcessCore.*) is compiled into
 # the product and links it.
 #
-# Source ownership: these files are owned by other workstreams and MUST stay
-# byte-identical; this file only wires their compilation into the public build
-# and never edits them:
-#   third_party/minivmac/upstream/**     (read-only; GPLv2, COPYING.txt kept)
-#   third_party/minivmac/inprocess/**    (read-only; headless layer + scanner)
-#   src/MiniVmacInProcessCore.{cpp,hpp}  (read-only; C++ API)
+# The upstream emulator remains unmodified (GPLv2, COPYING.txt kept).
+# The inprocess/ integration supplies compiler configuration, portable host
+# services and the scanner; src/MiniVmacInProcessCore.* supplies the C++ API.
 # The set of translation units matches third_party/minivmac/inprocess/build_engine.sh
-# exactly: 15 upstream core .c + vw_minivmac_core.c + vw_screen_probe.c = 17.
+# exactly: 15 upstream core .c, two C glue units and portable C++ host services.
 enable_language(C)
 
 set(VW_MINIVMAC_UPSTREAM_SRC "${CMAKE_CURRENT_SOURCE_DIR}/third_party/minivmac/upstream/src")
@@ -241,27 +239,44 @@ foreach(_mv_f ${VW_MINIVMAC_CORE_SOURCES})
 endforeach()
 list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_minivmac_core.c")
 list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_screen_probe.c")
+list(APPEND VW_MINIVMAC_SOURCES "${VW_MINIVMAC_INPROCESS_DIR}/vw_host_platform.cpp")
 
-# Production archive: no test hooks, links only libc + pthread. std=c11 is
-# required (the engine uses <stdatomic.h>); no Cocoa/SDL/GTK/Win32/Qt.
+# Production archive: no test hooks or GUI dependencies. C11 atomics protect
+# engine state; standard C++ host services supply timing and synchronization.
 add_library(vw_minivmac_inprocess STATIC ${VW_MINIVMAC_SOURCES})
 set_target_properties(vw_minivmac_inprocess PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
 target_include_directories(vw_minivmac_inprocess PRIVATE ${VW_MINIVMAC_INCLUDE})
-target_compile_options(vw_minivmac_inprocess PRIVATE -w)
+if(MSVC)
+    target_compile_options(vw_minivmac_inprocess PRIVATE /w /utf-8)
+    if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(vw_minivmac_inprocess PRIVATE
+            $<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>)
+    endif()
+else()
+    target_compile_options(vw_minivmac_inprocess PRIVATE -w)
+endif()
 target_compile_definitions(vw_minivmac_inprocess PRIVATE VW_INPROCESS_ENGINE=1)
-target_link_libraries(vw_minivmac_inprocess PUBLIC pthread)
+target_link_libraries(vw_minivmac_inprocess PUBLIC Threads::Threads)
 
 # Test archive: identical engine plus the test-only pre-ProgramMain hold gate.
 add_library(vw_minivmac_inprocess_test STATIC ${VW_MINIVMAC_SOURCES})
 set_target_properties(vw_minivmac_inprocess_test PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
 target_include_directories(vw_minivmac_inprocess_test PRIVATE ${VW_MINIVMAC_INCLUDE})
-target_compile_options(vw_minivmac_inprocess_test PRIVATE -w)
+if(MSVC)
+    target_compile_options(vw_minivmac_inprocess_test PRIVATE /w /utf-8)
+    if(CMAKE_C_COMPILER_ID STREQUAL "MSVC")
+        target_compile_options(vw_minivmac_inprocess_test PRIVATE
+            $<$<COMPILE_LANGUAGE:C>:/experimental:c11atomics>)
+    endif()
+else()
+    target_compile_options(vw_minivmac_inprocess_test PRIVATE -w)
+endif()
 target_compile_definitions(vw_minivmac_inprocess_test PRIVATE
     VW_INPROCESS_ENGINE=1 VW_INPROCESS_TEST_HOOKS)
-target_link_libraries(vw_minivmac_inprocess_test PUBLIC pthread)
+target_link_libraries(vw_minivmac_inprocess_test PUBLIC Threads::Threads)
 
 # The C++ API links the production archive into the product.
-target_link_libraries(VirtualWorld PRIVATE vw_minivmac_inprocess pthread)
+target_link_libraries(VirtualWorld PRIVATE vw_minivmac_inprocess Threads::Threads)
 target_include_directories(VirtualWorld PRIVATE "${VW_MINIVMAC_INPROCESS_DIR}")
 
 # SINGLE-VARIANT CONSTRAINT (do not relax):
@@ -491,7 +506,7 @@ if(BUILD_TESTING)
     target_include_directories(VirtualWorldTranslatorTests PRIVATE src "${VW_MINIVMAC_INPROCESS_DIR}")
     target_link_libraries(VirtualWorldTranslatorTests PRIVATE
         Qt${QT_VERSION_MAJOR}::Core OpenSSL::Crypto
-        vw_minivmac_inprocess pthread)
+        vw_minivmac_inprocess Threads::Threads)
     add_test(NAME VirtualWorldTranslatorTests COMMAND VirtualWorldTranslatorTests)
 
     # -----------------------------------------------------------------------
@@ -540,7 +555,7 @@ if(BUILD_TESTING)
         target_compile_definitions(${target_name} PRIVATE ${VIRTUALWORLD_BACKEND_DEFINITIONS})
         target_link_libraries(${target_name} PRIVATE
             Qt${QT_VERSION_MAJOR}::Core OpenSSL::Crypto
-            vw_minivmac_inprocess pthread)
+            vw_minivmac_inprocess Threads::Threads)
         if(VIRTUALWORLD_MACOS_BACKEND)
             target_link_libraries(${target_name} PRIVATE
                 "-framework Virtualization"
@@ -617,20 +632,34 @@ if(BUILD_TESTING)
     target_compile_definitions(VirtualWorldMiniVmacInProcessTests PRIVATE
         VW_INPROCESS_TEST_HOOKS)
     target_link_libraries(VirtualWorldMiniVmacInProcessTests PRIVATE
-        vw_minivmac_inprocess_test pthread)
+        vw_minivmac_inprocess_test Threads::Threads)
     add_test(NAME VirtualWorldMiniVmacInProcessTests
              COMMAND VirtualWorldMiniVmacInProcessTests)
 
     # Spawn-API scan: proves the engine + C++ API never launch a child process.
     # The scan script (read-only) reads the production archive produced by
     # build_engine.sh; minivmac_engine_standalone keeps that artifact fresh.
-    add_custom_target(minivmac_engine_standalone ALL
-        COMMAND bash "${VW_MINIVMAC_INPROCESS_DIR}/build_engine.sh"
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        COMMENT "Building standalone Mini vMac in-process engine artifacts (spawn-API scan)")
+    if(WIN32)
+        # The shell script uses a POSIX compiler. Scan the actual MSVC-built
+        # production archive on Windows instead of invoking Git Bash's clang.
+        add_custom_target(minivmac_engine_standalone
+            DEPENDS vw_minivmac_inprocess vw_minivmac_inprocess_test)
+    else()
+        add_custom_target(minivmac_engine_standalone ALL
+            COMMAND bash "${VW_MINIVMAC_INPROCESS_DIR}/build_engine.sh"
+            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+            COMMENT "Building standalone Mini vMac in-process engine artifacts (spawn-API scan)")
+    endif()
+    find_program(VW_MINIVMAC_NM NAMES llvm-nm nm
+                 HINTS "$ENV{ProgramFiles}/LLVM/bin")
+    if(NOT VW_MINIVMAC_NM)
+        message(FATAL_ERROR "Mini vMac object verification requires llvm-nm or nm")
+    endif()
     add_test(NAME VirtualWorldMiniVmacInProcessScan
         COMMAND ${VW_PYTHON3_EXECUTABLE}
                 "${VW_MINIVMAC_INPROCESS_DIR}/scan_spawn_apis.py"
+                --archive "$<TARGET_FILE:vw_minivmac_inprocess>"
+                --nm "${VW_MINIVMAC_NM}"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
 
     # --- Packaging / install release gate -----------------------------------

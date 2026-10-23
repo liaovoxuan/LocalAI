@@ -78,6 +78,12 @@ objects+=("$obj_dir/vw_minivmac_core.o")
 "$cc" "${cflags[@]}" -c "$here/vw_screen_probe.c" -o "$obj_dir/vw_screen_probe.o"
 objects+=("$obj_dir/vw_screen_probe.o")
 
+# Standard C++ synchronization and timing also support native Windows builds.
+cxx="${CXX:-clang++}"
+cxxflags=("${cflags[@]/-std=c11/-std=c++17}")
+"$cxx" "${cxxflags[@]}" -c "$here/vw_host_platform.cpp" -o "$obj_dir/vw_host_platform.o"
+objects+=("$obj_dir/vw_host_platform.o")
+
 rm -f "$build_dir/libvwminivmac$suffix.a"
 ar rcs "$build_dir/libvwminivmac$suffix.a" "${objects[@]}"
 
@@ -97,6 +103,7 @@ done
 test_objects+=("$obj_test_dir/vw_minivmac_core.o")
 "$cc" "${cflags[@]}" -c "$here/vw_screen_probe.c" -o "$obj_test_dir/vw_screen_probe.o"
 test_objects+=("$obj_test_dir/vw_screen_probe.o")
+test_objects+=("$obj_dir/vw_host_platform.o")
 
 rm -f "$build_dir/libvwminivmac-test$suffix.a"
 ar rcs "$build_dir/libvwminivmac-test$suffix.a" "${test_objects[@]}"

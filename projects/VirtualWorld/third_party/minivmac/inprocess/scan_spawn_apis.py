@@ -16,6 +16,7 @@ Exit code 0 when clean, 1 when anything is found.
 
 from __future__ import annotations
 
+import argparse
 import os
 import re
 import subprocess
@@ -25,6 +26,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 
 SOURCES = [
+    os.path.join(HERE, "vw_host_platform.cpp"),
+    os.path.join(HERE, "vw_host_platform.h"),
     os.path.join(HERE, "vw_minivmac_core.c"),
     os.path.join(HERE, "vw_minivmac_core.h"),
     os.path.join(ROOT, "src", "MiniVmacInProcessCore.cpp"),
@@ -120,13 +123,16 @@ def scan_sources():
     return hits
 
 
-def scan_objects(archive: str):
+def scan_objects(archive: str, nm: str = "nm"):
     hits = []
     if not os.path.isfile(archive):
         return hits, "archive not built"
     try:
-        out = subprocess.run(["nm", "-u", archive], capture_output=True, text=True,
-                             check=False).stdout
+        result = subprocess.run([nm, "-u", archive], capture_output=True, text=True,
+                                check=False)
+        if result.returncode:
+            return hits, f"object scanner failed (exit {result.returncode}): {result.stderr.strip()}"
+        out = result.stdout
     except OSError as exc:
         return hits, f"nm unavailable: {exc}"
     for line in out.splitlines():
@@ -168,9 +174,14 @@ def scan_tree(roots):
 
 
 def main() -> int:
-    archive = os.path.join(ROOT, "build-minivmac-inprocess", "libvwminivmac.a")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--archive", help="Production archive from the active build")
+    parser.add_argument("--nm", default="nm", help="nm or llvm-nm executable")
+    parser.add_argument("--product", action="store_true")
+    args = parser.parse_args()
+    archive = args.archive or os.path.join(ROOT, "build-minivmac-inprocess", "libvwminivmac.a")
     src_hits = scan_sources()
-    obj_hits, obj_note = scan_objects(archive)
+    obj_hits, obj_note = scan_objects(archive, args.nm)
     tree_hits = scan_tree(["src"]) if "--product" in sys.argv else []
 
     print(f"sources scanned : {len([p for p in SOURCES if os.path.isfile(p)])}")
@@ -186,7 +197,8 @@ def main() -> int:
         for h in tree_hits:
             print(f"  {h['file']}:{h['line']} {h['api']} :: {h['text']}")
 
-    clean = not src_hits and not obj_hits and not tree_hits
+    object_ok = obj_note == "ok" or (not args.archive and obj_note == "archive not built")
+    clean = object_ok and not src_hits and not obj_hits and not tree_hits
     print("RESULT:", "CLEAN" if clean else "SPAWN-APIS-FOUND")
     return 0 if clean else 1
 

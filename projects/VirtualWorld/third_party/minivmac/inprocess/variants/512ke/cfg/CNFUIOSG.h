@@ -21,8 +21,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _WIN32
 #include <sys/param.h>
 #include <sys/time.h>
+#endif
 
 
 #define kStrAppName "Mini vMac"

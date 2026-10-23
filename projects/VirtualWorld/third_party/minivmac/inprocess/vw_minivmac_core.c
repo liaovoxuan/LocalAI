@@ -32,9 +32,8 @@
 #include "PBUFSTDC.h"
 
 #include <string.h>
-#include <time.h>
 #include <stdatomic.h>
-#include <pthread.h>
+#include "vw_host_platform.h"
 
 /* --- exported control surface ------------------------------------------- */
 
@@ -71,12 +70,11 @@ typedef struct { int kind; int a; int b; } vw_input_evt;
 static vw_input_evt vw_input_buf[VW_INPUT_CAP];
 static int vw_input_head = 0;
 static int vw_input_tail = 0;
-static pthread_mutex_t vw_input_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 static int vw_input_push(int kind, int a, int b)
 {
 	int rc = VW_OK;
-	pthread_mutex_lock(&vw_input_mtx);
+	vw_host_input_lock();
 	{
 		int next = (vw_input_head + 1) % VW_INPUT_CAP;
 		if (next == vw_input_tail) {
@@ -88,7 +86,7 @@ static int vw_input_push(int kind, int a, int b)
 			vw_input_head = next;
 		}
 	}
-	pthread_mutex_unlock(&vw_input_mtx);
+	vw_host_input_unlock();
 	return rc;
 }
 
@@ -97,14 +95,14 @@ static void vw_input_drain(void)
 {
 	for (;;) {
 		vw_input_evt e;
-		pthread_mutex_lock(&vw_input_mtx);
+		vw_host_input_lock();
 		if (vw_input_tail == vw_input_head) {
-			pthread_mutex_unlock(&vw_input_mtx);
+			vw_host_input_unlock();
 			break;
 		}
 		e = vw_input_buf[vw_input_tail];
 		vw_input_tail = (vw_input_tail + 1) % VW_INPUT_CAP;
-		pthread_mutex_unlock(&vw_input_mtx);
+		vw_host_input_unlock();
 
 		switch (e.kind) {
 		case VW_IN_KEY:
@@ -146,9 +144,7 @@ static void (*vw_frame_hook)(void);
 
 static ui5b vw_now_us(void)
 {
-	struct timespec ts;
-	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return (ui5b)(((ui5b)ts.tv_sec * 1000000u) + (ui5b)(ts.tv_nsec / 1000));
+	return (ui5b)vw_host_now_us();
 }
 
 /*
@@ -165,10 +161,7 @@ EXPORTOSGLUPROC WaitForNextTick(void)
 		long time inside one catch-up turn, during which ForceMacOff is not
 		checked and stop() would appear to hang.
 	*/
-	struct timespec ts;
-	ts.tv_sec = 0;
-	ts.tv_nsec = 1000000; /* 1ms */
-	nanosleep(&ts, NULL);
+	vw_host_sleep_ms(1);
 
 	/* 把跨线程的停止请求转写为上游标志。此处运行在工作线程，因此
 	   ForceMacOff 始终只有一个线程访问。 */
@@ -632,10 +625,7 @@ static void vw_gate_wait(void)
 	}
 	vw_gate_entered = 1;
 	while (!vw_gate_released) {
-		struct timespec ts;
-		ts.tv_sec = 0;
-		ts.tv_nsec = 2000000; /* 2ms */
-		nanosleep(&ts, NULL);
+		vw_host_sleep_ms(2);
 	}
 }
 #else
