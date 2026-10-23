@@ -37,6 +37,13 @@
 #include <QStandardPaths>
 #include <QtGlobal>
 
+#if defined(Q_OS_LINUX)
+#include <cerrno>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
+#endif
+
 namespace vw {
 
 namespace {
@@ -107,11 +114,6 @@ struct ArchRuntime {
 // have side effects on the host, and it must never start a real VM.
 
 #if defined(Q_OS_LINUX)
-
-#include <cerrno>
-#include <fcntl.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
 
 // KVM ioctl constants. These are a stable ABI defined in <linux/kvm.h>, but we
 // spell them out here so this translation unit never depends on the kernel
