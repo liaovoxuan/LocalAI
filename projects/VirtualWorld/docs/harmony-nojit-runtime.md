@@ -75,11 +75,11 @@ A static scan of 8 C/header files found **zero code references** to process spaw
 - **QEMU/HAP integration:** deliberately untouched. Sparse RAM can reduce host resident-memory use for untouched guest pages; it does **not** improve CPU execution speed or solve QEMU TCI throughput. RAM occupancy and TCI speed are separate bottlenecks. Future integration would need a QEMU-native RAM backing and a separate CPU execution decision; neither is grafted into the current QEMU/HAP line.
 - **HarmonyOS APIs and permissions:** require a device-side probe before any product decision. No AGC permission or platform API is assumed here.
 
-## 5. QEMU RAM backing compatibility review (read-only)
+## 5. First-pass RAM compatibility review (superseded; qemu-master 11.0.93 reference only)
 
 **Decision: do not bridge the current `guestmem` object directly into a QEMU RAMBlock.** This review found a conditional pointer-model match but not a safe, policy-compliant bridge with the current API. No QEMU source, public product layer, or platform integration file was modified.
 
-The read-only QEMU reference inspected for API shape is the repository copy `qemu-master/` (`VERSION` **11.0.93**). It is not the in-process target tree and is not evidence that a different QEMU revision has identical call sites. This pass did not inspect or change `qemu-ohos-source/`, `qemu-source/`, or `build-qemu-nojit/`; verify any eventual implementation against the actual target revision under its ownership/readiness rules.
+This was the earlier, superseded API-shape review of repository copy `qemu-master/` (`VERSION` **11.0.93**). Its findings are retained as historical reference only; see the next section for the actual `qemu-ohos-source/` 11.1.50 source audit. The old reference should not be treated as the final target-revision finding.
 
 ### Why the existing model is not a drop-in RAMBlock
 
@@ -105,7 +105,41 @@ The current in-process runtime supplies system memory through QEMU's `-m` argume
 - **OHOS device execution:** `hdc list targets` returned an empty target list on 2026-10-23. No probe was run; there was no connected device, and no simulator was started.
 - **Bridge-specific lifetime / OOM / dirty-bitmap tests:** not run because the compatibility review rejected a bridge under the current constraints. No success is inferred for those behaviors. In particular, prototype `gm_stats().dirty_pages` is not a QEMU dirty-log test.
 
-## 6. Reproduction
+## 6. Actual target-source review: qemu-ohos-source 11.1.50
+
+**Status: read-only source audit; conclusions may be stale. No bridge implementation, build, emulator, or guest was run.** The separate detailed audit and file snapshot are at `experiments/harmony-nojit/build/qemu-ohos-ram-target-review-2026-10-23.txt` and `qemu-ohos-source-audit-snapshot-2026-10-23.txt`.
+
+### Version, configuration, and diff basis
+
+- Actual target: `qemu-ohos-source/VERSION` = **11.1.50**; base `qemu-source/VERSION` = **11.1.50**. Both Git trees report `HEAD=d49f87606ac1a6e15701b26c1b16c5d7e948ffcb`. `qemu-master/` and the earlier reference are **11.0.93**, not the integration target.
+- `qemu-ohos-source` had **62 tracked modified QEMU files** plus untracked `ohos/`, `qemu-inprocess/`, manifest and helper header at audit time; `qemu-source` was clean. Source docs describe `vw_enable_qemu_ohos` default OFF and `vw_enable_qemu_ohos_nojit` default OFF; TCI is a separate Meson option default OFF. These are source defaults, **not proof of active generated config**. The target build directory only contains `build/config.log` from a `configure --help` call on 2026-10-11; no Meson `coredata.dat`, `config-host.h` or `build.ninja` was found, so actual host/target/configuration is unknown.
+- Audited RAMBlock, MemoryRegion, DMA, mmap allocator, hostmem backend, AHCI/Virtio and TCI files mostly have matching hashes in `qemu-source` / `qemu-master`. Target-only patches are significant in lifecycle-owned files, including `system/physmem.c`, `system/memory.c`, `system/runstate.c`, `migration/ram.c`, `migration/savevm.c`, `include/system/memory.h`, `include/system/ramblock.h`, `hw/core/machine.c`, and `system/vl.c`. The material difference for this decision is the in-process RAM lifecycle/reuse policy; the single-host-pointer RAMBlock model and core DMA contracts remain.
+
+### Actual target findings
+
+- **RAMBlock host pointer:** `qemu-ohos-source/include/system/ramblock.h:25-47` stores one `host` pointer and migration bitmap; `:121-130` implements `ramblock_ptr()` as `host + offset`. Independent 2 MiB `GM_MODE_CHUNK` mappings are incompatible with one target RAMBlock. Reserve mode resembles the contiguous pointer shape but is not currently exposed as a leased/pinned guestmem base.
+- **`-m` / allocation:** `src/QemuInProcessRuntime.cpp:195-205` constructs `-m`; target `system/vl.c:3566-3571` parses it. `hw/core/machine.c:1026-1056,1632-1672` creates and validates the default backend; `backends/hostmem.c:285-296` defaults `reserve=true`; `backends/hostmem-ram.c:30-36` only applies `RAM_NORESERVE` when reserve is off. Allocation reaches `system/physmem.c:2203-2238` and `qemu_anon_ram_alloc()` via `util/oslib-posix.c:208-235` / `util/mmap-alloc.c:247-294`; allocation/mapping failure is surfaced as failure. This is the target's actual QEMU path and should stay authoritative.
+- **Real capacity vs virtual reservation:** `RAM_NORESERVE` skips swap/huge-page reservation (`include/system/memory.h:245-250`). Target `util/mmap-alloc.c:85-145,184-208` rejects cases where no-reserve is ineffective/unsupported. Even a successful contiguous mapping is not a proof that every future physical page can be touched. Do not report a sparse VA reserve as physical-memory admission or automatically switch off reservation.
+- **MemoryRegion/AddressSpace and direct maps:** `memory_region_init_ram_ptr()` documents direct mutation and caller-owned migration responsibility (`include/system/memory.h:1235-1253`); actual code routes it through preallocated `qemu_ram_alloc_from_ptr()` (`system/memory.c:1704-1720`). `AddressSpace` map/unmap is FlatView-based (`system/physmem.c:3873-3974`). No target chunk-indirection hook exists.
+- **DMA:** `include/system/dma.h:192-237` allows a short/failed map and pairs it with unmap/dirty notification. `system/physmem.c:3873-3941` implements those operations. AHCI's short PRDT check is at `hw/ide/ahci.c:931-943`; Virtio's remap split rejection is at `hw/virtio/virtio.c:1690-1705`. Per-chunk MemoryRegions or direct guestmem access cannot be assumed to preserve IOMMU, bus errors, short-range handling or dirty notification.
+- **Dirty pages and snapshots/migration:** QEMU tracks dirtiness in `RAMBlock::bmap`; migration setup initializes the block bitmap dirty (`migration/ram.c:2832-2849`), then saves pages via `block->host + offset` (`:1214-1217,1310-1314`) and loads by RAMBlock offset (`:3569,3754`). RAM registration is `memory_region_register_ram()` → `vmstate_register_ram()` (`system/memory.c:3703-3726`, `migration/savevm.c:3593-3619`). Guestmem's `gm_write()` dirty counter cannot see TCG/DMA stores through direct pointers and is not a substitute.
+- **Destruction across in-process cycles:** normal RAM-region destructor calls `qemu_ram_free()` unless `qemu_inprocess_keep_ram` is set (`system/memory.c:1206-1214`). `qemu_ram_free()` defers final backing reclamation via RCU, and preallocated backing is not freed by QEMU (`system/physmem.c:2623-2669`). Target teardown sets keep-RAM true (`system/runstate.c:1337-1340`); `machine_memory_cleanup()` empties memory wiring but explicitly documents an open issue about RAMBlocks while the machine tree is alive (`system/physmem.c:3716-3774`). `system/runstate.c:1413-1567` later disconnects regions, drains RCU and finalizes the tree. These target-only lifetimes mean any external backing would need a cross-cycle ownership/lease protocol absent from guestmem.
+- **No-JIT route:** target `meson_options.txt:98-99` labels upstream `tcg_interpreter` “slow”; `tcg/meson.build:18-23` includes `tci.c`; `meson.build:923-940` selects it. `vw_enable_qemu_ohos_nojit` is separately default OFF and requires the interpreter (`meson_options.txt:399-406`, `meson.build:4128-4135`). This is the in-repository no-native-JIT execution path worth evaluating behind its opt-in/no-spawn gate, **not** a fix for TCI speed or for RAMBlock compatibility. The absent generated configuration means not proven enabled in the target build.
+
+### Actual target recommendation
+
+**Yes: retaining QEMU's native `-m` allocation remains the safest current option.** It preserves QEMU's own allocation/error behavior, stable RAMBlock host base, DMA/AddressSpace, dirty bitmap, VMState/migration IDs and in-process RAM lifetime rules. It does not mean QEMU can guarantee physical RAM beyond host policy; retain truthful size and errors. Sparse RAM can at most reduce resident use for untouched guest pages; it cannot guarantee future faults or improve TCI throughput.
+
+Bounded no-JIT/no-child-process opportunities are: use the target's opt-in TCI/no-JIT build and measure it separately; set a truthful lower guest RAM size where workload permits; use guest-cooperative balloon/free-page discard only when guest support and QEMU dirty/snapshot rules remain intact. Do not force `reserve=off` / `RAM_NORESERVE` as a generic workaround. No measured claim is made for HarmonyOS device reclaim behavior.
+
+### Test and freshness status
+
+- Existing macOS small prototype tests only: guest RAM **83 checks / 0 failures**; interpreter **109 checks / 0 failures**. They do not exercise QEMU RAMBlock bridging.
+- OHOS cross-compilation is three AArch64 relocatable object outputs; no HAP link/device runtime claim. `hdc list targets` was empty; no simulator/guest started.
+- QEMU bridge-only cross-block, mapping lifetime, actual allocator OOM, reclaim/re-touch and dirty-bitmap tests: **not run (0 attempted; failures N/A)** because no bridge was implemented.
+- During this review, `qemu-ohos-source/system/vl.c` reported mtime **2026-10-23 19:19:25 +08:00**, later than the user turn's start time. Together with the target tree's many work-in-progress changes, this is evidence the target may be changing concurrently. The report includes file hash/mtime snapshots; **recheck before relying on these conclusions after DeepSeek edits**.
+
+## 7. Reproduction
 
 Run from the VirtualWorld repository root. Native tests do not start a VM or execute a guest OS.
 
