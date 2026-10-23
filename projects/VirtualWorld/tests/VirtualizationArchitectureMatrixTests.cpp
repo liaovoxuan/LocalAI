@@ -439,7 +439,7 @@ void testWindowsTierHonesty() {
     cfg.tier = vw::VirtualizationTier::Native;
     cfg.hostSupported = true;
     cfg.guestSupported = true;
-    cfg.supportedGuestArches = {QStringLiteral("x86_64")};
+    cfg.supportedGuestArches = QStringList{QStringLiteral("x86_64")};
     // execution_tier is honest: for x86_64 it's native, but for others it
     // would be emulation. The FakeEngine with no override reports tier().
     const auto whpx = vw::VirtualizationEnginePtr(new FakeEngine(cfg));
@@ -481,7 +481,7 @@ void testLinuxHarmonyNeverNative() {
     harmonyCfg.tier = vw::VirtualizationTier::HardwareAccelerated;
     harmonyCfg.hostSupported = true;
     harmonyCfg.guestSupported = true;
-    harmonyCfg.supportedGuestArches = {QStringLiteral("aarch64")};
+    harmonyCfg.supportedGuestArches = QStringList{QStringLiteral("aarch64")};
     const auto harmony = vw::VirtualizationEnginePtr(new FakeEngine(harmonyCfg));
 
     registry.registerBackend(kvm);

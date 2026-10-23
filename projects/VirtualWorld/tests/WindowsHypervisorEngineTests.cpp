@@ -216,7 +216,7 @@ WindowsHostSnapshot runtimeMissingHost() {
     snap.whpxUsable = true;
     snap.qemuFound = false;
     snap.qemuExecutable = false;
-    snap.runnableGuestArches = {};
+    snap.runnableGuestArches = QStringList{};
     snap.detail = QStringLiteral("no QEMU");
     return snap;
 }
@@ -694,7 +694,7 @@ void testStartStopWithEnvironment() {
 
     // Cross-ISA start is refused and never reaches the spawner.
     environment.startCalls = 0;
-    environment.snap.runnableGuestArches = {QStringLiteral("x86_64"), QStringLiteral("aarch64")};
+    environment.snap.runnableGuestArches = QStringList{QStringLiteral("x86_64"), QStringLiteral("aarch64")};
     engine.invalidateProbe();
     error.clear();
     pid = 0;
@@ -845,7 +845,7 @@ void testValidation() {
 
     // Cross-ISA is REJECTED: this backend cannot accelerate it, and running it
     // at TCG speed under a WHPX-scoped backend would mislead auto-selection.
-    environment.snap.runnableGuestArches = {QStringLiteral("x86_64"), QStringLiteral("aarch64")};
+    environment.snap.runnableGuestArches = QStringList{QStringLiteral("x86_64"), QStringLiteral("aarch64")};
     const QVector<EngineIssue> crossIssues = engine.validate(guestConfig(QStringLiteral("aarch64")));
     check(hasIssueAtLevel(crossIssues, QStringLiteral("guest-arch-unsupported"), EngineIssueLevel::Error),
           "cross-ISA config is rejected as an error");
@@ -1504,7 +1504,7 @@ void testQemuNotFound() {
     snap.whpxUsable = true;
     snap.qemuFound = false;
     snap.qemuExecutable = false;
-    snap.runnableGuestArches = {};
+    snap.runnableGuestArches = QStringList{};
     snap.detail = QStringLiteral("QEMU not found");
     environment.snap = snap;
     WindowsHypervisorEngine engine(QSharedPointer<WindowsEnvironment>(&environment, [](WindowsEnvironment*) {}));
@@ -1538,7 +1538,7 @@ void testQemuFoundNotExecutable() {
     snap.whpxUsable = true;
     snap.qemuFound = true;
     snap.qemuExecutable = false;
-    snap.runnableGuestArches = {};
+    snap.runnableGuestArches = QStringList{};
     snap.detail = QStringLiteral("QEMU found but not executable");
     environment.snap = snap;
     WindowsHypervisorEngine engine(QSharedPointer<WindowsEnvironment>(&environment, [](WindowsEnvironment*) {}));

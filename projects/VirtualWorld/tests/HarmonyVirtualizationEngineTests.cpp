@@ -316,7 +316,7 @@ void testStateMachine() {
     check(harmonyHostHasAcceleration(kvm), "host has acceleration");
 
     // Cross-architecture is never accelerated, even with a working /dev/kvm.
-    kvm.runnableGuestArches = {QStringLiteral("aarch64"), QStringLiteral("x86_64")};
+    kvm.runnableGuestArches = QStringList{QStringLiteral("aarch64"), QStringLiteral("x86_64")};
     check(harmonyHostState(kvm, QStringLiteral("x86_64")) == HarmonyHostState::TcgOnly,
           "x86_64 guest on aarch64 host stays tcg");
     checkEqual(harmonyAcceleratorFor(kvm, QStringLiteral("x86_64")), QStringLiteral("tcg"),
@@ -325,7 +325,7 @@ void testStateMachine() {
                "same-arch accelerator is kvm");
 
     // riscv64 has no hardware acceleration on an ARM64 host.
-    kvm.runnableGuestArches = {QStringLiteral("aarch64"), QStringLiteral("riscv64")};
+    kvm.runnableGuestArches = QStringList{QStringLiteral("aarch64"), QStringLiteral("riscv64")};
     check(harmonyHostState(kvm, QStringLiteral("riscv64")) == HarmonyHostState::TcgOnly,
           "riscv64 guest stays tcg");
     check(!harmonyHostHasAcceleration(harmonyHost()), "no kvm means no acceleration");
@@ -658,7 +658,7 @@ void testArgumentVectorSafety() {
 void testBuildArgumentsAppliesAccelerator() {
     FakeHarmonyEnvironment environment;
     environment.snap = harmonyHost();
-    environment.argumentsValue = {QStringLiteral("-machine"), QStringLiteral("virt,accel=tcg"),
+    environment.argumentsValue = QStringList{QStringLiteral("-machine"), QStringLiteral("virt,accel=tcg"),
                                   QStringLiteral("-smp"), QStringLiteral("4")};
     HarmonyVirtualizationEngine engine(
         QSharedPointer<HarmonyEnvironment>(&environment, [](HarmonyEnvironment*) {}));
@@ -675,7 +675,7 @@ void testBuildArgumentsAppliesAccelerator() {
     environment.snap.kvmDevicePresent = true;
     environment.snap.kvmDeviceAccessible = true;
     engine.invalidateProbe();
-    environment.argumentsValue = {QStringLiteral("-machine"), QStringLiteral("virt,accel=kvm")};
+    environment.argumentsValue = QStringList{QStringLiteral("-machine"), QStringLiteral("virt,accel=kvm")};
     engine.buildArguments(guestConfig());
     checkEqual(environment.lastArgumentConfig.accelerator, QStringLiteral("kvm"),
                "same-isa kvm is requested when available");
@@ -686,14 +686,14 @@ void testBuildArgumentsAppliesAccelerator() {
 
     // A cross-architecture guest must never ask for kvm, even with a working
     // /dev/kvm on the host.
-    environment.snap.runnableGuestArches = {QStringLiteral("aarch64"), QStringLiteral("x86_64")};
+    environment.snap.runnableGuestArches = QStringList{QStringLiteral("aarch64"), QStringLiteral("x86_64")};
     engine.invalidateProbe();
     engine.buildArguments(guestConfig(QStringLiteral("x86_64")));
     checkEqual(environment.lastArgumentConfig.accelerator, QStringLiteral("tcg"),
                "cross-arch guest always requests tcg");
 
     // And an architecture with no emulator at all must not resolve a program.
-    environment.argumentsValue = {QStringLiteral("-machine"), QStringLiteral("virt,accel=tcg")};
+    environment.argumentsValue = QStringList{QStringLiteral("-machine"), QStringLiteral("virt,accel=tcg")};
     engine.buildArguments(guestConfig(QStringLiteral("riscv64")));
     checkEqual(environment.lastArgumentConfig.accelerator, QStringLiteral("tcg"),
                "unavailable arch still reports tcg, never kvm");
@@ -708,7 +708,7 @@ void testNoShellStringIsProduced() {
     // An injected vector with shell metacharacters must survive as data, not be
     // reinterpreted: it stays one element and is rejected only if it looks like
     // concatenated flags.
-    environment.argumentsValue = {QStringLiteral("-append"),
+    environment.argumentsValue = QStringList{QStringLiteral("-append"),
                                   QStringLiteral("root=/dev/vda; rm -rf /")};
     HarmonyVirtualizationEngine engine(
         QSharedPointer<HarmonyEnvironment>(&environment, [](HarmonyEnvironment*) {}));
@@ -775,7 +775,7 @@ void testStartSuccessAndFailurePaths() {
     {
         FakeHarmonyEnvironment environment;
         environment.snap = harmonyHost();
-        environment.argumentsValue = {QStringLiteral("-machine virt,accel=tcg")};
+        environment.argumentsValue = QStringList{QStringLiteral("-machine virt,accel=tcg")};
         HarmonyVirtualizationEngine engine(
             QSharedPointer<HarmonyEnvironment>(&environment, [](HarmonyEnvironment*) {}));
         qint64 pid = 0;
@@ -893,7 +893,7 @@ void testProbeForArchitecture() {
     check(!ppc.capabilities.canStart, "probeFor clears canStart for an unsupported arch");
     check(!ppc.summary.isEmpty(), "probeFor explains the rejection");
 
-    environment.snap.runnableGuestArches = {QStringLiteral("aarch64")};
+    environment.snap.runnableGuestArches = QStringList{QStringLiteral("aarch64")};
     environment.snap.kvmDevicePresent = true;
     environment.snap.kvmDeviceAccessible = true;
     engine.invalidateProbe();

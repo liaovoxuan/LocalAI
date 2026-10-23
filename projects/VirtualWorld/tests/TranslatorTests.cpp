@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
     config.graphics.adapter = "virtio-gpu-pci";
     config.graphics.ramMb = 1536;
     config.usb.controller = "usb";
-    config.usb.devices = {"usb-kbd", "usb-tablet"};
+    config.usb.devices = QStringList{"usb-kbd", "usb-tablet"};
     config.disks.append({"/tmp/virtualworld-usb-test.img", "usb", "raw", false, "disk"});
 
     const vw::ConversionResult converted = vw::convertToQemu(config, vw::HostPlatform::MacOS);
@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
     persistedPpc.guestOs = "Classic MacOS";
     persistedPpc.architecture = "ppc";
     persistedPpc.machine = "mac99";
-    persistedPpc.unsupportedArgs = {"-device", "std"};
+    persistedPpc.unsupportedArgs = QStringList{"-device", "std"};
     const vw::ConversionResult persistedPpcConverted =
         vw::convertToQemu(persistedPpc, vw::HostPlatform::MacOS);
     const QStringList persistedPpcArgs =
@@ -233,7 +233,7 @@ int main(int argc, char** argv) {
     ppcStorageConfig.architecture = "ppc";
     ppcStorageConfig.machine = "mac99";
     ppcStorageConfig.usb.controller = "usb";
-    ppcStorageConfig.usb.devices = {"usb-kbd", "usb-mouse", "usb-tablet"};
+    ppcStorageConfig.usb.devices = QStringList{"usb-kbd", "usb-mouse", "usb-tablet"};
     ppcStorageConfig.disks.append({"/tmp/install.iso", "cdrom", "raw", true, "cdrom"});
     ppcStorageConfig.disks.append({"/tmp/system.qcow2", "virtio", "qcow2", false, "disk", 2048});
     const vw::ConversionResult ppcStorageConverted =
