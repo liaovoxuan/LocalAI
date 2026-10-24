@@ -58,7 +58,7 @@ class ModelDistributionTests(unittest.TestCase):
 
     def test_gui_reports_the_block_and_never_starts_a_download(self):
         module = importlib.import_module("local_ai")
-        tree = ast.parse(Path(module.__file__).read_text())
+        tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
         method = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "run_install")
         namespace = dict(module.__dict__)
         exec(compile(ast.Module(body=[method], type_ignores=[]), module.__file__, "exec"), namespace)
