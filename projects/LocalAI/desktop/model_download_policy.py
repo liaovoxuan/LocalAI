@@ -6,6 +6,7 @@ caller's public IP through Country.is; only a country code is retained.
 
 import json
 import re
+import ssl
 from urllib.request import Request, urlopen
 
 
@@ -18,8 +19,14 @@ class ModelDownloadUnavailable(PermissionError):
 
 def require_model_download_available():
     try:
+        try:
+            import certifi
+        except ImportError:
+            context = ssl.create_default_context()
+        else:
+            context = ssl.create_default_context(cafile=certifi.where())
         request = Request(COUNTRY_LOOKUP_URL, headers={"User-Agent": "LocalAI-model-download"})
-        with urlopen(request, timeout=8) as response:
+        with urlopen(request, timeout=8, context=context) as response:
             data = json.loads(response.read(16384))
         country = data.get("country") if isinstance(data, dict) else None
         if not isinstance(country, str) or not re.fullmatch(r"[A-Z]{2}", country) or country in {"XX", "ZZ"}:
