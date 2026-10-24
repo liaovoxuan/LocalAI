@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import runpy
 from pathlib import Path
 
 SPEC_DIR = Path(SPECPATH).resolve()
@@ -17,13 +18,13 @@ datas = [
     (str(SHARED_DIR / "assets" / "icons"), "assets/icons"),
     (str(REPO_ROOT / "projects" / "LocalAI" / "resources" / "Readme.docx"), "."),
 ]
-if RUNTIME_DIR.is_dir():
-    datas.append((str(RUNTIME_DIR), "runtime/llama.cpp"))
+runtime_datas = runpy.run_path(str(REPO_ROOT / "tooling" / "packaging_runtime.py"))["runtime_datas"]
+datas.extend(runtime_datas(RUNTIME_DIR))
 
 
 a = Analysis(
     [str(SOURCE)],
-    pathex=[str(PROJECT_DIR / "desktop")],
+    pathex=[str(PROJECT_DIR / "desktop"), str(REPO_ROOT / "projects" / "LocalAI" / "desktop")],
     binaries=[],
     datas=datas,
     hiddenimports=['PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'cpuinfo'],

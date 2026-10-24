@@ -2,6 +2,7 @@
 
 import json
 import os
+import runpy
 from pathlib import Path
 
 SPEC_DIR = Path(SPECPATH).resolve()
@@ -18,8 +19,8 @@ datas = [
     (str(SHARED_DIR / "assets" / "icons"), "assets/icons"),
     (str(PROJECT_DIR / "resources" / "Readme.docx"), "."),
 ]
-if RUNTIME_DIR.is_dir():
-    datas.append((str(RUNTIME_DIR), "runtime/llama.cpp"))
+runtime_datas = runpy.run_path(str(REPO_ROOT / "tooling" / "packaging_runtime.py"))["runtime_datas"]
+datas.extend(runtime_datas(RUNTIME_DIR))
 
 
 a = Analysis(

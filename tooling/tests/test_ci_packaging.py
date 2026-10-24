@@ -3,6 +3,7 @@ import importlib.util
 import io
 import os
 import runpy
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -24,6 +25,48 @@ def load_module(name, path):
 
 
 class CIPackagingTests(unittest.TestCase):
+    def test_specs_exclude_cached_models_and_keep_runtime_binaries(self):
+        specs = list((ROOT / "projects/LocalAI/packaging").glob("*.spec"))
+        specs += list((ROOT / "projects/LocalAI-SE/packaging").glob("*.spec"))
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp).resolve()
+            helper = root / "tooling/packaging_runtime.py"
+            helper.parent.mkdir(parents=True)
+            shutil.copy2(ROOT / "tooling/packaging_runtime.py", helper)
+            version = root / "shared/resources/version.json"
+            version.parent.mkdir(parents=True)
+            version.write_text('{"version": "1.0"}')
+            runtime = root / "shared/runtime/llama.cpp"
+            binaries = ["linux/x64/bin/llama-cli", "linux/x64/bin/libggml.so.0",
+                        "windows/x64/bin/llama-server.exe", "windows/x64/bin/ggml.dll",
+                        "macos/arm64/bin/libllama.dylib"]
+            weights = ["models/default.gguf", "models/weights.bin", "models/model.npz",
+                       "linux/x64/bin/accidental.gguf", "linux/x64/bin/weights.so.gguf"]
+            for name in binaries + weights:
+                path = runtime / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"cached file")
+            for spec in specs:
+                with self.subTest(spec=spec):
+                    target = root / spec.relative_to(ROOT)
+                    target.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(spec, target)
+                    collected = []
+
+                    def analysis(scripts, **kwargs):
+                        collected.extend(kwargs["datas"])
+                        return SimpleNamespace(pure=[], scripts=scripts, binaries=[], datas=[])
+
+                    namespace = {"Analysis": analysis, "SPECPATH": str(target.parent)}
+                    for name in ("PYZ", "EXE", "COLLECT", "BUNDLE"):
+                        namespace[name] = lambda *args, **kwargs: SimpleNamespace()
+                    runpy.run_path(str(target), init_globals=namespace)
+                    payload = {Path(source).relative_to(runtime).as_posix()
+                               for source, destination in collected if destination.startswith("runtime/")}
+                    self.assertEqual(payload, set(binaries))
+            for name in weights:
+                self.assertEqual((runtime / name).read_bytes(), b"cached file")
+
     def test_all_product_specs_reference_existing_resources(self):
         def analysis(scripts, **kwargs):
             for source, destination in kwargs.get("datas", []):

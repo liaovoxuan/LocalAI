@@ -10,6 +10,9 @@ from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "projects" / "LocalAI" / "desktop"))
+from model_download_policy import require_model_download_available
+
 MODEL_DIR = ROOT / "shared" / "runtime" / "llama.cpp" / "models"
 DEFAULT_MODEL_NAME = os.environ.get("LOCALAI_LLAMA_CPP_MODEL", "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf")
 MODEL_URLS = {
@@ -19,6 +22,7 @@ MODEL_URLS = {
 
 
 def download(url, target):
+    require_model_download_available()
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_suffix(target.suffix + ".part")
     done = partial.stat().st_size if partial.exists() else 0

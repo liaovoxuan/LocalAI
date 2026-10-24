@@ -33,6 +33,13 @@ from datetime import datetime
 import requests
 import psutil
 
+# Frozen builds collect the shared policy through the spec's analysis path.
+if not getattr(sys, "frozen", False):
+    _POLICY_MODULE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "LocalAI", "desktop"))
+    if _POLICY_MODULE_DIR not in sys.path:
+        sys.path.insert(0, _POLICY_MODULE_DIR)
+from model_download_policy import ModelDownloadUnavailable, require_model_download_available
+
 get_cpu_info = None
 _CPUINFO_LOADED = False
 
@@ -2616,6 +2623,11 @@ def model_exists(model_name):
 
 
 def pull_model(model_name, config):
+    try:
+        require_model_download_available()
+    except ModelDownloadUnavailable as exc:
+        print(str(exc))
+        return False
     print(tr(config, "pulling_model", model=model_name))
     print(tr(config, "pulling_model_hint"))
 
@@ -3407,6 +3419,7 @@ LLAMACPP_MODEL_URLS = {
 
 
 def download_llamacpp_model(model_name, config=None, progress=None):
+    require_model_download_available()
     cfg = config or {}
     url = LLAMACPP_MODEL_URLS.get(os.path.basename(model_name), model_name if str(model_name).startswith(("http://", "https://")) else "")
     if not url:

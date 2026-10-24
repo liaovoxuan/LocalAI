@@ -55,6 +55,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
 
+      - name: Validate model download policy
+        if: matrix.platform == 'windows'
+        run: python -m unittest tooling.tests.test_model_distribution -v
+
       - name: Install Linux packaging dependencies
         if: matrix.platform == 'linux'
         run: |
@@ -86,7 +90,6 @@ jobs:
           cmake --build build/virtualworld --config Release --parallel 2
           ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           python tooling/scripts/build_llamacpp_runtime.py
-          python tooling/scripts/download_default_llamacpp_model.py
           pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI.spec
           pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE.spec
           pyinstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI.spec
@@ -117,14 +120,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller requests psutil py-cpuinfo pillow
           mkdir -p release
+          python -m unittest tooling.tests.test_model_distribution -v
           cmake -S projects/VirtualWorld -B build/virtualworld -DCMAKE_BUILD_TYPE=Release
           cmake --build build/virtualworld --config Release --parallel 2
           ctest --test-dir build/virtualworld -C Release --output-on-failure -R "VirtualWorldMiniVmacInProcess"
           if ! python tooling/scripts/build_llamacpp_runtime.py; then
             echo "llama.cpp runtime was not bundled because it failed to build in this GitHub runner." > release/llamacpp-runtime-unavailable-${{ matrix.arch }}.txt
-          fi
-          if ! python tooling/scripts/download_default_llamacpp_model.py; then
-            echo "Default llama.cpp model was not bundled because model download failed in this GitHub runner." > release/llamacpp-model-unavailable-${{ matrix.arch }}.txt
           fi
           pyinstaller --clean --noconfirm projects/LocalAI/packaging/LocalAI_Linux.spec
           pyinstaller --clean --noconfirm projects/LocalAI-SE/packaging/LocalAI_SE_Linux.spec

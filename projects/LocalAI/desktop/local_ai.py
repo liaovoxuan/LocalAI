@@ -51,6 +51,7 @@ import clouderrors
 import cloudproviders
 import cloudsecrets
 import cloudusage
+from model_download_policy import ModelDownloadUnavailable, require_model_download_available
 
 get_cpu_info = None
 _CPUINFO_LOADED = False
@@ -2989,6 +2990,11 @@ def model_exists(model_name):
 
 
 def pull_model(model_name, config):
+    try:
+        require_model_download_available()
+    except ModelDownloadUnavailable as exc:
+        print(str(exc))
+        return False
     print(tr(config, "pulling_model", model=model_name))
     print(tr(config, "pulling_model_hint"))
 
@@ -4167,6 +4173,7 @@ def run_first_start_gui_wizard(config):
                     save_config(self.config_data)
                     self.install_queue.put(("done", True))
                     return
+                require_model_download_available()
                 process = subprocess.Popen(
                     [get_ollama_binary_path() or "ollama", "pull", model],
                     stdout=subprocess.PIPE,
@@ -4181,6 +4188,8 @@ def run_first_start_gui_wizard(config):
                         if text:
                             self.install_queue.put(("progress", text))
                 self.install_queue.put(("done", process.wait() == 0))
+            except ModelDownloadUnavailable as exc:
+                self.install_queue.put(("blocked", str(exc)))
             except Exception:
                 self.install_queue.put(("done", False))
 
@@ -4190,6 +4199,12 @@ def run_first_start_gui_wizard(config):
                     kind, payload = self.install_queue.get_nowait()
                     if kind == "progress":
                         self.status_label.config(text=payload, fg=BLUE)
+                    elif kind == "blocked":
+                        self.installing = False
+                        self.refresh_model_controls()
+                        self.status_label.config(text=payload, fg=ERROR)
+                        messagebox.showinfo(self.t("model_title"), payload)
+                        return
                     elif kind == "done":
                         self.installing = False
                         if payload:
@@ -5052,6 +5067,7 @@ LLAMACPP_MODEL_URLS = {
 
 
 def download_llamacpp_model(model_name, config=None, progress=None):
+    require_model_download_available()
     cfg = config or {}
     url = LLAMACPP_MODEL_URLS.get(os.path.basename(model_name), model_name if str(model_name).startswith(("http://", "https://")) else "")
     if not url:
