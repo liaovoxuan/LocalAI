@@ -3202,6 +3202,7 @@ def run_cloudai_gui():
 def run_packaging_smoke_test():
     """Exercise native GUI libraries and bundled resources without network access."""
     import tkinter as tk
+    import ssl
     from tkinter import ttk
     from PIL import Image, ImageTk
 
@@ -3217,10 +3218,16 @@ def run_packaging_smoke_test():
                          "docs/third-party-plugins.md", "plugin_examples/hello_plugin/plugin.json"):
             if not os.path.isfile(resource_path(*resource.split("/"))):
                 raise FileNotFoundError(resource)
+        ca_bundle = requests.certs.where()
+        if getattr(sys, "frozen", False) and not Path(ca_bundle).resolve().is_relative_to(Path(sys._MEIPASS).resolve()):
+            raise RuntimeError("HTTPS CA bundle is outside the frozen application")
+        trusted_certs = ssl.create_default_context(cafile=ca_bundle).cert_store_stats()["x509_ca"]
+        if not trusted_certs:
+            raise RuntimeError("HTTPS CA bundle contains no trusted certificates")
         print(json.dumps({"app": APP_NAME, "version": APP_VERSION,
                           "arch": normalized_arch(), "frozen": bool(getattr(sys, "frozen", False)),
                           "tk": root.tk.call("info", "patchlevel"),
-                          "pillow": Image.__version__, "status": "ok"}))
+                          "pillow": Image.__version__, "trusted_certificates": trusted_certs, "status": "ok"}))
     finally:
         root.destroy()
 

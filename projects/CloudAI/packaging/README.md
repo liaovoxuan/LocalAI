@@ -11,7 +11,7 @@ PyInstaller 会在目标架构上打包 Python 和 Tk/Pillow；缺少预编译 b
 - `cloudai-1.0.1-linux-<arch>.deb`
 - `cloudai-1.0.1-linux-<arch>.rpm`
 - `cloudai-1.0.1-linux-<arch>.tar.gz`（解压后运行 `CloudAI/CloudAI`）
-- `SHA256SUMS`、`build-manifest.json`、`smoke-test.json`
+- `SHA256SUMS`、`build-manifest.json` 和桌面运行库验证报告
 
 版本号读取 `shared/resources/version.json` 的 `components.CloudAI`。
 安装前可运行 `sha256sum -c SHA256SUMS`。Debian/Ubuntu 使用
@@ -32,7 +32,9 @@ docker run --rm --platform linux/arm64 \
 
 将两处 `arm64` 替换为 `riscv64` 即可构建 RISC-V。构建会验证所有 ELF
 的真实架构，在 Xvfb 中运行冻结后的 `CloudAI --smoke-test`，然后检查 deb/rpm
-架构字段、解包 deb 并再次执行桌面运行库检查。产物位于 `release/cloudai/<arch>/`。
+架构字段、解包 deb 并再次执行桌面运行库检查。随后在没有系统 Python 的全新容器内
+安装 deb，测试桌面启动器，再卸载并测试位于含空格路径下的便携包；HTTPS CA 证书
+也必须来自包内。产物位于 `release/cloudai/<arch>/`。
 
 原来的 `Build App` 工作流仅构建 Linux x86_64，其 artifact 曾误称为
 `LocalAI-linux-universal-1.0`；现已更名为 `LocalAI-linux-x64-1.0`。

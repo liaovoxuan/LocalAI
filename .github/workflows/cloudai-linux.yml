@@ -12,6 +12,7 @@ on:
       - shared/assets/icons/**
       - tooling/scripts/build_cloudai_linux.sh
       - tooling/scripts/package_cloudai_linux.py
+      - tooling/scripts/verify_cloudai_linux.sh
       - tooling/tests/test_cloudai_linux_packaging.py
   pull_request:
     paths:
@@ -21,6 +22,7 @@ on:
       - shared/assets/icons/**
       - tooling/scripts/build_cloudai_linux.sh
       - tooling/scripts/package_cloudai_linux.py
+      - tooling/scripts/verify_cloudai_linux.sh
       - tooling/tests/test_cloudai_linux_packaging.py
 
 permissions:
@@ -55,6 +57,14 @@ jobs:
             -e SOURCE_REVISION="${GITHUB_SHA}" \
             -v "$PWD:/workspace" -w /workspace ubuntu:24.04 \
             bash tooling/scripts/build_cloudai_linux.sh "${TARGET_ARCH}"
+      - name: Verify installed and portable apps without system Python
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --platform "linux/${TARGET_ARCH}" \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -v "$PWD:/workspace" -w /workspace ubuntu:24.04 \
+            bash tooling/scripts/verify_cloudai_linux.sh "${TARGET_ARCH}"
       - name: Upload CloudAI packages
         uses: actions/upload-artifact@v4
         with:

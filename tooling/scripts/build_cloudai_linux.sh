@@ -17,7 +17,9 @@ apt-get install -y --no-install-recommends \
   xvfb xauth desktop-file-utils rpm
 python3 -m venv --system-site-packages .venv-cloudai-linux
 source .venv-cloudai-linux/bin/activate
-python -m pip install 'pyinstaller==6.22.3' 'pyinstaller-hooks-contrib==2026.9'
+# Debian's certifi is patched to an absolute Debian-only system path. Use the
+# upstream certificate bundle so the same frozen app also works on RPM systems.
+python -m pip install 'pyinstaller==6.22.3' 'pyinstaller-hooks-contrib==2026.9' 'certifi==2026.10.23'
 python -m unittest tooling.tests.test_cloudai_linux_packaging -v
 python -m unittest discover -s projects/CloudAI/desktop -p test_cloudai_plugins.py -v
 python -m PyInstaller --clean --noconfirm projects/CloudAI/packaging/CloudAI_Linux.spec
