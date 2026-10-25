@@ -51,8 +51,19 @@ LocalAI 桌面端的本地/云端模式、云服务商与密钥配置、附件�
 
 ### GitHub 下载 CloudAI Linux ARM64 / RISC-V 64
 
-打开 [Build App](https://github.com/liaovoxuan/LocalAI/actions/workflows/main.yml)，
-选择最新的成功运行，在页面底部 **Artifacts** 中按设备架构下载：
+无需登录 GitHub 的公开下载入口是
+[CloudAI 1.0.1 Linux Release](https://github.com/liaovoxuan/LocalAI/releases/tag/cloudai-v1.0.1-linux)：
+
+- [ARM64 / AArch64 完整 ZIP](https://github.com/liaovoxuan/LocalAI/releases/download/cloudai-v1.0.1-linux/CloudAI-Linux-ARM64-aarch64.zip)
+- [RISC-V 64 完整 ZIP](https://github.com/liaovoxuan/LocalAI/releases/download/cloudai-v1.0.1-linux/CloudAI-Linux-RISCV64.zip)
+
+ZIP 内含对应架构的 DEB、RPM、便携 tar.gz、SHA-256 和架构核验报告。
+Release 的 Assets 也提供单独的安装包。
+
+开发构建位于 [Build App](https://github.com/liaovoxuan/LocalAI/actions/workflows/main.yml)。
+选择成功运行，在页面底部 **Artifacts** 中按设备架构下载；
+注意：[GitHub Actions 的 artifact 下载要求登录 GitHub](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts)，
+即使仓库公开，未登录访问 artifact 下载地址也可能显示 404。公开下载请使用上面的 Release。
 
 | Linux 架构 | 下载的 artifact | 包内可执行文件的 ELF 架构 |
 | --- | --- | --- |

@@ -1,5 +1,9 @@
 # Linux ARM64 / RISC-V 64 桌面包
 
+公开下载使用 [CloudAI Linux Release](https://github.com/liaovoxuan/LocalAI/releases/tag/cloudai-v1.0.1-linux)，
+不需要 GitHub 登录；完整 ZIP 和独立的 DEB、RPM、tar.gz 均位于 Release 的 Assets 中。
+Actions artifact 下载要求登录 GitHub，未登录可能显示 404；不要把 Actions artifact 地址作为公开下载地址。
+
 GitHub Actions 的 **Build App** 工作流会调用 **Build CloudAI Linux**，
 在同一个运行页面列出 `CloudAI-linux-arm64` 和 `CloudAI-linux-riscv64` 任务及产物。
 两个 CloudAI 任务独立于 LocalAI 的 llama.cpp 和 VirtualWorld。ARM64 使用 `ubuntu-24.04-arm` 原生 runner；
