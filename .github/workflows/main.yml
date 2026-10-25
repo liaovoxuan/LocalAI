@@ -26,8 +26,8 @@ jobs:
             python-arch: x64
             pyinstaller-target-arch: ""
           - platform: linux
-            arch: universal
-            artifact-arch: universal
+            arch: x64
+            artifact-arch: x64
             os: ubuntu-24.04
             python-arch: x64
             pyinstaller-target-arch: ""

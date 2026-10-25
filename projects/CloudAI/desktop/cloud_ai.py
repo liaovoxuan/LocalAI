@@ -3199,7 +3199,36 @@ def run_cloudai_gui():
     return True
 
 
+def run_packaging_smoke_test():
+    """Exercise native GUI libraries and bundled resources without network access."""
+    import tkinter as tk
+    from tkinter import ttk
+    from PIL import Image, ImageTk
+
+    root = tk.Tk()
+    try:
+        root.withdraw()
+        ttk.Label(root, text="CloudAI").pack()
+        with Image.open(resource_path("assets", "icons", "localai_dark_256.png")) as icon:
+            photo = ImageTk.PhotoImage(icon, master=root)
+            root.iconphoto(True, photo)
+        root.update()
+        for resource in ("config.json", "version.json", CLOUDAI_POLICY_DOC,
+                         "docs/third-party-plugins.md", "plugin_examples/hello_plugin/plugin.json"):
+            if not os.path.isfile(resource_path(*resource.split("/"))):
+                raise FileNotFoundError(resource)
+        print(json.dumps({"app": APP_NAME, "version": APP_VERSION,
+                          "arch": normalized_arch(), "frozen": bool(getattr(sys, "frozen", False)),
+                          "tk": root.tk.call("info", "patchlevel"),
+                          "pillow": Image.__version__, "status": "ok"}))
+    finally:
+        root.destroy()
+
+
 def main():
+    if "--smoke-test" in sys.argv[1:]:
+        run_packaging_smoke_test()
+        return
     ensure_cloud_dirs()
     run_cloudai_gui()
 

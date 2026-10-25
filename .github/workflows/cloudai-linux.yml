@@ -1,0 +1,63 @@
+name: Build CloudAI Linux
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths:
+      - .github/workflows/cloudai-linux.yml
+      - projects/CloudAI/**
+      - shared/resources/**
+      - shared/assets/icons/**
+      - tooling/scripts/build_cloudai_linux.sh
+      - tooling/scripts/package_cloudai_linux.py
+      - tooling/tests/test_cloudai_linux_packaging.py
+  pull_request:
+    paths:
+      - .github/workflows/cloudai-linux.yml
+      - projects/CloudAI/**
+      - shared/resources/**
+      - shared/assets/icons/**
+      - tooling/scripts/build_cloudai_linux.sh
+      - tooling/scripts/package_cloudai_linux.py
+      - tooling/tests/test_cloudai_linux_packaging.py
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: CloudAI-linux-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+          - arch: riscv64
+            runner: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable RISC-V emulation
+        if: matrix.arch == 'riscv64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: riscv64
+      - name: Build and test in target Linux userspace
+        env:
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          docker run --rm --platform "linux/${TARGET_ARCH}" \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -e SOURCE_REVISION="${GITHUB_SHA}" \
+            -v "$PWD:/workspace" -w /workspace ubuntu:24.04 \
+            bash tooling/scripts/build_cloudai_linux.sh "${TARGET_ARCH}"
+      - name: Upload CloudAI packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: CloudAI-linux-${{ matrix.arch }}
+          path: release/cloudai/${{ matrix.arch }}/*
+          if-no-files-found: error
