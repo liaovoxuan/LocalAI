@@ -31,7 +31,8 @@ a = Analysis(
         *PLUGIN_EXAMPLE_DATAS,
     ],
     hiddenimports=[
-        'PIL', 'PIL.Image', 'PIL.ImageTk', 'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'tkinter.ttk', 'cpuinfo',
+        'PIL', 'PIL.Image', 'PIL.ImageTk', 'PIL._imagingtk', 'PIL._tkinter_finder',
+        'tkinter', 'tkinter.filedialog', 'tkinter.messagebox', 'tkinter.ttk', 'cpuinfo',
     ],
     hookspath=[],
     hooksconfig={},
