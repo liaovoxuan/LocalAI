@@ -1,19 +1,8 @@
 name: Build CloudAI Linux
 
 on:
+  workflow_call:
   workflow_dispatch:
-  push:
-    branches: [main]
-    tags: ["v*"]
-    paths:
-      - .github/workflows/cloudai-linux.yml
-      - projects/CloudAI/**
-      - shared/resources/**
-      - shared/assets/icons/**
-      - tooling/scripts/build_cloudai_linux.sh
-      - tooling/scripts/package_cloudai_linux.py
-      - tooling/scripts/verify_cloudai_linux.sh
-      - tooling/tests/test_cloudai_linux_packaging.py
   pull_request:
     paths:
       - .github/workflows/cloudai-linux.yml

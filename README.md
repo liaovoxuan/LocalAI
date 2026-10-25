@@ -49,6 +49,22 @@ LocalAI 桌面端的本地/云端模式、云服务商与密钥配置、附件�
 
 ## 常用构建命令
 
+### GitHub 下载 CloudAI Linux ARM64 / RISC-V 64
+
+打开 [Build App](https://github.com/liaovoxuan/LocalAI/actions/workflows/main.yml)，
+选择最新的成功运行，在页面底部 **Artifacts** 中按设备架构下载：
+
+| Linux 架构 | 下载的 artifact | 包内可执行文件的 ELF 架构 |
+| --- | --- | --- |
+| ARM64 / AArch64 | `CloudAI-linux-arm64` | `ARM aarch64` |
+| RISC-V 64 | `CloudAI-linux-riscv64` | `RISC-V`，LP64D ABI |
+| x86_64 / AMD64 | `LocalAI-linux-x64-1.0`（包含 CloudAI 等产品） | `x86-64` |
+
+ARM64 和 RISC-V 包包含 DEB、RPM、便携 tar.gz、SHA-256 校验值及验证报告，
+要求 glibc 2.39 或更高版本及 X11/XWayland 桌面，不需要另装 Python。
+旧 `LocalAI-linux-universal-1.0` 实际只适用于 x86_64。
+安装和架构核验方法见 [CloudAI Linux 打包说明](projects/CloudAI/packaging/README.md)。
+
 ### 本地多平台桌面打包
 
 仓库提供统一的 `localai-pack` 命令封装现有 PyInstaller spec。它会按项目和目标平台

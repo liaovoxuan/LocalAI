@@ -14,7 +14,7 @@ apt-get install -y --no-install-recommends \
   ca-certificates build-essential zlib1g-dev binutils file \
   python3 python3-dev python3-venv python3-tk python3-pip \
   python3-pil python3-pil.imagetk python3-requests python3-psutil python3-cpuinfo \
-  xvfb xauth desktop-file-utils rpm
+  xvfb xauth desktop-file-utils rpm cpio
 python3 -m venv --system-site-packages .venv-cloudai-linux
 source .venv-cloudai-linux/bin/activate
 # Debian's certifi is patched to an absolute Debian-only system path. Use the

@@ -52,6 +52,27 @@ def verify_smoke(path: Path, arch: str) -> dict:
     return result
 
 
+def elf_hashes(bundle: Path, arch: str) -> dict[str, str]:
+    """Identify every native file, including the actual application executable."""
+    verify_bundle(bundle, arch)
+    hashes = {}
+    for path in sorted(bundle.rglob("*")):
+        if path.is_file() and elf_machine(path) is not None:
+            with path.open("rb") as handle:
+                hashes[path.relative_to(bundle).as_posix()] = hashlib.file_digest(handle, "sha256").hexdigest()
+    return hashes
+
+
+def verify_packaged_bundle(bundle: Path, arch: str, expected_hashes: dict[str, str]) -> dict:
+    actual_hashes = elf_hashes(bundle, arch)
+    if actual_hashes != expected_hashes:
+        raise ValueError(f"Packaged ELF files differ from the verified {arch} build: {bundle}")
+    subprocess.run(["xvfb-run", "-a", "timeout", "120", str(bundle / "CloudAI"), "--smoke-test"], check=True)
+    return {"elf_class": 64, "elf_machine": ARCHES[arch][0],
+            "elf_arch": ARCHES[arch][1], "elf_files_verified": len(actual_hashes),
+            "executable_sha256": actual_hashes["CloudAI"]}
+
+
 def stage_root(bundle: Path, root: Path) -> None:
     shutil.copytree(bundle, root / "opt/cloudai", symlinks=True)
     launcher = root / "usr/bin/cloudai"
@@ -71,6 +92,7 @@ def stage_root(bundle: Path, root: Path) -> None:
 
 def package(bundle: Path, arch: str, output: Path) -> None:
     elf_count = verify_bundle(bundle, arch)
+    native_hashes = elf_hashes(bundle, arch)
     smoke = verify_smoke(output / "smoke-test.json", arch)
     version_data = json.loads((ROOT / "shared/resources/version.json").read_text(encoding="utf-8"))
     version = version_data["components"]["CloudAI"]
@@ -146,13 +168,41 @@ cp -a {root}/opt {root}/usr %{{buildroot}}/
         raise ValueError("Package metadata architecture does not match target")
     unpacked = work / "unpacked-deb"
     subprocess.run(["dpkg-deb", "-x", str(deb), str(unpacked)], check=True)
-    verify_bundle(unpacked / "opt/cloudai", arch)
-    subprocess.run(["xvfb-run", "-a", "timeout", "120", str(unpacked / "opt/cloudai/CloudAI"), "--smoke-test"], check=True)
+    package_checks = {
+        deb.name: {"package_arch": deb_arch,
+                   **verify_packaged_bundle(unpacked / "opt/cloudai", arch, native_hashes)}
+    }
+    rpm = output / f"{prefix}.rpm"
+    cpio = work / "rpm-payload.cpio"
+    with cpio.open("wb") as handle:
+        subprocess.run(["rpm2cpio", str(rpm)], stdout=handle, check=True)
+    rpm_root = work / "unpacked-rpm"
+    rpm_root.mkdir()
+    with cpio.open("rb") as handle:
+        subprocess.run(["cpio", "-idm", "--quiet", "--no-absolute-filenames"],
+                       stdin=handle, cwd=rpm_root, check=True)
+    package_checks[rpm.name] = {
+        "package_arch": rpm_arch_actual,
+        **verify_packaged_bundle(rpm_root / "opt/cloudai", arch, native_hashes)
+    }
+    tar = output / f"{prefix}.tar.gz"
+    tar_root = work / "unpacked-tar"
+    with tarfile.open(tar, "r:gz") as archive:
+        archive.extractall(tar_root, filter="data")
+    package_checks[tar.name] = verify_packaged_bundle(tar_root / "CloudAI", arch, native_hashes)
     manifest = {"app": "CloudAI", "version": version, "arch": arch,
                 "source_revision": os.environ.get("SOURCE_REVISION", "unknown"),
                 "build_os": "Ubuntu 24.04", "minimum_glibc": "2.39",
-                "elf_files_verified": elf_count, "smoke_test": smoke}
+                "elf_files_verified": elf_count, "smoke_test": smoke,
+                "packages": package_checks}
     (output / "build-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    architecture_lines = [f"CloudAI {version} Linux {arch} / {rpm_arch}",
+                          f"Every packaged executable and native library is ELF64, e_machine={ARCHES[arch][0]}.",
+                          "Each DEB, RPM and tar.gz was extracted and its native files compared by SHA-256."]
+    for name, result in package_checks.items():
+        architecture_lines.append(f"{name}: {result['elf_arch']}, ELF64, "
+                                  f"{result['elf_files_verified']} native files, executable SHA256={result['executable_sha256']}")
+    (output / "ARCHITECTURE.txt").write_text("\n".join(architecture_lines) + "\n", encoding="utf-8")
     sums = []
     for path in sorted(output.iterdir()):
         if path.is_file() and path.name != "SHA256SUMS":

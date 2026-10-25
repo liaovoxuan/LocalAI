@@ -12,6 +12,12 @@ permissions:
   contents: write
 
 jobs:
+  cloudai-linux:
+    name: CloudAI Linux ARM64 / RISC-V 64
+    uses: ./.github/workflows/cloudai-linux.yml
+    permissions:
+      contents: read
+
   build:
     name: ${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}

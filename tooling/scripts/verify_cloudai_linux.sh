@@ -19,4 +19,4 @@ portable="$(mktemp -d)/portable CloudAI"
 mkdir -p "$portable"
 tar -xzf "$out"/*.tar.gz -C "$portable"
 xvfb-run -a timeout 120 "$portable/CloudAI/CloudAI" --smoke-test | tee "$out/portable-smoke-test.json"
-(cd "$out" && sha256sum *.json *.deb *.rpm *.tar.gz > SHA256SUMS)
+(cd "$out" && sha256sum *.json *.txt *.deb *.rpm *.tar.gz > SHA256SUMS)

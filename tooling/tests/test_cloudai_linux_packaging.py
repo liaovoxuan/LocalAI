@@ -4,6 +4,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts/package_cloudai_linux.py"
 SPEC = importlib.util.spec_from_file_location("cloudai_linux_packaging", SCRIPT)
@@ -62,6 +63,20 @@ class CloudAILinuxPackagingTests(unittest.TestCase):
                 path.write_text(json.dumps({**valid, **patch}), encoding="utf-8")
                 with self.assertRaises(ValueError):
                     packaging.verify_smoke(path, "arm64")
+
+    def test_packaged_payload_must_match_native_build_bytes(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            self.make_bundle(root, 183)
+            expected = packaging.elf_hashes(root, "arm64")
+            with mock.patch.object(packaging.subprocess, "run"):
+                evidence = packaging.verify_packaged_bundle(root, "arm64", expected)
+            self.assertEqual(evidence["elf_machine"], 183)
+            self.assertEqual(evidence["executable_sha256"], expected["CloudAI"])
+            library = root / "_internal/PIL/_imaging.so"
+            library.write_bytes(library.read_bytes() + b"modified package contents")
+            with self.assertRaisesRegex(ValueError, "differ from the verified"):
+                packaging.verify_packaged_bundle(root, "arm64", expected)
 
 
 if __name__ == "__main__":
